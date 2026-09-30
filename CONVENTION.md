@@ -36,7 +36,7 @@ fix/#18-token-refresh
 hotfix/#25-camera-crash
 ```
 
-- 기본 브랜치: `main` (배포), `develop` (통합) 제안. `> 결정 필요`
+- 기본 브랜치: `dev` (통합, 기본 브랜치). `main` (배포). 작업 브랜치는 `dev`에서 분기하고 `dev`로 PR한다.
 
 ---
 
