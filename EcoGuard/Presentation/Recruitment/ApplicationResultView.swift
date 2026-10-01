@@ -30,15 +30,15 @@ struct ApplicationResultView: View {
             resultView(ApplicationResultContent(outcome: outcome))
         case .notApplied:
             RecruitmentMessageView(
-                title: "아직 신청하지 않았어요",
-                message: "모집 공고에서 신청할 수 있어요.",
+                title: RecruitmentCopy.Result.notAppliedTitle,
+                message: RecruitmentCopy.Result.notAppliedMessage,
                 onBack: onExit,
                 onExit: onExit
             )
         case .failed:
             RecruitmentMessageView(
-                title: "신청 결과를 불러오지 못했어요",
-                message: "잠시 후 다시 시도해 주세요.",
+                title: RecruitmentCopy.Result.failedTitle,
+                message: RecruitmentCopy.Result.failedMessage,
                 retry: { await viewModel.load() },
                 onBack: onExit,
                 onExit: onExit
@@ -69,7 +69,7 @@ struct ApplicationResultView: View {
         }
         .safeAreaInset(edge: .bottom) {
             BottomCTA {
-                EcoButton("홈으로", style: content.isPrimaryAction ? .primary : .secondary, action: onExit)
+                EcoButton(RecruitmentCopy.Common.home, style: content.isPrimaryAction ? .primary : .secondary, action: onExit)
             }
         }
     }

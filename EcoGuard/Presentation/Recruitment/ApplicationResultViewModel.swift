@@ -53,7 +53,7 @@ final class ApplicationResultViewModel {
     }
 }
 
-/// 결과별 문구·아이콘. 승인(246:112)·신청 중 마감(246:128)은 Figma 문구, 나머지는 Figma에 프레임이 없어 새로 썼다.
+/// 결과별 문구·아이콘. 문구는 `RecruitmentCopy.Result`에 있다.
 struct ApplicationResultContent: Equatable {
     enum Icon: Equatable {
         case check
@@ -71,28 +71,30 @@ struct ApplicationResultContent: Equatable {
         switch outcome {
         case .closedWhileApplying:
             icon = .cross
-            title = "신청하지 못했어요"
-            message = "신청하는 사이 모집 인원이 모두 찼어요.\n다음 모집 때 다시 신청해 주세요."
+            title = RecruitmentCopy.Result.closedTitle
+            message = RecruitmentCopy.Result.closedMessage
             isPrimaryAction = false
         case .applied(let application):
-            let applied = "\(application.order)번째로 신청했어요 · \(RecruitmentFormatter.appliedAt(application.appliedAt))"
+            let applied = RecruitmentCopy.Result.appliedLine(
+                order: application.order,
+                appliedAt: RecruitmentFormatter.appliedAt(application.appliedAt)
+            )
             switch application.status {
             case .approved:
                 icon = .check
-                title = "환경지킴이가 됐어요"
-                message = application.isAreaAssigned
-                    ? "\(applied)\n청소 구역이 배정됐어요. 홈에서 확인해 주세요."
-                    : "\(applied)\n청소 구역이 배정되면 알려드려요."
+                title = RecruitmentCopy.Result.approvedTitle
+                message = "\(applied)\n"
+                    + (application.isAreaAssigned ? RecruitmentCopy.Result.areaAssigned : RecruitmentCopy.Result.awaitingAssignment)
                 isPrimaryAction = true
             case .pending:
                 icon = .clock
-                title = "신청했어요"
-                message = "\(applied)\n선생님이 확인하면 알려드려요."
+                title = RecruitmentCopy.Result.pendingTitle
+                message = "\(applied)\n\(RecruitmentCopy.Result.pendingMessage)"
                 isPrimaryAction = true
             case .rejected:
                 icon = .cross
-                title = "신청이 반려됐어요"
-                message = "\(applied)\n다음 모집 때 다시 신청해 주세요."
+                title = RecruitmentCopy.Result.rejectedTitle
+                message = "\(applied)\n\(RecruitmentCopy.Result.rejectedMessage)"
                 isPrimaryAction = false
             }
         }

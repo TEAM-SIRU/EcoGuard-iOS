@@ -28,11 +28,11 @@ struct RecruitmentMessageView: View {
             BottomCTA {
                 VStack(spacing: Spacing.sm) {
                     if let retry {
-                        EcoButton("다시 시도") {
+                        EcoButton(RecruitmentCopy.Common.retry) {
                             await retry()
                         }
                     }
-                    EcoButton("홈으로", style: retry == nil ? .primary : .secondary, action: onExit)
+                    EcoButton(RecruitmentCopy.Common.home, style: retry == nil ? .primary : .secondary, action: onExit)
                 }
             }
         }
@@ -41,8 +41,8 @@ struct RecruitmentMessageView: View {
 
 #Preview("조회 실패") {
     RecruitmentMessageView(
-        title: "모집 공고를 불러오지 못했어요",
-        message: "모집 상태를 확인하지 못했어요.\n다시 불러온 뒤 신청 가능 여부를 확인해 주세요.",
+        title: RecruitmentCopy.Notice.failedTitle,
+        message: RecruitmentCopy.Notice.failedMessage,
         retry: {},
         onBack: {},
         onExit: {}

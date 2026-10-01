@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Figma `03 모집 공고` (246:3) · `마감` (313:2) · `이미 신청` (313:53) · `조회 실패` (514:136).
-/// 신청 기간 아님·공고 없음은 Figma에 프레임이 없어 같은 레이아웃에 문구만 새로 썼다.
+/// 신청 기간 아님·공고 없음은 Figma에 프레임이 없어 같은 레이아웃에 문구만 새로 썼다(문구는 `RecruitmentCopy`).
 /// 모집 흐름의 첫 화면이라 Figma 246:3에 없는 뒤로가기(나가기) 버튼을 위에 둔다.
 struct RecruitmentNoticeView: View {
     let viewModel: RecruitmentNoticeViewModel
@@ -27,15 +27,15 @@ struct RecruitmentNoticeView: View {
             loadedView(detail: detail, applicant: applicant)
         case .empty:
             RecruitmentMessageView(
-                title: "지금은 모집 공고가 없어요",
-                message: "모집이 시작되면 홈에서 알려드려요.",
+                title: RecruitmentCopy.Notice.emptyTitle,
+                message: RecruitmentCopy.Notice.emptyMessage,
                 onBack: onExit,
                 onExit: onExit
             )
         case .failed:
             RecruitmentMessageView(
-                title: "모집 공고를 불러오지 못했어요",
-                message: "모집 상태를 확인하지 못했어요.\n다시 불러온 뒤 신청 가능 여부를 확인해 주세요.",
+                title: RecruitmentCopy.Notice.failedTitle,
+                message: RecruitmentCopy.Notice.failedMessage,
                 retry: { await viewModel.retry() },
                 onBack: onExit,
                 onExit: onExit
@@ -56,7 +56,7 @@ struct RecruitmentNoticeView: View {
             .padding(.top, Spacing.lg)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("불러오는 중이에요"))
+        .accessibilityLabel(Text(RecruitmentCopy.Common.loading))
     }
 
     private func loadedView(detail: RecruitmentDetail, applicant: Applicant) -> some View {
@@ -67,20 +67,23 @@ struct RecruitmentNoticeView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     EcoPageHeader(
-                        title: "\(recruitment.semester)학기 환경지킴이를 모집해요",
-                        subtitle: "반마다 최대 \(recruitment.capacityPerClass)명, 먼저 신청한 순서대로 확정돼요"
+                        title: RecruitmentCopy.Notice.title(semester: recruitment.semester),
+                        subtitle: RecruitmentCopy.Notice.subtitle(capacity: recruitment.capacityPerClass)
                     )
                     .padding(.top, Spacing.lg)
                     EcoInfoTable(rows: [
-                        .init(label: "모집 기간", value: RecruitmentFormatter.period(start: detail.startDate, end: detail.endDate)),
-                        .init(label: "모집 인원", value: "반별 최대 \(recruitment.capacityPerClass)명"),
-                        .init(label: "활동 시간", value: RecruitmentFormatter.activityTime(detail.activityWindow))
+                        .init(label: RecruitmentCopy.Notice.periodLabel, value: RecruitmentFormatter.period(start: detail.startDate, end: detail.endDate)),
+                        .init(label: RecruitmentCopy.Notice.capacityLabel, value: RecruitmentCopy.Notice.capacityValue(recruitment.capacityPerClass)),
+                        .init(label: RecruitmentCopy.Notice.activityLabel, value: RecruitmentFormatter.activityTime(detail.activityWindow))
                     ])
                     .padding(.horizontal, Spacing.screenHorizontal)
                     EcoProgressSummary(
-                        title: "\(recruitment.className) 신청 현황",
-                        value: "\(recruitment.appliedCount)/\(recruitment.capacityPerClass)명",
-                        valueAccessibilityLabel: "\(recruitment.capacityPerClass)명 중 \(recruitment.appliedCount)명 신청",
+                        title: RecruitmentCopy.Notice.progressTitle(className: recruitment.className),
+                        value: RecruitmentCopy.Notice.progressValue(applied: recruitment.appliedCount, capacity: recruitment.capacityPerClass),
+                        valueAccessibilityLabel: RecruitmentCopy.Notice.progressAccessibility(
+                            applied: recruitment.appliedCount,
+                            capacity: recruitment.capacityPerClass
+                        ),
                         progress: Double(recruitment.appliedCount) / Double(max(recruitment.capacityPerClass, 1)),
                         caption: caption(for: status, detail: detail),
                         isActive: status.isActive
@@ -92,14 +95,14 @@ struct RecruitmentNoticeView: View {
                         .accessibilityHidden(true)
                     EcoListRow(
                         icon: nil,
-                        title: "인증 1번에 봉사시간 10분",
-                        subtitle: "인증이 승인되면 활동 기록에 쌓여요",
+                        title: RecruitmentCopy.Notice.benefitTitle,
+                        subtitle: RecruitmentCopy.Notice.benefitSubtitle,
                         horizontalPadding: Spacing.screenHorizontal
                     )
                     EcoListRow(
                         icon: nil,
-                        title: "사진 1장으로 간단하게 인증",
-                        subtitle: "청소를 마치고 카메라로 찍어 보내요",
+                        title: RecruitmentCopy.Notice.howTitle,
+                        subtitle: RecruitmentCopy.Notice.howSubtitle,
                         horizontalPadding: Spacing.screenHorizontal
                     )
                 }
@@ -121,24 +124,24 @@ struct RecruitmentNoticeView: View {
     private func caption(for status: RecruitmentStatus, detail: RecruitmentDetail) -> String {
         switch status {
         case .open:
-            "\(detail.remainingSeats)자리 남았어요. 자리가 차면 바로 마감돼요"
+            RecruitmentCopy.Notice.openCaption(remainingSeats: detail.remainingSeats)
         case .full:
-            "\(detail.recruitment.className)은 자리가 모두 찼어요. 다음 모집을 기다려 주세요"
+            RecruitmentCopy.Notice.fullCaption(className: detail.recruitment.className)
         case .applied(let application):
-            "\(RecruitmentFormatter.appliedAt(application.appliedAt))에 \(application.order)번째로 신청했어요"
+            RecruitmentCopy.Notice.appliedCaption(appliedAt: RecruitmentFormatter.appliedAt(application.appliedAt), order: application.order)
         case .upcoming:
-            "\(RecruitmentFormatter.day(detail.startDate))부터 신청할 수 있어요"
+            RecruitmentCopy.Notice.upcomingCaption(startDay: RecruitmentFormatter.day(detail.startDate))
         case .ended:
-            "신청 기간이 끝났어요. 다음 모집을 기다려 주세요"
+            RecruitmentCopy.Notice.endedCaption
         }
     }
 
     /// 이미 신청했으면 버튼을 두지 않는다(Figma 313:53).
     private func buttonTitle(for status: RecruitmentStatus) -> LocalizedStringKey? {
         switch status {
-        case .open: "신청하기"
-        case .full, .ended: "모집이 마감됐어요"
-        case .upcoming: "신청 기간이 아니에요"
+        case .open: RecruitmentCopy.Notice.apply
+        case .full, .ended: RecruitmentCopy.Notice.closed
+        case .upcoming: RecruitmentCopy.Notice.notInPeriod
         case .applied: nil
         }
     }

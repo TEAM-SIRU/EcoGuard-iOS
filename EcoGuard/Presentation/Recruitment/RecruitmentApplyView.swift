@@ -24,21 +24,23 @@ struct RecruitmentApplyView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     EcoPageHeader(
-                        title: "환경지킴이 신청",
-                        subtitle: "신청하면 바로 확정돼요.\n반마다 \(viewModel.capacityPerClass)명이 차면 마감돼요."
+                        title: RecruitmentCopy.Apply.title,
+                        subtitle: RecruitmentCopy.Apply.subtitle(capacity: viewModel.capacityPerClass)
                     )
                     .padding(.top, Spacing.sm)
                     VStack(spacing: Spacing.xxl) {
                         EcoInfoTable(rows: [
-                            .init(label: "학번", value: viewModel.applicant.studentNumber),
-                            .init(label: "이름", value: viewModel.applicant.name)
+                            .init(label: RecruitmentCopy.Apply.studentNumberLabel, value: viewModel.applicant.studentNumber),
+                            .init(label: RecruitmentCopy.Apply.nameLabel, value: viewModel.applicant.name)
                         ])
                         EcoTextArea(
-                            title: "신청 동기",
-                            prompt: "환경지킴이로 활동하고 싶은 이유를 적어 주세요",
+                            title: RecruitmentCopy.Apply.motivationTitle,
+                            prompt: RecruitmentCopy.Apply.motivationPrompt,
                             text: $viewModel.motivation,
                             maxLength: ApplicationMotivation.maxLength,
-                            errorMessage: viewModel.validation == .tooLong ? "\(ApplicationMotivation.maxLength)자까지 쓸 수 있어요" : nil,
+                            errorMessage: viewModel.validation == .tooLong
+                                ? RecruitmentCopy.Apply.motivationTooLong(maxLength: ApplicationMotivation.maxLength)
+                                : nil,
                             focus: $focusedField,
                             field: .motivation
                         )
@@ -55,11 +57,11 @@ struct RecruitmentApplyView: View {
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 0) {
                 if viewModel.submitState == .failed {
-                    EcoToast(message: "신청하지 못했어요. 다시 시도해 주세요")
+                    EcoToast(message: RecruitmentCopy.Apply.failed)
                         .padding(.horizontal, Spacing.screenHorizontal)
                 }
-                BottomCTA(caption: viewModel.validation == .empty ? "신청 동기를 입력하면 신청할 수 있어요" : nil) {
-                    EcoButton("신청하기", isLoading: viewModel.isSubmitting) {
+                BottomCTA(caption: viewModel.validation == .empty ? RecruitmentCopy.Apply.motivationRequired : nil) {
+                    EcoButton(RecruitmentCopy.Apply.submit, isLoading: viewModel.isSubmitting) {
                         focusedField = nil
                         if let outcome = await viewModel.submit() {
                             onFinish(outcome)
@@ -72,7 +74,7 @@ struct RecruitmentApplyView: View {
         }
         .onChange(of: viewModel.submitState) { _, state in
             guard state == .failed else { return }
-            AccessibilityNotification.Announcement(String(localized: "신청하지 못했어요. 다시 시도해 주세요")).post()
+            AccessibilityNotification.Announcement(String(localized: RecruitmentCopy.Apply.failed)).post()
         }
     }
 }
