@@ -67,6 +67,8 @@ enum EcoTextStyle: CaseIterable {
     }
 
     /// `.lineSpacing`은 폰트 자체 줄높이 위에 더해지므로 Figma lineHeight와의 차이만 넣는다.
+    /// Noto Sans KR 기본 줄높이(약 1.448em)보다 작은 Figma lineHeight(title1·title2·sub·caption·buttonLarge·button·captionRegular)는
+    /// iOS에서 줄이지 못해 lineSpacing 0으로 고정되고 줄마다 0.3~1.7pt 커진다(sub 0.27pt, 나머지 0.6~1.7pt).
     var lineSpacing: CGFloat {
         let uiFont = UIFont(name: fontName, size: size) ?? .systemFont(ofSize: size)
         return max(0, lineHeight - uiFont.lineHeight)
