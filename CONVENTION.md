@@ -337,6 +337,7 @@ final class NoticeListViewModel {
 
 ### 타이포그래피
 - **폰트: Noto Sans KR** (커스텀 폰트). 앱 번들에 포함하고 `Info.plist`의 `UIAppFonts`에 등록한다. PostScript 이름(예: `NotoSansKR-Bold`)은 폰트 파일 기준으로 확인 필요.
+  - 번들 폰트는 KS X 1001 완성형 2,350자 서브셋이다. 새 한국어 문구 추가 후 `python3 scripts/fonts/check_glyphs.py`를 실행하고, 누락이 0이어야 한다.
 - **매핑 규칙**: Figma `{이름} · {size}/{lineHeight} {Weight}` → `EcoTextStyle` enum 케이스 1개 + `ViewModifier`. 뷰에서는 `.ecoFont(.title1)` 형태로만 쓴다.
   - size는 `Font.custom(_, size:, relativeTo:)`로 Dynamic Type 대응을 권장한다 (적용 여부는 결정 필요).
   - `.lineSpacing`은 폰트 자체 줄높이(`UIFont.lineHeight`) 위에 더해진다. `lineHeight - size`로 계산하지 않는다.
