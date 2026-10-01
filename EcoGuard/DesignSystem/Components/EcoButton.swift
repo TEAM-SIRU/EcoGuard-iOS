@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Figma `Button/primary` · `Button/secondary` · `Button/disabled` (높이 56, 풀와이드, radius 16).
-/// 비활성은 `.disabled(true)`로 표현한다. 로딩 중에는 탭을 막고 loader 아이콘을 돌린다.
+/// 비활성은 `.disabled(true)`로 표현한다. 로딩 중에는 loader 아이콘을 돌리고 탭을 무시한다.
+/// async `action`을 넘기면 끝날 때까지 스스로 로딩 상태가 되어 중복 탭을 막는다.
 struct EcoButton: View {
     enum Style {
         case primary
@@ -12,9 +13,10 @@ struct EcoButton: View {
     private let style: Style
     private let leadingIcon: ImageResource?
     private let isLoading: Bool
-    private let action: () -> Void
+    private let action: Action
 
     @Environment(\.isEnabled) private var isEnabled
+    @State private var isRunning = false
 
     init(
         _ title: LocalizedStringKey,
@@ -27,13 +29,27 @@ struct EcoButton: View {
         self.style = style
         self.leadingIcon = leadingIcon
         self.isLoading = isLoading
-        self.action = action
+        self.action = .sync(action)
+    }
+
+    init(
+        _ title: LocalizedStringKey,
+        style: Style = .primary,
+        leadingIcon: ImageResource? = nil,
+        isLoading: Bool = false,
+        action: @escaping () async -> Void
+    ) {
+        self.title = title
+        self.style = style
+        self.leadingIcon = leadingIcon
+        self.isLoading = isLoading
+        self.action = .async(action)
     }
 
     var body: some View {
-        Button(action: action) {
+        Button(action: perform) {
             HStack(spacing: Spacing.sm) {
-                if isLoading {
+                if isShowingLoading {
                     SpinningLoaderIcon()
                 } else if let leadingIcon {
                     Image(leadingIcon)
@@ -50,15 +66,34 @@ struct EcoButton: View {
             .frame(height: Metrics.height)
             .background(appearance.background, in: RoundedRectangle(cornerRadius: Radius.button))
             .contentShape(RoundedRectangle(cornerRadius: Radius.button))
-            .opacity(isLoading ? Metrics.loadingOpacity : 1)
+            .opacity(isShowingLoading ? Metrics.loadingOpacity : 1)
         }
         .buttonStyle(EcoButtonStyle())
-        .disabled(isLoading)
+        // 로딩을 `.disabled`로 막으면 VoiceOver가 비활성과 똑같이 "흐리게 표시됨"으로 읽는다. 탭은 `perform`에서 무시한다.
+        .accessibilityValue(isShowingLoading ? Text("로딩 중") : Text(verbatim: ""))
+    }
+
+    private var isShowingLoading: Bool {
+        isLoading || isRunning
+    }
+
+    private func perform() {
+        guard !isShowingLoading else { return }
+        switch action {
+        case .sync(let action):
+            action()
+        case .async(let action):
+            isRunning = true
+            Task {
+                await action()
+                isRunning = false
+            }
+        }
     }
 
     private var appearance: Appearance {
         // 로딩은 primary 색을 유지한 채 흐리게 보인다(Figma 01 로그인 · 로딩, 238:157).
-        if !isEnabled && !isLoading {
+        if !isEnabled {
             return Appearance(textStyle: .button, foreground: .ecoDisabled, background: .ecoDivider)
         }
         switch style {
@@ -71,6 +106,11 @@ struct EcoButton: View {
 }
 
 private extension EcoButton {
+    enum Action {
+        case sync(() -> Void)
+        case async(() async -> Void)
+    }
+
     struct Appearance {
         let textStyle: EcoTextStyle
         let foreground: Color
@@ -122,9 +162,12 @@ private struct SpinningLoaderIcon: View {
         EcoButton("다시 찍기", style: .secondary) {}
         EcoButton("이의신청 보내기") {}
             .disabled(true)
-        EcoButton("지금은 인증 시간이 아니에요", leadingIcon: .iconClock) {}
+        EcoButton("지금은 인증 시간이 아니에요", leadingIcon: .iconClockLarge) {}
             .disabled(true)
         EcoButton("로그인하는 중이에요", isLoading: true) {}
+        EcoButton("2초 걸리는 작업") {
+            try? await Task.sleep(for: .seconds(2))
+        }
     }
     .padding(.horizontal, Spacing.screenHorizontal)
 }
