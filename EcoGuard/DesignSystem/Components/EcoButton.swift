@@ -15,7 +15,6 @@ struct EcoButton: View {
     private let isLoading: Bool
     private let action: Action
 
-    @Environment(\.isEnabled) private var isEnabled
     @State private var isRunning = false
 
     init(
@@ -48,25 +47,7 @@ struct EcoButton: View {
 
     var body: some View {
         Button(action: perform) {
-            HStack(spacing: Spacing.sm) {
-                if isShowingLoading {
-                    SpinningLoaderIcon()
-                } else if let leadingIcon {
-                    Image(leadingIcon)
-                        .resizable()
-                        .frame(width: Metrics.iconSize, height: Metrics.iconSize)
-                        .accessibilityHidden(true)
-                }
-                Text(title)
-                    .ecoFont(appearance.textStyle)
-                    .lineLimit(1)
-            }
-            .foregroundStyle(appearance.foreground)
-            .frame(maxWidth: .infinity)
-            .frame(height: Metrics.height)
-            .background(appearance.background, in: RoundedRectangle(cornerRadius: Radius.button))
-            .contentShape(RoundedRectangle(cornerRadius: Radius.button))
-            .opacity(isShowingLoading ? Metrics.loadingOpacity : 1)
+            EcoButtonLabel(title: title, style: style, leadingIcon: leadingIcon, isLoading: isShowingLoading)
         }
         .buttonStyle(EcoButtonStyle())
         // 로딩을 `.disabled`로 막으면 VoiceOver가 비활성과 똑같이 "흐리게 표시됨"으로 읽는다. 탭은 `perform`에서 무시한다.
@@ -90,6 +71,45 @@ struct EcoButton: View {
             }
         }
     }
+}
+
+private extension EcoButton {
+    enum Action {
+        case sync(() -> Void)
+        case async(() async -> Void)
+    }
+}
+
+/// `ShareLink`도 `EcoButton`과 같은 모양을 쓰도록 라벨을 따로 둔다.
+private struct EcoButtonLabel: View {
+    let title: LocalizedStringKey
+    let style: EcoButton.Style
+    let leadingIcon: ImageResource?
+    let isLoading: Bool
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            if isLoading {
+                SpinningLoaderIcon()
+            } else if let leadingIcon {
+                Image(leadingIcon)
+                    .resizable()
+                    .frame(width: Metrics.iconSize, height: Metrics.iconSize)
+                    .accessibilityHidden(true)
+            }
+            Text(title)
+                .ecoFont(appearance.textStyle)
+                .lineLimit(1)
+        }
+        .foregroundStyle(appearance.foreground)
+        .frame(maxWidth: .infinity)
+        .frame(height: Metrics.height)
+        .background(appearance.background, in: RoundedRectangle(cornerRadius: Radius.button))
+        .contentShape(RoundedRectangle(cornerRadius: Radius.button))
+        .opacity(isLoading ? Metrics.loadingOpacity : 1)
+    }
 
     private var appearance: Appearance {
         // 로딩은 primary 색을 유지한 채 흐리게 보인다(Figma 01 로그인 · 로딩, 238:157).
@@ -103,13 +123,6 @@ struct EcoButton: View {
             return Appearance(textStyle: .button, foreground: .ecoTextSub, background: .ecoDivider)
         }
     }
-}
-
-private extension EcoButton {
-    enum Action {
-        case sync(() -> Void)
-        case async(() async -> Void)
-    }
 
     struct Appearance {
         let textStyle: EcoTextStyle
@@ -121,6 +134,26 @@ private extension EcoButton {
         static let height: CGFloat = 56
         static let iconSize: CGFloat = 20
         static let loadingOpacity: Double = 0.72
+    }
+}
+
+/// `EcoButton` 모양의 `ShareLink`. 시스템 공유 시트를 띄운다.
+struct EcoShareButton: View {
+    private let title: LocalizedStringKey
+    private let style: EcoButton.Style
+    private let item: URL
+
+    init(_ title: LocalizedStringKey, style: EcoButton.Style = .primary, item: URL) {
+        self.title = title
+        self.style = style
+        self.item = item
+    }
+
+    var body: some View {
+        ShareLink(item: item) {
+            EcoButtonLabel(title: title, style: style, leadingIcon: nil, isLoading: false)
+        }
+        .buttonStyle(EcoButtonStyle())
     }
 }
 
