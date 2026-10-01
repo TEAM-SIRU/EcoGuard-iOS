@@ -56,8 +56,14 @@ final class MockHomeRepository: HomeRepository {
 }
 
 extension MockHomeRepository {
-    /// Figma `02 홈` 프레임에 적힌 값. 오늘은 2026-09-29(화)로 둔다.
+    /// Figma `02 홈` 프레임에 적힌 값. 오늘은 2026-09-29(화)로 둔다. 날짜는 학교 시간대(KST) 기준이다.
     enum Fixture {
+        static let calendar: Calendar = {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+            return calendar
+        }()
+
         static let area = "본관 2층 복도 A"
         static let window = CleaningWindow(startMinute: 8 * 60, endMinute: 8 * 60 + 10)
         /// Figma `인증 마감까지 05:32`.
@@ -92,7 +98,7 @@ extension MockHomeRepository {
             case .teacherReviewing:
                 active(.teacherReviewing(submittedAt: submittedAt))
             case .notOpenYet:
-                active(.notOpenYet)
+                active(.notOpenYet(opensAt: opensAt(onDayOf: now)))
             case .recruiting:
                 HomeSummary(
                     status: .recruiting(Recruitment(semester: 2, capacityPerClass: 6, className: "2학년 3반", appliedCount: 4)),
@@ -123,9 +129,14 @@ extension MockHomeRepository {
             return HomeSummary(status: .active(cleaning), notice: notice)
         }
 
+        /// `now`가 속한 날(KST)의 인증 시작 시각.
+        static func opensAt(onDayOf now: Date) -> Date {
+            calendar.date(byAdding: .minute, value: window.startMinute, to: calendar.startOfDay(for: now)) ?? now
+        }
+
         private static func date(month: Int, day: Int, hour: Int = 0, minute: Int = 0) -> Date {
             let components = DateComponents(year: 2026, month: month, day: day, hour: hour, minute: minute)
-            return Calendar(identifier: .gregorian).date(from: components) ?? .distantPast
+            return calendar.date(from: components) ?? .distantPast
         }
     }
 }

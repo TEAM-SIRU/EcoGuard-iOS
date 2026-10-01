@@ -65,6 +65,7 @@ struct HomeRecruitCard: View {
                 Text("\(recruitment.appliedCount)/\(recruitment.capacityPerClass)명")
                     .ecoFont(.body2Bold)
                     .foregroundStyle(Color.ecoPrimaryText)
+                    .accessibilityLabel(Text("\(recruitment.capacityPerClass)명 중 \(recruitment.appliedCount)명 신청"))
             }
             .accessibilityElement(children: .combine)
             EcoProgressBar(progress: Double(recruitment.appliedCount) / Double(max(recruitment.capacityPerClass, 1)))

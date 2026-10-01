@@ -3,6 +3,8 @@ import SwiftUI
 /// Figma `Today card` (238:201). 오늘 인증 상태마다 제목·정보·버튼이 바뀐다.
 struct HomeTodayCard: View {
     let today: TodayCleaning
+    /// 지금 인증 버튼을 켤지. 마감이 지나면 다시 조회되기 전에도 끈다.
+    let canVerify: (Date) -> Bool
     let actions: HomeView.Actions
 
     var body: some View {
@@ -18,9 +20,19 @@ struct HomeTodayCard: View {
                     .padding(.bottom, Spacing.xl)
                     .accessibilityAddTraits(.isHeader)
                 infoTable
-                detail
-                button
-                    .padding(.top, Spacing.xl)
+                if case .open(let deadline) = today.verification {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        VStack(alignment: .leading, spacing: 0) {
+                            countdown(until: deadline, now: context.date)
+                            verifyButton(isEnabled: canVerify(context.date))
+                                .padding(.top, Spacing.xl)
+                        }
+                    }
+                } else {
+                    detail
+                    button
+                        .padding(.top, Spacing.xl)
+                }
             }
         }
     }
@@ -54,22 +66,27 @@ struct HomeTodayCard: View {
     @ViewBuilder
     private var detail: some View {
         switch today.verification {
-        case .open(let deadline):
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                Text("인증 마감까지 \(HomeFormatter.countdown(deadline.timeIntervalSince(context.date)))")
-                    .ecoFont(.body2)
-                    .foregroundStyle(Color.ecoPrimaryText)
-                    .monospacedDigit()
-            }
         case .rejected(let reason):
             EcoInfoBox(style: .warning(title: "반려 사유"), message: reason)
                 .padding(.top, Spacing.md)
         case .teacherReviewing:
             EcoInfoBox(style: .note, message: String(localized: "AI가 판단하기 어려운 사진이라 선생님께 넘겼어요"))
                 .padding(.top, Spacing.md)
-        case .notOpenYet, .aiReviewing, .approved:
+        case .notOpenYet, .open, .aiReviewing, .approved:
             EmptyView()
         }
+    }
+
+    private func countdown(until deadline: Date, now: Date) -> some View {
+        Text("인증 마감까지 \(HomeFormatter.countdown(deadline.timeIntervalSince(now)))")
+            .ecoFont(.body2)
+            .foregroundStyle(Color.ecoPrimaryText)
+            .monospacedDigit()
+    }
+
+    private func verifyButton(isEnabled: Bool) -> some View {
+        EcoButton("청소 인증하기", leadingIcon: .iconCam, action: actions.verify)
+            .disabled(!isEnabled)
     }
 
     @ViewBuilder
@@ -79,7 +96,7 @@ struct HomeTodayCard: View {
             EcoButton("지금은 인증 시간이 아니에요", leadingIcon: .iconClockLarge) {}
                 .disabled(true)
         case .open:
-            EcoButton("청소 인증하기", leadingIcon: .iconCam, action: actions.verify)
+            verifyButton(isEnabled: false)
         case .aiReviewing, .teacherReviewing:
             EcoButton("제출한 사진 보기", style: .secondary, action: actions.openSubmittedPhoto)
         case .approved:

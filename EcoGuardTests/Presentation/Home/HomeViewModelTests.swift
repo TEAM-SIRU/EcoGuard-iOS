@@ -2,6 +2,14 @@ import Foundation
 import Testing
 @testable import EcoGuard
 
+private final class TestClock {
+    var now: Date
+
+    init(now: Date) {
+        self.now = now
+    }
+}
+
 @MainActor
 struct HomeViewModelTests {
     private let now = Date(timeIntervalSinceReferenceDate: 0)
@@ -40,7 +48,7 @@ struct HomeViewModelTests {
         (.teacherReviewing, .teacherReviewing(submittedAt: MockHomeRepository.Fixture.submittedAt)),
         (.approved, .approved(earnedMinutes: 10)),
         (.rejected, .rejected(reason: "사진에 청소 구역이 잘 보이지 않아요")),
-        (.notOpenYet, .notOpenYet)
+        (.notOpenYet, .notOpenYet(opensAt: MockHomeRepository.Fixture.opensAt(onDayOf: Date(timeIntervalSinceReferenceDate: 0))))
     ])
     func activeScenarioMapsToTodayVerification(scenario: MockHomeRepository.Scenario, expected: TodayVerification) async {
         let (viewModel, _) = makeViewModel(scenarios: [scenario])
@@ -155,6 +163,114 @@ struct HomeViewModelTests {
         await viewModel.load()
 
         #expect(loadedSummary(viewModel)?.notice == nil)
+    }
+
+    // MARK: - 재조회
+
+    /// 2026-09-29(화) KST 시각.
+    private func kst(_ hour: Int, _ minute: Int, _ second: Int = 0) -> Date {
+        let components = DateComponents(year: 2026, month: 9, day: 29, hour: hour, minute: minute, second: second)
+        return MockHomeRepository.Fixture.calendar.date(from: components) ?? .distantPast
+    }
+
+    @Test func refreshAtOpeningTimeTurnsVerificationOn() async {
+        let clock = TestClock(now: kst(7, 59))
+        let repository = MockHomeRepository(scenarios: [.notOpenYet, .notSubmitted], delay: .zero, now: { clock.now })
+        let viewModel = HomeViewModel(
+            fetchHomeUseCase: FetchHomeUseCase(homeRepository: repository),
+            dismissNoticeUseCase: DismissNoticeUseCase(homeRepository: repository)
+        )
+        await viewModel.load()
+        #expect(viewModel.nextRefreshDate == kst(8, 0))
+        #expect(viewModel.canVerify(at: clock.now) == false)
+
+        clock.now = kst(8, 0)
+        await viewModel.refresh()
+
+        let deadline = kst(8, 5, 32)
+        #expect(todayVerification(viewModel) == .open(deadline: deadline))
+        #expect(viewModel.canVerify(at: clock.now))
+        #expect(viewModel.nextRefreshDate == deadline)
+    }
+
+    @Test func verifyButtonTurnsOffAtDeadlineBeforeRefresh() async {
+        let (viewModel, _) = makeViewModel(scenarios: [.notSubmitted])
+        await viewModel.load()
+        let deadline = now.addingTimeInterval(MockHomeRepository.Fixture.remainingUntilDeadline)
+
+        #expect(viewModel.canVerify(at: deadline.addingTimeInterval(-1)))
+        #expect(viewModel.canVerify(at: deadline) == false)
+        #expect(viewModel.canVerify(at: deadline.addingTimeInterval(60)) == false)
+    }
+
+    @Test func noRefreshDateAfterSubmission() async {
+        let (viewModel, _) = makeViewModel(scenarios: [.aiReviewing])
+        await viewModel.load()
+
+        #expect(viewModel.nextRefreshDate == nil)
+        #expect(viewModel.canVerify(at: now) == false)
+    }
+
+    @Test func refreshKeepsContentWhileFetching() async {
+        let (viewModel, repository) = makeViewModel(scenarios: [.notSubmitted, .aiReviewing], delay: .milliseconds(200))
+        await viewModel.load()
+
+        let refresh = Task { await viewModel.refresh() }
+        while repository.fetchCallCount < 2 {
+            await Task.yield()
+        }
+
+        #expect(viewModel.state != .loading)
+        await refresh.value
+        #expect(todayVerification(viewModel) == .aiReviewing(submittedAt: MockHomeRepository.Fixture.submittedAt))
+    }
+
+    @Test func failedRefreshKeepsCurrentContent() async {
+        let (viewModel, _) = makeViewModel(scenarios: [.approved, .failure])
+        await viewModel.load()
+
+        await viewModel.refresh()
+
+        #expect(todayVerification(viewModel) == .approved(earnedMinutes: 10))
+    }
+
+    @Test func refreshAfterFailureLoadsAgain() async {
+        let (viewModel, _) = makeViewModel(scenarios: [.failure, .approved])
+        await viewModel.load()
+
+        await viewModel.refresh()
+
+        #expect(todayVerification(viewModel) == .approved(earnedMinutes: 10))
+    }
+
+    // MARK: - 취소
+
+    @Test func cancelledFirstLoadDoesNotStayLoading() async {
+        let (viewModel, repository) = makeViewModel(scenarios: [.notSubmitted], delay: .seconds(10))
+
+        let load = Task { await viewModel.load() }
+        while repository.fetchCallCount == 0 {
+            await Task.yield()
+        }
+        load.cancel()
+        await load.value
+
+        #expect(viewModel.state == .failed)
+    }
+
+    @Test func cancelledReloadReturnsToPreviousContent() async {
+        let (viewModel, repository) = makeViewModel(scenarios: [.approved, .rejected], delay: .milliseconds(200))
+        await viewModel.load()
+        let loaded = viewModel.state
+
+        let reload = Task { await viewModel.load() }
+        while repository.fetchCallCount < 2 {
+            await Task.yield()
+        }
+        reload.cancel()
+        await reload.value
+
+        #expect(viewModel.state == loaded)
     }
 
     @Test func dismissNoticeWithoutNoticeDoesNothing() async {

@@ -16,6 +16,7 @@ struct HomeWeekCard: View {
                     Text("\(week.completedCount)/\(week.days.count)일")
                         .ecoFont(.body2Medium)
                         .foregroundStyle(Color.ecoPrimaryText)
+                        .accessibilityLabel(Text("\(week.days.count)일 중 \(week.completedCount)일 완료"))
                 }
                 HStack(alignment: .top, spacing: 0) {
                     ForEach(Array(week.days.enumerated()), id: \.offset) { index, day in

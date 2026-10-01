@@ -1,8 +1,9 @@
 import Foundation
 
-/// 홈 화면 표시 문자열. 앱은 한국어만 지원해 ko_KR로 고정한다.
+/// 홈 화면 표시 문자열. 앱은 한국어만 지원해 ko_KR로, 시각은 학교 기준이라 기기 시간대와 관계없이 KST로 고정한다.
 enum HomeFormatter {
     private static let locale = Locale(identifier: "ko_KR")
+    static let timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
 
     /// 480 → "08:00"
     static func time(minuteOfDay: Int) -> String {
@@ -46,6 +47,7 @@ enum HomeFormatter {
         let formatter = DateFormatter()
         formatter.locale = locale
         formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = timeZone
         formatter.dateFormat = format
         return formatter
     }

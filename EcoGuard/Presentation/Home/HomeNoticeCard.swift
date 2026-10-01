@@ -16,7 +16,7 @@ struct HomeNoticeCard: View {
                     .padding(.top, Spacing.lg)
                     .padding(.bottom, Spacing.sm)
                     .accessibilityAddTraits(.isHeader)
-                Text(bodyText)
+                Text(HomeNoticeBody.attributed(from: notice.body))
                     .ecoFont(.body2)
                 Button(action: onOpen) {
                     HStack(spacing: Spacing.xs) {
@@ -53,20 +53,6 @@ struct HomeNoticeCard: View {
             }
             EcoIconButton(icon: .iconClose, color: .ecoTextCaption, accessibilityLabel: "공지 닫기", action: onDismiss)
         }
-    }
-
-    /// `**`로 감싼 부분은 굵고 진하게 보여 준다. Figma 본문 #4E5968 · 강조 #191F28은 변수가 아니라 글자 토큰으로 대체했다.
-    private var bodyText: AttributedString {
-        var text = (try? AttributedString(markdown: notice.body)) ?? AttributedString(notice.body)
-        text.foregroundColor = .ecoTextSub
-        let strongRanges = text.runs
-            .filter { $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true }
-            .map(\.range)
-        for range in strongRanges {
-            text[range].foregroundColor = .ecoTextPrimary
-            text[range].font = EcoTextStyle.body2Bold.font
-        }
-        return text
     }
 }
 

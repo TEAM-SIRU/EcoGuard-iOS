@@ -14,19 +14,35 @@ struct HomeView: View {
         var appeal: () -> Void = {}
         var openRecruitment: () -> Void = {}
         var openApplicationResult: () -> Void = {}
-        /// 활동 제외 안내의 [홈으로]. 홈이 루트라 이동할 곳이 정해지지 않았다.
-        var goHome: () -> Void = {}
     }
 
     let viewModel: HomeViewModel
     var actions = Actions()
 
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some View {
         content
             .task {
-                guard viewModel.state == .loading else { return }
+                // 처음 들어올 때, 그리고 불러오던 중 화면을 떠났다 돌아왔을 때 불러온다.
+                guard !isLoaded else { return }
                 await viewModel.load()
             }
+            // 인증 시작·마감 시각이 되면 서버 상태가 바뀌므로 다시 조회한다.
+            .task(id: viewModel.nextRefreshDate) {
+                guard let date = viewModel.nextRefreshDate, date > .now else { return }
+                try? await Task.sleep(for: .seconds(date.timeIntervalSinceNow))
+                guard !Task.isCancelled else { return }
+                await viewModel.refresh()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                Task { await viewModel.refresh() }
+            }
+    }
+
+    private var isLoaded: Bool {
+        if case .loaded = viewModel.state { true } else { false }
     }
 
     @ViewBuilder
@@ -48,7 +64,8 @@ struct HomeView: View {
                     title: "환경지킴이 활동이 취소됐어요",
                     message: "담당 선생님이 활동에서 제외했어요.\n\n제외 사유\n\(reason)\n\n사유에 대해 궁금하면 담당 선생님께 문의해 주세요.",
                     primaryTitle: "홈으로",
-                    primaryAction: actions.goHome,
+                    // TODO: 이동할 화면이 정해지면 연결. 그 전까지는 활동 상태를 다시 확인한다.
+                    primaryAction: { await viewModel.load() },
                     secondaryAction: actions.openNotices
                 )
             } else {
@@ -74,6 +91,9 @@ struct HomeView: View {
                 .padding(.horizontal, Spacing.screenHorizontal)
                 .padding(.top, Spacing.sm)
                 .padding(.bottom, Spacing.xxxl)
+            }
+            .refreshable {
+                await viewModel.refresh()
             }
         }
         .background(Color.ecoSurface)
@@ -102,7 +122,7 @@ struct HomeView: View {
         case .excluded:
             EmptyView()
         case .active(let cleaning):
-            HomeTodayCard(today: cleaning.today, actions: actions)
+            HomeTodayCard(today: cleaning.today, canVerify: viewModel.canVerify(at:), actions: actions)
             HomeWeekCard(week: cleaning.week)
             HomeRecentRecordsSection(records: cleaning.recentRecords, onOpenAll: actions.openRecords)
         }
