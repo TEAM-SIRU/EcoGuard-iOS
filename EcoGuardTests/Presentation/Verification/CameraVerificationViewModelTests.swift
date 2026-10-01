@@ -197,6 +197,16 @@ struct CameraVerificationViewModelTests {
         #expect(repository.submittedPhotoIDs == [photo.photo.id, photo.photo.id])
     }
 
+    @Test func backFromUploadFailureReturnsToConfirmWithSamePhoto() async throws {
+        let (viewModel, _) = makeViewModel(uploadResults: [.networkFailure])
+        let photo = try #require(await capturedPhoto(viewModel))
+
+        await viewModel.submit()
+        viewModel.returnToConfirm()
+
+        #expect(viewModel.state == .confirming(photo))
+    }
+
     @Test func retryAfterDeadlineWithSamePhotoIsAccepted() async throws {
         let (viewModel, _) = makeViewModel(uploadResults: [.networkFailure, .success])
         let photo = try #require(await capturedPhoto(viewModel))

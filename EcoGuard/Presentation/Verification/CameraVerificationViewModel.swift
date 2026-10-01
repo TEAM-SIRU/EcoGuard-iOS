@@ -150,6 +150,19 @@ final class CameraVerificationViewModel {
         }
     }
 
+    /// 촬영 화면이 보일 때 카메라를 켠다.
+    func startCamera() async {
+        do {
+            try await camera.start()
+        } catch {
+            logError("카메라 시작 실패", error)
+        }
+    }
+
+    func stopCamera() {
+        camera.stop()
+    }
+
     func switchCamera() async {
         do {
             try await camera.switchPosition()
@@ -163,6 +176,12 @@ final class CameraVerificationViewModel {
         guard case .confirming = state else { return }
         guard !expireIfNeeded() else { return }
         state = .capturing
+    }
+
+    /// 업로드 실패 화면의 뒤로가기. 같은 사진의 확인 화면으로 돌아가 다시 찍을지 고를 수 있게 한다.
+    func returnToConfirm() {
+        guard case .uploadFailed(let photo) = state else { return }
+        state = .confirming(photo)
     }
 
     /// 확인 화면의 `보내기`, 업로드 실패 화면의 `같은 사진 다시 보내기`.
