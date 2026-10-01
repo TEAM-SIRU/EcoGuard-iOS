@@ -280,6 +280,7 @@ final class NoticeListViewModel {
   - 금지: `Color(hex:)`, `.font(.system(size: 17))`, `.padding(24)`, `.cornerRadius(16)` 같은 리터럴
   - 허용: `Color.ecoPrimary`, `.ecoFont(.body1)`, `.padding(Spacing.lg)`, `Radius.button`
 - 토큰에 없는 값이 필요하면 코드에서 만들지 말고 디자이너에게 토큰 추가를 요청한다.
+- 예외: `DesignSystem/Components`의 공통 컴포넌트는 Figma 컴포넌트 고유 치수(높이, 아이콘 크기, 내부 간격)를 파일 안 `private enum Metrics`에 이름 붙인 상수로 둘 수 있다. 화면 View에서는 금지한다.
 - 상태는 색만으로 구분하지 않는다. 색 + 아이콘 + 텍스트를 함께 쓴다 (Figma `Status chip` 규칙, 색맹 대응).
 
 ### 색상
@@ -321,7 +322,7 @@ final class NoticeListViewModel {
 | red/500 | #d83b3b | #D83B3B (Rejected) | `Color.ecoRejected` |
 | orange/700 | #b35f00 | #B35F00 (Pending) | `Color.ecoPending` |
 | orange/500 | #f08c00 | #F08C00 (Pending icon) | `Color.ecoPendingIcon` |
-| white | #ffffff | 라벨 없음 | `Color.ecoWhite` |
+| white | #ffffff | 라벨 없음 (primary 위 글자·아이콘) | `Color.ecoOnPrimary` |
 | grey/300 | #c9d0cd | 라벨 없음 (역할 미확인) | 토큰 미등록 (역할 결정 필요) |
 | fg/default | #1F2328 | 라벨 없음 (역할 미확인, 앱 토큰인지 불명) | 토큰 미등록. 다른 라이브러리(GitHub Primer `fg.default`와 같은 값) 변수일 가능성 |
 
@@ -336,7 +337,7 @@ final class NoticeListViewModel {
   - `Body 1 · 17/25 Medium` → `.ecoFont(.body1)` = Medium 17, lineHeight 25
   - `Caption · 13/18 Bold` → `.ecoFont(.caption)` = Bold 13, lineHeight 18
 
-#### 텍스트 스타일 (7개, 전체)
+#### 텍스트 스타일 (Foundations 7개 + 컴포넌트 3개)
 
 | Figma 이름 | 값 | Swift 이름 제안 |
 |---|---|---|
@@ -347,6 +348,12 @@ final class NoticeListViewModel {
 | Body 2 | 15/22 Regular | `.body2` |
 | Sub | 14/20 Regular | `.sub` |
 | Caption | 13/18 Bold | `.caption` |
+| Button Large (컴포넌트) | 19/26 Bold | `.buttonLarge` |
+| Button (컴포넌트) | 17/24 Bold | `.button` |
+| Caption Regular (컴포넌트) | 13/18 Regular | `.captionRegular` |
+
+- 모든 텍스트 스타일에 자간 -1%(size × -0.01)를 적용한다.
+- Noto Sans KR 기본 줄높이(약 1.448em)보다 작은 lineHeight는 iOS에서 줄일 수 없어 Figma보다 줄마다 0.6~1.7pt 커진다.
 
 
 ### 간격 / 라운드 / 레이아웃
