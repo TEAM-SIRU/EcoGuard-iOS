@@ -168,7 +168,8 @@ struct HomeView: View {
 #Preview("로딩") {
     HomeView(viewModel: DIContainer(
         authRepository: MockAuthRepository(),
-        homeRepository: MockHomeRepository(delay: .seconds(3600))
+        homeRepository: MockHomeRepository(delay: .seconds(3600)),
+        webAdminURL: nil
     ).makeHomeViewModel())
 }
 
