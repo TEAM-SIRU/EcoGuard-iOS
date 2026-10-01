@@ -32,7 +32,7 @@ struct HeroIcon: View {
                 .frame(width: Metrics.badgeIconSize, height: Metrics.badgeIconSize)
                 .foregroundStyle(Color.ecoTextCaption)
                 .frame(width: Metrics.badgeSize, height: Metrics.badgeSize)
-                .background(Color.ecoDivider, in: Circle())
+                .background(Color.ecoBadgeBackground, in: Circle())
         }
     }
 }

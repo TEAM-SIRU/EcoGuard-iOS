@@ -9,15 +9,16 @@ struct EcoToast: View {
             Image(.iconAlertLarge)
                 .resizable()
                 .frame(width: Metrics.iconSize, height: Metrics.iconSize)
+                .foregroundStyle(Color.ecoToastIcon)
                 .accessibilityHidden(true)
             Text(message)
                 .ecoFont(.body2Medium)
-                .foregroundStyle(Color.ecoOnPrimary)
+                .foregroundStyle(Color.ecoOnToast)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, Spacing.lg)
         .frame(minHeight: Metrics.height)
-        .background(Color.ecoTextPrimary, in: RoundedRectangle(cornerRadius: Metrics.cornerRadius))
+        .background(Color.ecoToastBackground, in: RoundedRectangle(cornerRadius: Metrics.cornerRadius))
         .accessibilityElement(children: .combine)
     }
 }

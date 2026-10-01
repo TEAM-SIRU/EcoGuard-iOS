@@ -326,6 +326,15 @@ final class NoticeListViewModel {
 | grey/300 | #c9d0cd | 라벨 없음 (역할 미확인) | 토큰 미등록 (역할 결정 필요) |
 | fg/default | #1F2328 | 라벨 없음 (역할 미확인, 앱 토큰인지 불명) | 토큰 미등록. 다른 라이브러리(GitHub Primer `fg.default`와 같은 값) 변수일 가능성 |
 
+컴포넌트 전용 시맨틱 colorset (값은 위 변수와 같아도 역할이 달라 따로 둔다):
+
+| 출처 | 값 | 역할 | colorset / Swift 심볼 |
+|---|---|---|---|
+| grey/900 (`Toast` 243:131 배경) | #1A1F1D | 토스트 배경 | `Color.ecoToastBackground` |
+| white (`Toast` 문구) | #FFFFFF | 토스트 위 글자 | `Color.ecoOnToast` |
+| `Toast` icon/alert SVG stroke (변수 아님) | #FF9B9B | 토스트 아이콘 | `Color.ecoToastIcon` |
+| grey/100 (교사 안내 309:54 원 배경) | #F2F4F3 | 원형 아이콘 배지 배경 | `Color.ecoBadgeBackground` |
+
 ### 타이포그래피
 - **폰트: Noto Sans KR** (커스텀 폰트). 앱 번들에 포함하고 `Info.plist`의 `UIAppFonts`에 등록한다. PostScript 이름(예: `NotoSansKR-Bold`)은 폰트 파일 기준으로 확인 필요.
 - **매핑 규칙**: Figma `{이름} · {size}/{lineHeight} {Weight}` → `EcoTextStyle` enum 케이스 1개 + `ViewModifier`. 뷰에서는 `.ecoFont(.title1)` 형태로만 쓴다.
@@ -337,7 +346,7 @@ final class NoticeListViewModel {
   - `Body 1 · 17/25 Medium` → `.ecoFont(.body1)` = Medium 17, lineHeight 25
   - `Caption · 13/18 Bold` → `.ecoFont(.caption)` = Bold 13, lineHeight 18
 
-#### 텍스트 스타일 (Foundations 7개 + 컴포넌트 3개)
+#### 텍스트 스타일 (Foundations 7개 + 컴포넌트 4개)
 
 | Figma 이름 | 값 | Swift 이름 제안 |
 |---|---|---|
@@ -351,6 +360,7 @@ final class NoticeListViewModel {
 | Button Large (컴포넌트) | 19/26 Bold | `.buttonLarge` |
 | Button (컴포넌트) | 17/24 Bold | `.button` |
 | Caption Regular (컴포넌트) | 13/18 Regular | `.captionRegular` |
+| Toast 문구 (컴포넌트) | 15/22 Medium | `.body2Medium` |
 
 - 모든 텍스트 스타일에 자간 -1%(size × -0.01)를 적용한다.
 - Noto Sans KR 기본 줄높이(약 1.448em)보다 작은 lineHeight는 iOS에서 줄일 수 없어 Figma보다 줄마다 0.3~1.7pt 커진다(title1·title2·sub·caption·buttonLarge·button·captionRegular).
@@ -369,7 +379,8 @@ final class NoticeListViewModel {
 | 카드 | 24 (`radius/app-card`) | 20 **충돌** | `Radius.card` |
 | 칩 | 없음 | 999 | `Radius.chip` |
 
-- Swift 제안: `Spacing.xs/sm/md/lg/xl/xxl`, `Radius.tag/tile/button/card/chip` (이름은 제안). `spacing/N`은 N번째 단계(4부터)로 읽었으나 Figma에 단계 정의는 없어 추정이다.
+- `Spacing.xxxl` = 32: Foundations 스케일 밖. Figma `01 로그인 · 교사 계정 안내` (309:42) 하단 패딩 실측값으로 추가했다.
+- Swift 제안: `Spacing.xs/sm/md/lg/xl/xxl/xxxl`, `Radius.tag/tile/button/card/chip` (이름은 제안). `spacing/N`은 N번째 단계(4부터)로 읽었으나 Figma에 단계 정의는 없어 추정이다.
 - 화면 좌우 여백: 24 (라벨) → `Spacing.screenHorizontal`
 - 버튼: 높이 56, 풀와이드, radius 16 (`Button/primary`, `Button/secondary`, `Button/disabled`)
 - 리스트 행: 아이콘 타일 44, 본문 17(`body1`), 보조 14(`sub`)

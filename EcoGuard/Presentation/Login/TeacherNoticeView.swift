@@ -22,7 +22,7 @@ struct TeacherNoticeView: View {
                 .frame(maxWidth: .infinity)
             }
             .padding(.horizontal, Spacing.screenHorizontal)
-            .padding(.bottom, Spacing.xxl + Spacing.sm)
+            .padding(.bottom, Spacing.xxxl)
             Spacer(minLength: 0)
         }
         .safeAreaInset(edge: .bottom) {
