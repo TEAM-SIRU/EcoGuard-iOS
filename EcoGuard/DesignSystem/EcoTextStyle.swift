@@ -10,15 +10,18 @@ enum EcoTextStyle: CaseIterable {
     case body2
     case sub
     case caption
+    case buttonLarge
+    case button
+    case captionRegular
 
     /// 번들 폰트 PostScript 이름. `fc-scan`으로 OTF 파일에서 확인한 값이다.
     var fontName: String {
         switch self {
-        case .title1, .title2, .title3, .caption:
+        case .title1, .title2, .title3, .caption, .buttonLarge, .button:
             "NotoSansKR-Bold"
         case .body1:
             "NotoSansKR-Medium"
-        case .body2, .sub:
+        case .body2, .sub, .captionRegular:
             "NotoSansKR-Regular"
         }
     }
@@ -32,6 +35,9 @@ enum EcoTextStyle: CaseIterable {
         case .body2: 15
         case .sub: 14
         case .caption: 13
+        case .buttonLarge: 19
+        case .button: 17
+        case .captionRegular: 13
         }
     }
 
@@ -44,7 +50,15 @@ enum EcoTextStyle: CaseIterable {
         case .body2: 22
         case .sub: 20
         case .caption: 18
+        case .buttonLarge: 26
+        case .button: 24
+        case .captionRegular: 18
         }
+    }
+
+    /// Figma letterSpacing -1%.
+    var tracking: CGFloat {
+        size * -0.01
     }
 
     var font: Font {
@@ -66,6 +80,7 @@ private struct EcoFontModifier: ViewModifier {
         content
             .font(style.font)
             .lineSpacing(style.lineSpacing)
+            .tracking(style.tracking)
     }
 }
 
