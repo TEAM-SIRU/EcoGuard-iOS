@@ -16,7 +16,11 @@ private struct DesignTokenPreview: View {
         ("ecoRejected", .ecoRejected),
         ("ecoPending", .ecoPending),
         ("ecoPendingIcon", .ecoPendingIcon),
-        ("ecoOnPrimary", .ecoOnPrimary)
+        ("ecoOnPrimary", .ecoOnPrimary),
+        ("ecoToastBackground", .ecoToastBackground),
+        ("ecoOnToast", .ecoOnToast),
+        ("ecoToastIcon", .ecoToastIcon),
+        ("ecoBadgeBackground", .ecoBadgeBackground)
     ]
 
     private let radii: [(name: String, value: CGFloat)] = [

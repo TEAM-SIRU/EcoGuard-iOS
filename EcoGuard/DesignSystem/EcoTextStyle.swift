@@ -13,13 +13,15 @@ enum EcoTextStyle: CaseIterable {
     case buttonLarge
     case button
     case captionRegular
+    /// Figma `Toast` 문구 (컴포넌트) 15/22 Medium.
+    case body2Medium
 
     /// 번들 폰트 PostScript 이름. `fc-scan`으로 OTF 파일에서 확인한 값이다.
     var fontName: String {
         switch self {
         case .title1, .title2, .title3, .caption, .buttonLarge, .button:
             "NotoSansKR-Bold"
-        case .body1:
+        case .body1, .body2Medium:
             "NotoSansKR-Medium"
         case .body2, .sub, .captionRegular:
             "NotoSansKR-Regular"
@@ -38,6 +40,7 @@ enum EcoTextStyle: CaseIterable {
         case .buttonLarge: 19
         case .button: 17
         case .captionRegular: 13
+        case .body2Medium: 15
         }
     }
 
@@ -53,6 +56,7 @@ enum EcoTextStyle: CaseIterable {
         case .buttonLarge: 26
         case .button: 24
         case .captionRegular: 18
+        case .body2Medium: 22
         }
     }
 
