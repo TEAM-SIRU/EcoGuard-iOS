@@ -28,4 +28,19 @@ struct EcoTextStyleTests {
         let resolved = CTFontCreateForString(font, text as CFString, CFRange(location: 0, length: text.utf16.count))
         #expect(CTFontCopyPostScriptName(resolved) as String == EcoTextStyle.body2.fontName)
     }
+
+    /// Figma `02 홈` 프레임에서 읽은 size/lineHeight/weight.
+    @Test(arguments: [
+        (EcoTextStyle.body1Bold, CGFloat(17), CGFloat(25), "NotoSansKR-Bold"),
+        (.title4, 18, 26, "NotoSansKR-Bold"),
+        (.title5, 16, 23, "NotoSansKR-Bold"),
+        (.subMedium, 14, 20, "NotoSansKR-Medium"),
+        (.captionMedium, 13, 18, "NotoSansKR-Medium"),
+        (.body2Bold, 15, 22, "NotoSansKR-Bold")
+    ])
+    func homeStyleMatchesFigma(style: EcoTextStyle, size: CGFloat, lineHeight: CGFloat, fontName: String) {
+        #expect(style.size == size)
+        #expect(style.lineHeight == lineHeight)
+        #expect(style.fontName == fontName)
+    }
 }
