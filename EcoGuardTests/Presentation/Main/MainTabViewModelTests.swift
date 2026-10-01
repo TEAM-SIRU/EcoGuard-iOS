@@ -16,7 +16,6 @@ struct MainTabViewModelTests {
         viewModel.select(tab)
 
         #expect(viewModel.selectedTab == tab)
-        #expect(MainTab.allCases.filter { $0 == viewModel.selectedTab } == [tab])
     }
 
     @Test func selectingAnotherTabThenHomeReturnsHome() {

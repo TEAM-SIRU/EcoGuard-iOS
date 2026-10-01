@@ -5,6 +5,8 @@ struct MainTabView: View {
     let homeViewModel: HomeViewModel
     @State private var viewModel = MainTabViewModel()
 
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -15,8 +17,27 @@ struct MainTabView: View {
                 ) {
                     EcoCameraButton(action: openCamera)
                         // 구역을 배정받아 활동 중일 때만 인증할 수 있다 (Figma 모집 기간·배정 대기 프레임은 회색).
+                        // 인증 시간이 아니거나 이미 제출한 날도 켠다. Figma `06 인증 불가` 화면에서 카메라 화면이 서버 상태로 막는다.
                         .disabled(!homeViewModel.isCameraAvailable)
+                        .accessibilityHint(homeViewModel.isCameraAvailable ? Text(verbatim: "") : Text("환경지킴이로 활동 중일 때 쓸 수 있어요"))
                 }
+            }
+            // 홈 재조회는 다른 탭에 있어도 돌아야 해서 셸에 둔다. 시각이 이미 지났으면 바로 다시 조회한다.
+            .task(id: homeViewModel.nextRefreshDate) {
+                guard let date = homeViewModel.nextRefreshDate else { return }
+                if date > .now {
+                    try? await Task.sleep(for: .seconds(date.timeIntervalSinceNow))
+                }
+                guard !Task.isCancelled else { return }
+                await homeViewModel.refresh()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                Task { await homeViewModel.refresh() }
+            }
+            .onChange(of: viewModel.selectedTab) { _, tab in
+                guard tab == .home else { return }
+                Task { await homeViewModel.refreshIfNeeded(now: .now) }
             }
     }
 

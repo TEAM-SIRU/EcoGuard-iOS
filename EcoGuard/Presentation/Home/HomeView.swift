@@ -19,25 +19,13 @@ struct HomeView: View {
     let viewModel: HomeViewModel
     var actions = Actions()
 
-    @Environment(\.scenePhase) private var scenePhase
-
+    /// 인증 시작·마감 시각과 앱 복귀 재조회는 다른 탭에 있어도 돌도록 셸(`MainTabView`)이 맡는다.
     var body: some View {
         content
             .task {
                 // 처음 들어올 때, 그리고 불러오던 중 화면을 떠났다 돌아왔을 때 불러온다.
                 guard !isLoaded else { return }
                 await viewModel.load()
-            }
-            // 인증 시작·마감 시각이 되면 서버 상태가 바뀌므로 다시 조회한다.
-            .task(id: viewModel.nextRefreshDate) {
-                guard let date = viewModel.nextRefreshDate, date > .now else { return }
-                try? await Task.sleep(for: .seconds(date.timeIntervalSinceNow))
-                guard !Task.isCancelled else { return }
-                await viewModel.refresh()
-            }
-            .onChange(of: scenePhase) { _, phase in
-                guard phase == .active else { return }
-                Task { await viewModel.refresh() }
             }
     }
 

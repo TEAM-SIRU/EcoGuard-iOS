@@ -18,18 +18,19 @@ struct EcoTabBar<CenterButton: View>: View {
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             ForEach(leadingItems) { EcoTabBarButton(item: $0) }
+            // 가운데 칸은 높이 0으로 두고 버튼을 위로 띄워 얹는다. 탭 사이에 있어야 VoiceOver가 홈 · 구역 · 카메라 · 기록 순서로 읽는다.
             Color.clear
                 .frame(maxWidth: .infinity, maxHeight: 0)
-                .accessibilityHidden(true)
+                .overlay(alignment: .top) {
+                    centerButton
+                        .offset(y: -(Metrics.centerButtonRise + Spacing.sm))
+                }
             ForEach(trailingItems) { EcoTabBarButton(item: $0) }
         }
         .padding(.horizontal, Spacing.sm)
         .padding(.top, Spacing.sm)
         .padding(.bottom, bottomSafeAreaInset > 0 ? 0 : Spacing.sm)
-        .overlay(alignment: .top) {
-            centerButton
-                .offset(y: -Metrics.centerButtonRise)
-        }
+        .accessibilityElement(children: .contain)
         .background {
             Rectangle()
                 .fill(Color.ecoCard)

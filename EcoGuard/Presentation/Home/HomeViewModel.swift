@@ -71,6 +71,12 @@ final class HomeViewModel {
         await load()
     }
 
+    /// 재조회 시각이 지났으면 다시 조회한다. 다른 탭에 있다가 홈으로 돌아올 때 쓴다.
+    func refreshIfNeeded(now: Date) async {
+        guard let date = nextRefreshDate, date <= now else { return }
+        await refresh()
+    }
+
     /// 가운데 카메라 버튼을 켤지. 구역을 배정받아 활동 중일 때만 켠다.
     var isCameraAvailable: Bool {
         guard case .loaded(let summary) = state, case .active = summary.status else { return false }
