@@ -36,7 +36,9 @@ struct EcoTextStyleTests {
         (.title5, 16, 23, "NotoSansKR-Bold"),
         (.subMedium, 14, 20, "NotoSansKR-Medium"),
         (.captionMedium, 13, 18, "NotoSansKR-Medium"),
-        (.body2Bold, 15, 22, "NotoSansKR-Bold")
+        (.body2Bold, 15, 22, "NotoSansKR-Bold"),
+        (.caption2Medium, 12, 16, "NotoSansKR-Medium"),
+        (.caption2Bold, 12, 16, "NotoSansKR-Bold")
     ])
     func homeStyleMatchesFigma(style: EcoTextStyle, size: CGFloat, lineHeight: CGFloat, fontName: String) {
         #expect(style.size == size)
