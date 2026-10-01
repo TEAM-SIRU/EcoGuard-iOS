@@ -84,12 +84,28 @@ struct RecruitmentApplyViewModelTests {
         #expect(viewModel.submitState == .idle)
     }
 
-    @Test(arguments: [MockRecruitmentRepository.ApplyOutcome.full, .notInPeriod])
-    func closedWhileApplyingGoesToResult(applyOutcome: MockRecruitmentRepository.ApplyOutcome) async {
+    @Test(arguments: [
+        (MockRecruitmentRepository.ApplyOutcome.full, ApplicationOutcome.ClosedReason.full),
+        (.notInPeriod, .periodEnded)
+    ])
+    func closedWhileApplyingKeepsReason(
+        applyOutcome: MockRecruitmentRepository.ApplyOutcome,
+        reason: ApplicationOutcome.ClosedReason
+    ) async {
         let (viewModel, _) = makeViewModel(applyOutcomes: [applyOutcome])
         viewModel.motivation = "열심히 할게요"
 
-        #expect(await viewModel.submit() == .closedWhileApplying)
+        #expect(await viewModel.submit() == .closedWhileApplying(reason: reason))
+    }
+
+    /// 앞뒤 공백은 길이에 넣지 않는다(서버로 보내는 값 기준).
+    @Test func surroundingWhitespaceDoesNotCountTowardLimit() async {
+        let (viewModel, repository) = makeViewModel(applyOutcomes: [.approved])
+        viewModel.motivation = "  " + String(repeating: "가", count: ApplicationMotivation.maxLength) + "\n"
+
+        #expect(viewModel.validation == .valid)
+        #expect(await viewModel.submit() != nil)
+        #expect(repository.appliedMotivations.first?.count == ApplicationMotivation.maxLength)
     }
 
     @Test func alreadyAppliedShowsExistingApplication() async {

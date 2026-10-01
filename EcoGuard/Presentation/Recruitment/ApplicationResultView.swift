@@ -108,7 +108,11 @@ private func resultPreview(_ outcome: ApplicationOutcome?) -> some View {
 }
 
 #Preview("신청 중 마감") {
-    resultPreview(.closedWhileApplying)
+    resultPreview(.closedWhileApplying(reason: .full))
+}
+
+#Preview("신청 중 기간 종료") {
+    resultPreview(.closedWhileApplying(reason: .periodEnded))
 }
 
 #Preview("신청 내역 없음") {

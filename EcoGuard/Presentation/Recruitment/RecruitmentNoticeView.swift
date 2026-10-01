@@ -8,6 +8,8 @@ struct RecruitmentNoticeView: View {
     let onApply: (Applicant, Int) -> Void
     let onExit: () -> Void
 
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some View {
         content
             .toolbar(.hidden, for: .navigationBar)
@@ -15,6 +17,20 @@ struct RecruitmentNoticeView: View {
                 if viewModel.state == .loading {
                     await viewModel.load()
                 }
+            }
+            // 신청 시작·마감 시각이 되면 서버 상태가 바뀌므로 다시 조회한다. 이미 지난 시각이면 바로 조회한다.
+            .task(id: viewModel.nextRefreshDate) {
+                guard let date = viewModel.nextRefreshDate else { return }
+                let remaining = date.timeIntervalSinceNow
+                if remaining > 0 {
+                    try? await Task.sleep(for: .seconds(remaining))
+                    guard !Task.isCancelled else { return }
+                }
+                await viewModel.refresh()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                Task { await viewModel.refresh() }
             }
     }
 
@@ -107,14 +123,20 @@ struct RecruitmentNoticeView: View {
                     )
                 }
             }
+            .refreshable {
+                await viewModel.refresh()
+            }
         }
         .safeAreaInset(edge: .bottom) {
             if let button = buttonTitle(for: status) {
                 BottomCTA {
-                    EcoButton(button) {
-                        onApply(applicant, recruitment.capacityPerClass)
+                    // 마감 시각이 지나면 다시 조회되기 전이라도 버튼을 끈다.
+                    TimelineView(.explicit([detail.endDate])) { context in
+                        EcoButton(button) {
+                            onApply(applicant, recruitment.capacityPerClass)
+                        }
+                        .disabled(!viewModel.canApply(at: context.date))
                     }
-                    .disabled(status != .open)
                 }
                 .background(Color.ecoCard)
             }

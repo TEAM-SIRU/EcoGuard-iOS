@@ -35,7 +35,10 @@ struct RecruitmentFlowView: View {
                     RecruitmentApplyView(
                         viewModel: container.makeRecruitmentApplyViewModel(applicant: applicant, capacityPerClass: capacity),
                         onFinish: { outcome in
+                            // 신청 화면을 떠난 뒤 늦게 끝난 제출이 다른 화면 위에 결과를 쌓지 않게 한다.
+                            guard case .apply = path.last else { return }
                             path.append(.result(outcome))
+                            Task { await noticeViewModel.refresh() }
                         }
                     )
                 case .result(let outcome):

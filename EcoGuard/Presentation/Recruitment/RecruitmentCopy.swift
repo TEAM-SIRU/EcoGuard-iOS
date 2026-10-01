@@ -60,7 +60,7 @@ enum RecruitmentCopy {
         static let nameLabel: LocalizedStringKey = "이름"
         static let motivationTitle: LocalizedStringKey = "신청 동기"
         static let motivationPrompt: LocalizedStringKey = "환경지킴이로 활동하고 싶은 이유를 적어 주세요"
-        static func motivationTooLong(maxLength: Int) -> LocalizedStringKey { "\(maxLength)자까지 쓸 수 있어요" }
+        static func motivationTooLong(maxLength: Int) -> LocalizedStringResource { "\(maxLength)자까지 쓸 수 있어요" }
         static let motivationRequired: LocalizedStringKey = "신청 동기를 입력하면 신청할 수 있어요"
         static let failed: LocalizedStringResource = "신청하지 못했어요. 다시 시도해 주세요"
     }
@@ -74,6 +74,8 @@ enum RecruitmentCopy {
         // Figma 246:128
         static let closedTitle = "신청하지 못했어요"
         static let closedMessage = "신청하는 사이 모집 인원이 모두 찼어요.\n다음 모집 때 다시 신청해 주세요."
+        /// 새 문구. 신청하는 사이 신청 기간이 끝났다(제목은 246:128과 같다).
+        static let periodEndedMessage = "신청하는 사이 신청 기간이 끝났어요.\n다음 모집 때 다시 신청해 주세요."
 
         // 새 문구: 구역 배정 완료·대기(PENDING)·반려(REJECTED)
         static let areaAssigned = "청소 구역이 배정됐어요. 홈에서 확인해 주세요."

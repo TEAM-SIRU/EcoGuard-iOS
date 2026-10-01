@@ -27,6 +27,13 @@ struct ApplicationMotivationTests {
         #expect(ApplicationMotivation.validate(text) == .valid)
     }
 
+    @Test func lengthIgnoresSurroundingWhitespace() {
+        let text = "  " + String(repeating: "가", count: ApplicationMotivation.maxLength) + " \n"
+
+        #expect(ApplicationMotivation.length(of: text) == ApplicationMotivation.maxLength)
+        #expect(ApplicationMotivation.validate(text) == .valid)
+    }
+
     @Test func trimsSurroundingWhitespace() {
         #expect(ApplicationMotivation.trimmed("  교실을 깨끗하게\n") == "교실을 깨끗하게")
     }

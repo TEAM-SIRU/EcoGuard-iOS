@@ -47,9 +47,12 @@ final class RecruitmentApplyViewModel {
             let application = try await applyRecruitmentUseCase.execute(motivation: motivation)
             submitState = .idle
             return .applied(application)
-        } catch RecruitmentError.full, RecruitmentError.notInPeriod {
+        } catch RecruitmentError.full {
             submitState = .idle
-            return .closedWhileApplying
+            return .closedWhileApplying(reason: .full)
+        } catch RecruitmentError.notInPeriod {
+            submitState = .idle
+            return .closedWhileApplying(reason: .periodEnded)
         } catch RecruitmentError.alreadyApplied(let application) {
             submitState = .idle
             return .applied(application)

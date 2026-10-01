@@ -4,9 +4,15 @@ import os
 
 /// 신청 결과 화면에 보여 줄 결과.
 enum ApplicationOutcome: Hashable {
+    enum ClosedReason: Hashable {
+        /// 신청하는 사이 반 정원이 찼다.
+        case full
+        /// 신청하는 사이 신청 기간이 끝났다.
+        case periodEnded
+    }
+
     case applied(RecruitmentApplication)
-    /// 신청하는 사이 정원이 차거나 기간이 끝났다.
-    case closedWhileApplying
+    case closedWhileApplying(reason: ClosedReason)
 }
 
 @Observable
@@ -69,10 +75,13 @@ struct ApplicationResultContent: Equatable {
 
     init(outcome: ApplicationOutcome) {
         switch outcome {
-        case .closedWhileApplying:
+        case .closedWhileApplying(let reason):
             icon = .cross
             title = RecruitmentCopy.Result.closedTitle
-            message = RecruitmentCopy.Result.closedMessage
+            message = switch reason {
+            case .full: RecruitmentCopy.Result.closedMessage
+            case .periodEnded: RecruitmentCopy.Result.periodEndedMessage
+            }
             isPrimaryAction = false
         case .applied(let application):
             let applied = RecruitmentCopy.Result.appliedLine(

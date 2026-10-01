@@ -37,11 +37,19 @@ struct ApplicationResultTests {
     }
 
     @Test func closedWhileApplyingMatchesFigma() {
-        let content = ApplicationResultContent(outcome: .closedWhileApplying)
+        let content = ApplicationResultContent(outcome: .closedWhileApplying(reason: .full))
 
         #expect(content.title == "신청하지 못했어요")
         #expect(content.message == "신청하는 사이 모집 인원이 모두 찼어요.\n다음 모집 때 다시 신청해 주세요.")
         #expect(!content.isPrimaryAction)
+    }
+
+    @Test func periodEndedWhileApplyingSaysPeriodEnded() {
+        let content = ApplicationResultContent(outcome: .closedWhileApplying(reason: .periodEnded))
+
+        #expect(content.icon == .cross)
+        #expect(content.title == "신청하지 못했어요")
+        #expect(content.message == "신청하는 사이 신청 기간이 끝났어요.\n다음 모집 때 다시 신청해 주세요.")
     }
 
     private func makeViewModel(outcome: ApplicationOutcome?, scenario: MockRecruitmentRepository.Scenario) -> ApplicationResultViewModel {
@@ -53,11 +61,11 @@ struct ApplicationResultTests {
     }
 
     @Test func outcomeFromSubmissionSkipsLoading() async {
-        let viewModel = makeViewModel(outcome: .closedWhileApplying, scenario: .failure)
+        let viewModel = makeViewModel(outcome: .closedWhileApplying(reason: .full), scenario: .failure)
 
         await viewModel.load()
 
-        #expect(viewModel.state == .loaded(.closedWhileApplying))
+        #expect(viewModel.state == .loaded(.closedWhileApplying(reason: .full)))
     }
 
     @Test(arguments: [MockRecruitmentRepository.Scenario.applied, .open, .failure])
