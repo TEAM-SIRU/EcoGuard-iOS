@@ -7,8 +7,11 @@ struct TeacherNoticeView: View {
     let webAdminURL: URL?
     let onLogout: () async -> Void
 
+    private static let copiedMessage: LocalizedStringResource = "웹 주소를 복사했어요"
+
     @State private var copyCount = 0
     @State private var isShowingCopiedToast = false
+    @State private var isLoggingOut = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,17 +40,21 @@ struct TeacherNoticeView: View {
                     EcoButton("웹 주소 복사", style: .secondary) {
                         copy(webAdminURL)
                     }
+                    .disabled(isLoggingOut)
                     EcoShareButton("웹 주소 공유", style: .secondary, item: webAdminURL)
+                        .disabled(isLoggingOut)
                 }
                 EcoButton("로그아웃", style: .secondary) {
+                    isLoggingOut = true
                     await onLogout()
+                    isLoggingOut = false
                 }
             }
         }
         // 복사 완료 토스트는 Figma 정의가 없어 화면 위쪽에 문구만 띄운다.
         .overlay(alignment: .top) {
             if isShowingCopiedToast {
-                EcoToast(message: "웹 주소를 복사했어요", icon: nil)
+                EcoToast(message: Self.copiedMessage, icon: nil)
                     .padding(.top, Spacing.sm)
                     .padding(.horizontal, Spacing.screenHorizontal)
                     .transition(.opacity)
@@ -66,12 +73,12 @@ struct TeacherNoticeView: View {
     private func copy(_ url: URL) {
         UIPasteboard.general.url = url
         copyCount += 1
-        AccessibilityNotification.Announcement(String(localized: "웹 주소를 복사했어요")).post()
+        AccessibilityNotification.Announcement(String(localized: Self.copiedMessage)).post()
     }
 }
 
 #Preview("교사 · 웹 주소 있음") {
-    // Preview 전용 예시 주소(example.com은 문서용 예약 도메인)다. 실제 주소는 빌드 설정 `ECO_WEB_ADMIN_URL`로 넣는다.
+    // Preview 전용 예시 주소(example.com은 문서용 예약 도메인)다. 실제 주소는 빌드 설정 `ECO_WEB_ADMIN_HOST`로 넣는다.
     TeacherNoticeView(webAdminURL: AppConfig.webAdminURL(from: "https://example.com")) {}
 }
 

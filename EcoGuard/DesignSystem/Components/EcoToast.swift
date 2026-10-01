@@ -6,10 +6,11 @@ struct EcoToast: View {
     /// 안내 토스트를 띄워 두는 시간.
     static let displayDuration: Duration = .seconds(2)
 
-    private let message: LocalizedStringKey
+    /// VoiceOver 안내처럼 다른 곳에서도 같은 문구를 쓸 수 있게 `LocalizedStringResource`로 받는다.
+    private let message: LocalizedStringResource
     private let icon: ImageResource?
 
-    init(message: LocalizedStringKey, icon: ImageResource? = .iconAlertLarge) {
+    init(message: LocalizedStringResource, icon: ImageResource? = .iconAlertLarge) {
         self.message = message
         self.icon = icon
     }

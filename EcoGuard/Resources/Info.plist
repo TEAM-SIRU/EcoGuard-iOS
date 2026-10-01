@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>EcoWebAdminURL</key>
-	<string>$(ECO_WEB_ADMIN_URL)</string>
+	<string>https://$(ECO_WEB_ADMIN_HOST)</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>NotoSansKR-Regular.otf</string>
