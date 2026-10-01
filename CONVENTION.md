@@ -337,8 +337,10 @@ final class NoticeListViewModel {
 | white (`02 홈` 카드 배경 238:201) | #FFFFFF | 카드 배경 | `Color.ecoCard` |
 | `02 홈` 카드 그림자 (변수 아님) | rgba(26,33,31,0.06) | 일반 카드 그림자 | `Color.ecoShadowCard` |
 | `02 홈` 공지 카드 그림자 (변수 아님) | rgba(26,31,41,0.08) | 공지 카드 그림자 | `Color.ecoShadowNotice` |
+| `Tab bar` 그림자 255:2 (변수 아님) | rgba(26,31,41,0.06) | 하단 탭 바 그림자 | `Color.ecoShadowTabBar` |
+| `Camera FAB` 그림자 255:27 (변수 아님) | rgba(31,171,84,0.32) | 카메라 버튼 그림자 | `Color.ecoShadowCameraButton` |
 
-- 그림자는 `.ecoShadow(.card)` (0 / 2 / blur 10) · `.ecoShadow(.notice)` (0 / 4 / blur 16)로만 쓴다. 색과 값은 `EcoShadow`에 있다.
+- 그림자는 `.ecoShadow(.card)` (0 / 2 / blur 10) · `.ecoShadow(.notice)` (0 / 4 / blur 16) · `.ecoShadow(.tabBar)` (0 / -4 / blur 16) · `.ecoShadow(.cameraButton)` (0 / 6 / blur 14)로만 쓴다. 색과 값은 `EcoShadow`에 있다.
 - `02 홈` 공지 본문 글자 #4E5968 · 강조 #191F28은 Figma 변수가 아닌 raw hex라 `ecoTextSub` · `ecoTextPrimary`로 대체했다.
 
 ### 타이포그래피
@@ -353,7 +355,7 @@ final class NoticeListViewModel {
   - `Body 1 · 17/25 Medium` → `.ecoFont(.body1)` = Medium 17, lineHeight 25
   - `Caption · 13/18 Bold` → `.ecoFont(.caption)` = Bold 13, lineHeight 18
 
-#### 텍스트 스타일 (Foundations 7개 + 컴포넌트 4개 + 홈 6개)
+#### 텍스트 스타일 (Foundations 7개 + 컴포넌트 4개 + 홈 6개 + 탭 바 2개)
 
 | Figma 이름 | 값 | Swift 이름 제안 |
 |---|---|---|
@@ -374,6 +376,8 @@ final class NoticeListViewModel {
 | 홈 전체보기 | 14/20 Medium | `.subMedium` |
 | 홈 적립 시간 (+10분) | 13/18 Medium | `.captionMedium` |
 | 홈 자세히 보기·모집 인원 | 15/22 Bold | `.body2Bold` |
+| 탭 바 라벨 (비선택) | 12/16 Medium | `.caption2Medium` |
+| 탭 바 라벨 (선택) | 12/16 Bold | `.caption2Bold` |
 
 - 모든 텍스트 스타일에 자간 -1%(size × -0.01)를 적용한다.
 - Noto Sans KR 기본 줄높이(약 1.448em)보다 작은 lineHeight는 iOS에서 줄일 수 없어 Figma보다 줄마다 0.3~1.7pt 커진다(title1·title2·sub·caption·buttonLarge·button·captionRegular).

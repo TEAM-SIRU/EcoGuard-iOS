@@ -30,7 +30,7 @@ struct RootView: View {
             }
         case .loggedIn:
             if let homeViewModel {
-                HomeView(viewModel: homeViewModel)
+                MainTabView(homeViewModel: homeViewModel)
             }
         }
     }

@@ -193,6 +193,34 @@ struct HomeViewModelTests {
         #expect(viewModel.nextRefreshDate == deadline)
     }
 
+    @Test func returningToHomeRefreshesOnlyAfterRefreshDatePassed() async {
+        let clock = TestClock(now: kst(7, 59))
+        let repository = MockHomeRepository(scenarios: [.notOpenYet, .notSubmitted], delay: .zero, now: { clock.now })
+        let viewModel = HomeViewModel(
+            fetchHomeUseCase: FetchHomeUseCase(homeRepository: repository),
+            dismissNoticeUseCase: DismissNoticeUseCase(homeRepository: repository)
+        )
+        await viewModel.load()
+
+        await viewModel.refreshIfNeeded(now: kst(7, 59, 59))
+        #expect(repository.fetchCallCount == 1)
+
+        clock.now = kst(8, 3)
+        await viewModel.refreshIfNeeded(now: clock.now)
+
+        #expect(repository.fetchCallCount == 2)
+        #expect(viewModel.canVerify(at: clock.now))
+    }
+
+    @Test func refreshIfNeededWithoutRefreshDateDoesNothing() async {
+        let (viewModel, repository) = makeViewModel(scenarios: [.approved])
+        await viewModel.load()
+
+        await viewModel.refreshIfNeeded(now: .distantFuture)
+
+        #expect(repository.fetchCallCount == 1)
+    }
+
     @Test func verifyButtonTurnsOffAtDeadlineBeforeRefresh() async {
         let (viewModel, _) = makeViewModel(scenarios: [.notSubmitted])
         await viewModel.load()
@@ -271,6 +299,26 @@ struct HomeViewModelTests {
         await reload.value
 
         #expect(viewModel.state == loaded)
+    }
+
+    // MARK: - 카메라 버튼
+
+    @Test(arguments: [
+        (MockHomeRepository.Scenario.notSubmitted, true),
+        (.notOpenYet, true),
+        (.approved, true),
+        (.recruiting, false),
+        (.awaitingAssignment, false),
+        (.excluded, false),
+        (.failure, false)
+    ])
+    func cameraIsAvailableOnlyWhileActive(scenario: MockHomeRepository.Scenario, expected: Bool) async {
+        let (viewModel, _) = makeViewModel(scenarios: [scenario])
+        #expect(viewModel.isCameraAvailable == false)
+
+        await viewModel.load()
+
+        #expect(viewModel.isCameraAvailable == expected)
     }
 
     @Test func dismissNoticeWithoutNoticeDoesNothing() async {
