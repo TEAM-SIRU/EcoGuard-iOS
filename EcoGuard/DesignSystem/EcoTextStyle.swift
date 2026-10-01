@@ -15,13 +15,25 @@ enum EcoTextStyle: CaseIterable {
     case captionRegular
     /// Figma `Toast` 문구 (컴포넌트) 15/22 Medium.
     case body2Medium
+    /// Figma `02 홈` 카드 제목(이번 주 청소·환경지킴이 공지) 17/25 Bold.
+    case body1Bold
+    /// Figma `02 홈` 섹션 제목(최근 청소 기록) 18/26 Bold.
+    case title4
+    /// Figma `02 홈` 기록 날짜 16/23 Bold.
+    case title5
+    /// Figma `02 홈` 전체보기 14/20 Medium.
+    case subMedium
+    /// Figma `02 홈` 적립 시간(+10분) 13/18 Medium.
+    case captionMedium
+    /// Figma `02 홈` 자세히 보기·모집 인원 15/22 Bold.
+    case body2Bold
 
     /// 번들 폰트 PostScript 이름. `fc-scan`으로 OTF 파일에서 확인한 값이다.
     var fontName: String {
         switch self {
-        case .title1, .title2, .title3, .caption, .buttonLarge, .button:
+        case .title1, .title2, .title3, .caption, .buttonLarge, .button, .body1Bold, .title4, .title5, .body2Bold:
             "NotoSansKR-Bold"
-        case .body1, .body2Medium:
+        case .body1, .body2Medium, .subMedium, .captionMedium:
             "NotoSansKR-Medium"
         case .body2, .sub, .captionRegular:
             "NotoSansKR-Regular"
@@ -41,6 +53,12 @@ enum EcoTextStyle: CaseIterable {
         case .button: 17
         case .captionRegular: 13
         case .body2Medium: 15
+        case .body1Bold: 17
+        case .title4: 18
+        case .title5: 16
+        case .subMedium: 14
+        case .captionMedium: 13
+        case .body2Bold: 15
         }
     }
 
@@ -57,6 +75,12 @@ enum EcoTextStyle: CaseIterable {
         case .button: 24
         case .captionRegular: 18
         case .body2Medium: 22
+        case .body1Bold: 25
+        case .title4: 26
+        case .title5: 23
+        case .subMedium: 20
+        case .captionMedium: 18
+        case .body2Bold: 22
         }
     }
 

@@ -334,6 +334,12 @@ final class NoticeListViewModel {
 | white (`Toast` 문구) | #FFFFFF | 토스트 위 글자 | `Color.ecoOnToast` |
 | `Toast` icon/alert SVG stroke (변수 아님) | #FF9B9B | 토스트 아이콘 | `Color.ecoToastIcon` |
 | grey/100 (교사 안내 309:54 원 배경) | #F2F4F3 | 원형 아이콘 배지 배경 | `Color.ecoBadgeBackground` |
+| white (`02 홈` 카드 배경 238:201) | #FFFFFF | 카드 배경 | `Color.ecoCard` |
+| `02 홈` 카드 그림자 (변수 아님) | rgba(26,33,31,0.06) | 일반 카드 그림자 | `Color.ecoShadowCard` |
+| `02 홈` 공지 카드 그림자 (변수 아님) | rgba(26,31,41,0.08) | 공지 카드 그림자 | `Color.ecoShadowNotice` |
+
+- 그림자는 `.ecoShadow(.card)` (0 / 2 / blur 10) · `.ecoShadow(.notice)` (0 / 4 / blur 16)로만 쓴다. 색과 값은 `EcoShadow`에 있다.
+- `02 홈` 공지 본문 글자 #4E5968 · 강조 #191F28은 Figma 변수가 아닌 raw hex라 `ecoTextSub` · `ecoTextPrimary`로 대체했다.
 
 ### 타이포그래피
 - **폰트: Noto Sans KR** (커스텀 폰트). 앱 번들에 포함하고 `Info.plist`의 `UIAppFonts`에 등록한다. PostScript 이름(예: `NotoSansKR-Bold`)은 폰트 파일 기준으로 확인 필요.
@@ -347,7 +353,7 @@ final class NoticeListViewModel {
   - `Body 1 · 17/25 Medium` → `.ecoFont(.body1)` = Medium 17, lineHeight 25
   - `Caption · 13/18 Bold` → `.ecoFont(.caption)` = Bold 13, lineHeight 18
 
-#### 텍스트 스타일 (Foundations 7개 + 컴포넌트 4개)
+#### 텍스트 스타일 (Foundations 7개 + 컴포넌트 4개 + 홈 6개)
 
 | Figma 이름 | 값 | Swift 이름 제안 |
 |---|---|---|
@@ -362,6 +368,12 @@ final class NoticeListViewModel {
 | Button (컴포넌트) | 17/24 Bold | `.button` |
 | Caption Regular (컴포넌트) | 13/18 Regular | `.captionRegular` |
 | Toast 문구 (컴포넌트) | 15/22 Medium | `.body2Medium` |
+| 홈 카드 제목 (이번 주 청소·공지) | 17/25 Bold | `.body1Bold` |
+| 홈 섹션 제목 (최근 청소 기록) | 18/26 Bold | `.title4` |
+| 홈 기록 날짜 | 16/23 Bold | `.title5` |
+| 홈 전체보기 | 14/20 Medium | `.subMedium` |
+| 홈 적립 시간 (+10분) | 13/18 Medium | `.captionMedium` |
+| 홈 자세히 보기·모집 인원 | 15/22 Bold | `.body2Bold` |
 
 - 모든 텍스트 스타일에 자간 -1%(size × -0.01)를 적용한다.
 - Noto Sans KR 기본 줄높이(약 1.448em)보다 작은 lineHeight는 iOS에서 줄일 수 없어 Figma보다 줄마다 0.3~1.7pt 커진다(title1·title2·sub·caption·buttonLarge·button·captionRegular).
