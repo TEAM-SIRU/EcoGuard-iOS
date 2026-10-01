@@ -33,7 +33,18 @@ struct HomeNoticeCard: View {
         }
     }
 
+    /// Figma 머리 영역: 아이콘 · 제목/날짜 · NEW · X.
+    /// 좁은 폭(SE 375pt)에서 제목이 두 줄이 되지 않게, 먼저 Figma 간격 그대로 한 줄을 시도하고
+    /// 안 맞으면 NEW와 X 사이 간격만 없앤다. X 버튼 44pt 안에 여백이 있어 눈으로 보이는 간격은 남는다.
     private var header: some View {
+        ViewThatFits(in: .horizontal) {
+            header(trailingSpacing: Spacing.md, isTitleSingleLine: true)
+            header(trailingSpacing: 0, isTitleSingleLine: true)
+            header(trailingSpacing: 0, isTitleSingleLine: false)
+        }
+    }
+
+    private func header(trailingSpacing: CGFloat, isTitleSingleLine: Bool) -> some View {
         HStack(spacing: Spacing.md) {
             Image(.iconMegaphone)
                 .foregroundStyle(Color.ecoPrimary)
@@ -43,15 +54,19 @@ struct HomeNoticeCard: View {
                 Text("환경지킴이 공지")
                     .ecoFont(.body1Bold)
                     .foregroundStyle(Color.ecoTextPrimary)
+                    .lineLimit(isTitleSingleLine ? 1 : nil)
+                    .fixedSize(horizontal: isTitleSingleLine, vertical: false)
                 Text(HomeFormatter.noticeDate(notice.publishedAt))
                     .ecoFont(.captionRegular)
                     .foregroundStyle(Color.ecoTextCaption)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            if notice.isNew {
-                EcoTag(title: "NEW", style: .new)
+            HStack(spacing: trailingSpacing) {
+                if notice.isNew {
+                    EcoTag(title: "NEW", style: .new)
+                }
+                EcoIconButton(icon: .iconClose, color: .ecoTextCaption, accessibilityLabel: "공지 닫기", action: onDismiss)
             }
-            EcoIconButton(icon: .iconClose, color: .ecoTextCaption, accessibilityLabel: "공지 닫기", action: onDismiss)
         }
     }
 }
