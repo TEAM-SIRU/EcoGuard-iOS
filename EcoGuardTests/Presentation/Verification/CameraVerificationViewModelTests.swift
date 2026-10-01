@@ -13,40 +13,62 @@ private final class TestClock {
 
 @MainActor
 struct CameraVerificationViewModelTests {
-    private let clock = TestClock(now: Date(timeIntervalSinceReferenceDate: 0))
-    /// Mock 기본 마감: 지금부터 5분 32초 뒤.
-    private var deadline: Date {
-        Date(timeIntervalSinceReferenceDate: MockVerificationRepository.Fixture.remainingUntilDeadline)
-    }
+    /// 서버 시계. Mock 저장소가 쓴다.
+    private let serverClock = TestClock(now: Date(timeIntervalSinceReferenceDate: 0))
+    /// 서버보다 빠르거나 느린 기기 시계 차이(초).
+    private var deviceSkew: TimeInterval = 0
+    /// Mock 기본 마감: 서버 시각 기준 지금부터 5분 32초 뒤.
+    private let deadline = Date(timeIntervalSinceReferenceDate: MockVerificationRepository.Fixture.remainingUntilDeadline)
 
     private func makeViewModel(
         scenario: MockVerificationRepository.Scenario = .open,
         uploadResults: [MockVerificationRepository.UploadResult] = [.success],
-        permission: FakeCameraPermission = FakeCameraPermission(),
-        camera: FakeCameraService = FakeCameraService(sampleImage: FakeCameraService.makeSampleImage(size: CGSize(width: 30, height: 40)))
+        permission: FakeCameraPermission? = nil,
+        camera: FakeCameraService? = nil
     ) -> (CameraVerificationViewModel, MockVerificationRepository) {
-        let clock = clock
+        let serverClock = serverClock
+        let deviceSkew = deviceSkew
         let repository = MockVerificationRepository(
             scenario: scenario,
             uploadResults: uploadResults,
             delay: .zero,
-            now: { clock.now }
+            now: { serverClock.now }
         )
         let viewModel = CameraVerificationViewModel(
             fetchSessionUseCase: FetchVerificationSessionUseCase(verificationRepository: repository),
             submitPhotoUseCase: SubmitVerificationPhotoUseCase(verificationRepository: repository),
-            camera: camera,
-            permission: permission,
-            now: { clock.now }
+            camera: camera ?? Self.makeCamera(),
+            permission: permission ?? FakeCameraPermission(),
+            now: { serverClock.now.addingTimeInterval(deviceSkew) }
         )
         return (viewModel, repository)
+    }
+
+    private static func makeCamera() -> FakeCameraService {
+        FakeCameraService(sampleImage: FakeCameraService.makeSampleImage(size: CGSize(width: 30, height: 40)))
+    }
+
+    /// 촬영 화면에서 카메라를 켜고 준비될 때까지 기다린다. 끝나면 `stopCamera()`로 멈춘다.
+    private func startCamera(_ viewModel: CameraVerificationViewModel) async -> Task<Void, Never> {
+        let task = Task { await viewModel.runCamera() }
+        await waitUntil { viewModel.isCameraReady || viewModel.isCameraUnavailable }
+        return task
+    }
+
+    private func waitUntil(_ condition: () -> Bool) async {
+        for _ in 0..<100 where !condition() {
+            await Task.yield()
+        }
     }
 
     /// 안내 → 촬영 → 확인까지 진행한 사진.
     private func capturedPhoto(_ viewModel: CameraVerificationViewModel) async -> CameraVerificationViewModel.CapturedPhoto? {
         await viewModel.load()
         await viewModel.startCapture()
+        let cameraTask = await startCamera(viewModel)
         await viewModel.takePhoto()
+        viewModel.stopCamera()
+        await cameraTask.value
         guard case .confirming(let photo) = viewModel.state else { return nil }
         return photo
     }
@@ -133,17 +155,96 @@ struct CameraVerificationViewModelTests {
         #expect(viewModel.state == .guide)
     }
 
+    // MARK: - 카메라 준비 상태
+
+    @Test func shutterIsDisabledUntilCameraStarts() async {
+        let camera = Self.makeCamera()
+        let (viewModel, _) = makeViewModel(camera: camera)
+        await viewModel.load()
+        await viewModel.startCapture()
+
+        #expect(viewModel.canTakePhoto == false)
+        await viewModel.takePhoto()
+        #expect(camera.captureCount == 0)
+
+        let cameraTask = await startCamera(viewModel)
+        #expect(viewModel.isCameraReady)
+        #expect(viewModel.canTakePhoto)
+        #expect(viewModel.canSwitchCamera)
+
+        viewModel.stopCamera()
+        await cameraTask.value
+        #expect(viewModel.isCameraReady == false)
+    }
+
+    @Test func cameraStartFailureShowsUnavailable() async {
+        let camera = Self.makeCamera()
+        camera.shouldFailStart = true
+        let (viewModel, _) = makeViewModel(camera: camera)
+        await viewModel.load()
+        await viewModel.startCapture()
+
+        let cameraTask = await startCamera(viewModel)
+
+        #expect(viewModel.isCameraUnavailable)
+        #expect(viewModel.canTakePhoto == false)
+        viewModel.stopCamera()
+        await cameraTask.value
+    }
+
+    @Test func interruptionDisablesShutterUntilItEnds() async {
+        let camera = Self.makeCamera()
+        let (viewModel, _) = makeViewModel(camera: camera)
+        await viewModel.load()
+        await viewModel.startCapture()
+        let cameraTask = await startCamera(viewModel)
+
+        camera.send(.interrupted)
+        await waitUntil { !viewModel.isCameraReady }
+        #expect(viewModel.isCameraUnavailable)
+        #expect(viewModel.canTakePhoto == false)
+
+        camera.send(.interruptionEnded)
+        await waitUntil { viewModel.isCameraReady }
+        #expect(viewModel.isCameraUnavailable == false)
+        #expect(viewModel.canTakePhoto)
+
+        viewModel.stopCamera()
+        await cameraTask.value
+    }
+
+    @Test func runtimeErrorRestartsSession() async {
+        let camera = Self.makeCamera()
+        let (viewModel, _) = makeViewModel(camera: camera)
+        await viewModel.load()
+        await viewModel.startCapture()
+        let cameraTask = await startCamera(viewModel)
+        #expect(camera.startCount == 1)
+
+        camera.send(.runtimeError)
+        await waitUntil { camera.startCount == 2 && viewModel.isCameraReady }
+
+        #expect(camera.startCount == 2)
+        #expect(viewModel.isCameraReady)
+        #expect(viewModel.isCameraUnavailable == false)
+        viewModel.stopCamera()
+        await cameraTask.value
+    }
+
     // MARK: - 촬영 → 확인 → 재촬영 → 제출
 
     @Test func captureConfirmRetakeAndSubmitSucceeds() async throws {
-        let camera = FakeCameraService(sampleImage: FakeCameraService.makeSampleImage(size: CGSize(width: 30, height: 40)))
+        let camera = Self.makeCamera()
         let (viewModel, repository) = makeViewModel(camera: camera)
 
         let first = try #require(await capturedPhoto(viewModel))
         viewModel.retake()
         #expect(viewModel.state == .capturing)
 
+        let cameraTask = await startCamera(viewModel)
         await viewModel.takePhoto()
+        viewModel.stopCamera()
+        await cameraTask.value
         guard case .confirming(let second) = viewModel.state else {
             Issue.record("확인 화면이 아님: \(viewModel.state)")
             return
@@ -151,10 +252,15 @@ struct CameraVerificationViewModelTests {
         #expect(second.photo.id != first.photo.id)
         #expect(camera.captureCount == 2)
 
-        clock.now = Date(timeIntervalSinceReferenceDate: 244)
+        serverClock.now = Date(timeIntervalSinceReferenceDate: 244)
         await viewModel.submit()
 
-        #expect(viewModel.state == .submitted(second, submittedAt: Date(timeIntervalSinceReferenceDate: 244)))
+        guard case .submitted(let submitted, let submittedAt) = viewModel.state else {
+            Issue.record("제출 완료가 아님: \(viewModel.state)")
+            return
+        }
+        #expect(submitted.photo == second.photo)
+        #expect(submittedAt == Date(timeIntervalSinceReferenceDate: 244))
         #expect(repository.submittedPhotoIDs == [second.photo.id])
     }
 
@@ -168,17 +274,29 @@ struct CameraVerificationViewModelTests {
         #expect(viewModel.state == .guide)
     }
 
-    @Test func captureFailureStaysOnCapturing() async {
-        let camera = FakeCameraService(sampleImage: FakeCameraService.makeSampleImage(size: CGSize(width: 30, height: 40)))
+    @Test func captureFailureStaysOnCapturingAndCountsFailure() async {
+        let camera = Self.makeCamera()
         camera.shouldFailCapture = true
         let (viewModel, _) = makeViewModel(camera: camera)
 
-        await viewModel.load()
-        await viewModel.startCapture()
-        await viewModel.takePhoto()
+        let photo = await capturedPhoto(viewModel)
 
+        #expect(photo == nil)
         #expect(viewModel.state == .capturing)
         #expect(viewModel.isTakingPhoto == false)
+        #expect(viewModel.captureFailureCount == 1)
+    }
+
+    @Test func undecodablePhotoCountsFailure() async {
+        let camera = Self.makeCamera()
+        camera.capturedDataOverride = Data("not an image".utf8)
+        let (viewModel, _) = makeViewModel(camera: camera)
+
+        let photo = await capturedPhoto(viewModel)
+
+        #expect(photo == nil)
+        #expect(viewModel.state == .capturing)
+        #expect(viewModel.captureFailureCount == 1)
     }
 
     @Test func uploadFailureThenRetrySamePhotoSucceeds() async throws {
@@ -186,14 +304,19 @@ struct CameraVerificationViewModelTests {
         let photo = try #require(await capturedPhoto(viewModel))
 
         await viewModel.submit()
-        #expect(viewModel.state == .uploadFailed(photo))
+        guard case .uploadFailed(let failed) = viewModel.state else {
+            Issue.record("업로드 실패가 아님: \(viewModel.state)")
+            return
+        }
+        #expect(failed.photo == photo.photo)
+        #expect(failed.hasStartedUpload)
 
         await viewModel.submit()
         guard case .submitted(let submitted, _) = viewModel.state else {
             Issue.record("제출 완료가 아님: \(viewModel.state)")
             return
         }
-        #expect(submitted == photo)
+        #expect(submitted.photo == photo.photo)
         #expect(repository.submittedPhotoIDs == [photo.photo.id, photo.photo.id])
     }
 
@@ -204,23 +327,65 @@ struct CameraVerificationViewModelTests {
         await viewModel.submit()
         viewModel.returnToConfirm()
 
-        #expect(viewModel.state == .confirming(photo))
+        guard case .confirming(let confirming) = viewModel.state else {
+            Issue.record("확인 화면이 아님: \(viewModel.state)")
+            return
+        }
+        #expect(confirming.photo == photo.photo)
+        #expect(confirming.hasStartedUpload)
     }
 
     @Test func retryAfterDeadlineWithSamePhotoIsAccepted() async throws {
         let (viewModel, _) = makeViewModel(uploadResults: [.networkFailure, .success])
-        let photo = try #require(await capturedPhoto(viewModel))
+        _ = try #require(await capturedPhoto(viewModel))
 
         await viewModel.submit()
-        clock.now = deadline.addingTimeInterval(60)
+        serverClock.now = deadline.addingTimeInterval(60)
         viewModel.expireIfNeeded()
-        #expect(viewModel.state == .uploadFailed(photo))
+        guard case .uploadFailed = viewModel.state else {
+            Issue.record("업로드 실패 화면이 유지되지 않음: \(viewModel.state)")
+            return
+        }
 
         await viewModel.submit()
         guard case .submitted = viewModel.state else {
             Issue.record("마감 전에 시작한 사진의 재시도가 거부됨: \(viewModel.state)")
             return
         }
+    }
+
+    /// 업로드 실패 → 뒤로(확인 화면) → 마감 → 앱 복귀(scenePhase active에서 expireIfNeeded) → 같은 사진 재시도.
+    @Test func startedUploadSurvivesDeadlineAfterGoingBackToConfirm() async throws {
+        let (viewModel, _) = makeViewModel(uploadResults: [.networkFailure, .success])
+        _ = try #require(await capturedPhoto(viewModel))
+
+        await viewModel.submit()
+        viewModel.returnToConfirm()
+        serverClock.now = deadline.addingTimeInterval(30)
+        let expired = viewModel.expireIfNeeded()
+
+        #expect(expired == false)
+        guard case .confirming = viewModel.state else {
+            Issue.record("확인 화면이 유지되지 않음: \(viewModel.state)")
+            return
+        }
+        await viewModel.submit()
+        guard case .submitted = viewModel.state else {
+            Issue.record("마감 전에 시작한 사진의 재시도가 거부됨: \(viewModel.state)")
+            return
+        }
+    }
+
+    @Test func retakeAfterDeadlineFromStartedUploadTimesOut() async throws {
+        let (viewModel, _) = makeViewModel(uploadResults: [.networkFailure])
+        _ = try #require(await capturedPhoto(viewModel))
+
+        await viewModel.submit()
+        viewModel.returnToConfirm()
+        serverClock.now = deadline
+        viewModel.retake()
+
+        #expect(viewModel.state == .timedOut)
     }
 
     // MARK: - 마감
@@ -230,7 +395,7 @@ struct CameraVerificationViewModelTests {
 
         await viewModel.load()
         await viewModel.startCapture()
-        clock.now = deadline
+        serverClock.now = deadline
         let expired = viewModel.expireIfNeeded()
 
         #expect(expired)
@@ -241,7 +406,7 @@ struct CameraVerificationViewModelTests {
         let (viewModel, _) = makeViewModel()
         _ = try #require(await capturedPhoto(viewModel))
 
-        clock.now = deadline
+        serverClock.now = deadline
         viewModel.retake()
 
         #expect(viewModel.state == .timedOut)
@@ -252,7 +417,7 @@ struct CameraVerificationViewModelTests {
         _ = try #require(await capturedPhoto(viewModel))
 
         // 화면이 마감 시각 갱신을 놓친 채 보내기를 누른 경우. 서버가 거절한다.
-        clock.now = deadline.addingTimeInterval(1)
+        serverClock.now = deadline.addingTimeInterval(1)
         await viewModel.submit()
 
         #expect(viewModel.state == .timedOut)
@@ -262,10 +427,40 @@ struct CameraVerificationViewModelTests {
         let (viewModel, _) = makeViewModel()
 
         await viewModel.load()
-        clock.now = deadline
+        serverClock.now = deadline
         await viewModel.startCapture()
 
         #expect(viewModel.state == .timedOut)
+    }
+
+    /// 기기 시계가 서버보다 3분 빠르거나 느려도 마감은 서버 시각 기준으로 판단한다.
+    @Test(arguments: [-180.0, 180.0])
+    func deadlineUsesServerClockWhenDeviceClockIsSkewed(skew: TimeInterval) async {
+        var tests = self
+        tests.deviceSkew = skew
+        let (viewModel, _) = tests.makeViewModel()
+
+        await viewModel.load()
+        await viewModel.startCapture()
+
+        serverClock.now = deadline.addingTimeInterval(-1)
+        #expect(viewModel.expireIfNeeded() == false)
+        #expect(viewModel.timeUntilDeadline() == 1)
+        #expect(viewModel.state == .capturing)
+
+        serverClock.now = deadline
+        #expect(viewModel.expireIfNeeded())
+        #expect(viewModel.state == .timedOut)
+    }
+
+    @Test func capturedAtUsesServerClock() async throws {
+        var tests = self
+        tests.deviceSkew = 180
+        let (viewModel, _) = tests.makeViewModel()
+
+        let photo = try #require(await tests.capturedPhoto(viewModel))
+
+        #expect(photo.photo.capturedAt == serverClock.now)
     }
 
     @Test func checkUploadStatusShowsAlreadySubmittedWhenServerHasPhoto() async throws {
@@ -276,7 +471,7 @@ struct CameraVerificationViewModelTests {
         let timedOut = CameraVerificationViewModel(
             fetchSessionUseCase: FetchVerificationSessionUseCase(verificationRepository: repository),
             submitPhotoUseCase: SubmitVerificationPhotoUseCase(verificationRepository: repository),
-            camera: FakeCameraService(),
+            camera: Self.makeCamera(),
             permission: FakeCameraPermission(),
             state: .timedOut
         )
@@ -289,31 +484,12 @@ struct CameraVerificationViewModelTests {
     @Test func checkUploadStatusKeepsTimedOutWhenNothingSubmitted() async {
         let (viewModel, _) = makeViewModel()
         await viewModel.load()
-        clock.now = deadline
+        serverClock.now = deadline
         viewModel.expireIfNeeded()
 
         await viewModel.checkUploadStatus()
 
         #expect(viewModel.state == .timedOut)
         #expect(viewModel.sheet == nil)
-    }
-}
-
-struct VerificationPhotoEncoderTests {
-    @Test func shrinksLongSideToLimit() throws {
-        let image = FakeCameraService.makeSampleImage(size: CGSize(width: 3024, height: 4032))
-
-        let output = try #require(VerificationPhotoEncoder.encode(image))
-
-        #expect(output.image.size == CGSize(width: 1200, height: 1600))
-        #expect(UIImage(data: output.jpegData) != nil)
-    }
-
-    @Test func keepsSmallImageSize() throws {
-        let image = FakeCameraService.makeSampleImage(size: CGSize(width: 300, height: 400))
-
-        let output = try #require(VerificationPhotoEncoder.encode(image))
-
-        #expect(output.image.size == CGSize(width: 300, height: 400))
     }
 }

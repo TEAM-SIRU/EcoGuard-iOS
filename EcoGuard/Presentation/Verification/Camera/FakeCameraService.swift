@@ -1,45 +1,76 @@
 import UIKit
 
-/// 시뮬레이터·Preview·테스트용 카메라. 촬영하면 샘플 이미지를 돌려준다.
+/// 시뮬레이터·Preview·테스트용 카메라. 촬영하면 샘플 사진(JPEG)을 돌려준다.
 final class FakeCameraService: CameraService {
     struct CaptureFailedError: Error {}
+    struct StartFailedError: Error {}
 
     let sampleImage: UIImage
+    let sampleData: Data
     var shouldFailCapture = false
+    /// 설정하면 촬영 결과로 이 데이터를 돌려준다. 변환 실패(깨진 데이터) 테스트에 쓴다.
+    var capturedDataOverride: Data?
+    var shouldFailStart = false
     private(set) var isRunning = false
+    private(set) var startCount = 0
     private(set) var captureCount = 0
     private(set) var switchCount = 0
+    private var continuation: AsyncStream<CameraEvent>.Continuation?
 
-    init(sampleImage: UIImage = FakeCameraService.makeSampleImage()) {
-        self.sampleImage = sampleImage
+    init(sampleImage: UIImage? = nil) {
+        let image = sampleImage ?? Self.makeSampleImage()
+        self.sampleImage = image
+        sampleData = image.jpegData(compressionQuality: 0.9) ?? Data()
     }
 
     var previewSource: CameraPreviewSource {
         .image(sampleImage)
     }
 
+    func events() -> AsyncStream<CameraEvent> {
+        continuation?.finish()
+        let (stream, continuation) = AsyncStream.makeStream(of: CameraEvent.self)
+        self.continuation = continuation
+        return stream
+    }
+
+    /// 테스트에서 세션 중단·오류를 흉내 낸다.
+    func send(_ event: CameraEvent) {
+        if event != .interruptionEnded {
+            isRunning = false
+        } else {
+            isRunning = true
+        }
+        continuation?.yield(event)
+    }
+
     func start() async throws {
+        startCount += 1
+        if shouldFailStart {
+            throw StartFailedError()
+        }
         isRunning = true
     }
 
     func stop() {
         isRunning = false
+        continuation?.finish()
     }
 
     func switchPosition() async throws {
         switchCount += 1
     }
 
-    func capturePhoto() async throws -> UIImage {
+    func capturePhoto() async throws -> Data {
         captureCount += 1
         if shouldFailCapture {
             throw CaptureFailedError()
         }
-        return sampleImage
+        return capturedDataOverride ?? sampleData
     }
 
     /// 복도 모양을 단순하게 그린 샘플 사진(세로 3:4).
-    static func makeSampleImage(size: CGSize = CGSize(width: 900, height: 1200)) -> UIImage {
+    nonisolated static func makeSampleImage(size: CGSize = CGSize(width: 900, height: 1200)) -> UIImage {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         return UIGraphicsImageRenderer(size: size, format: format).image { context in

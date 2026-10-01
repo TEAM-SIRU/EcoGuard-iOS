@@ -5,6 +5,8 @@ struct VerificationSession: Equatable {
     let area: String
     let window: CleaningWindow
     let availability: VerificationAvailability
+    /// 응답 시점의 서버 시각. 기기 시계가 틀려도 마감·남은 시간을 서버 기준으로 계산하는 데 쓴다.
+    let serverNow: Date
 }
 
 /// 지금 인증 사진을 보낼 수 있는지. 클라이언트 시간이 아니라 서버가 내려준 값으로 판단한다.

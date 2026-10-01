@@ -24,6 +24,11 @@ struct VerificationConfirmView: View {
             }
             .scrollBounceBehavior(.basedOnSize)
         }
+        .onAppear {
+            // 업로드 실패 후 돌아온 경우는 새로 찍은 사진이 아니므로 알리지 않는다.
+            guard !captured.hasStartedUpload else { return }
+            AccessibilityNotification.Announcement(String(localized: "사진을 찍었어요")).post()
+        }
         .safeAreaInset(edge: .bottom) {
             BottomCTA {
                 HStack(spacing: Spacing.sm) {

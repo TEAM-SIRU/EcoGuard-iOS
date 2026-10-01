@@ -20,14 +20,26 @@ enum CameraPreviewSource {
     case image(UIImage)
 }
 
+/// 촬영 중 세션 상태 변화.
+enum CameraEvent: Equatable {
+    /// 다른 앱·전화·멀티태스킹 등으로 세션이 멈췄다. 끝나면 `interruptionEnded`가 온다.
+    case interrupted
+    case interruptionEnded
+    /// 런타임 오류(미디어 서비스 재설정 포함). 세션이 멈췄으므로 다시 시작해야 한다.
+    case runtimeError
+}
+
 /// 카메라 촬영. 앨범 사진은 받지 않고 이 서비스로 찍은 사진만 쓴다.
 protocol CameraService: AnyObject {
     var previewSource: CameraPreviewSource { get }
+    /// 세션 상태 알림. 부를 때마다 새 스트림을 만든다. 시작 전에 만들어 두어야 시작 직후 알림을 놓치지 않는다.
+    func events() -> AsyncStream<CameraEvent>
     func start() async throws
     func stop()
     /// 전면·후면 카메라를 바꾼다.
     func switchPosition() async throws
-    func capturePhoto() async throws -> UIImage
+    /// 찍은 사진의 원본 파일 데이터(EXIF 등 메타데이터 포함). 축소·메타데이터 제거는 `VerificationPhotoEncoder`가 한다.
+    func capturePhoto() async throws -> Data
 }
 
 struct SystemCameraPermission: CameraPermission {

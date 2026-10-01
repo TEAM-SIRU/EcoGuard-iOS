@@ -1,7 +1,7 @@
 import Foundation
 
 /// 서버 연동 전까지 쓰는 Mock. 고른 상태(Figma `06 청소 인증` 프레임)의 데이터를 지연 후 돌려준다.
-/// 마감 판단은 서버 몫이라 Mock이 `now`와 마감 시각으로 흉내 낸다.
+/// 마감 판단은 서버 몫이라 Mock이 `now`(서버 시계)와 마감 시각으로 흉내 낸다.
 final class MockVerificationRepository: VerificationRepository {
     enum Scenario: CaseIterable {
         case open
@@ -48,16 +48,17 @@ final class MockVerificationRepository: VerificationRepository {
     func fetchSession() async throws -> VerificationSession {
         fetchCallCount += 1
         try await Task.sleep(for: delay)
+        let serverNow = now()
         if let acceptedSubmission {
-            return Fixture.session(.alreadySubmitted(submittedAt: acceptedSubmission.submission.submittedAt))
+            return Fixture.session(.alreadySubmitted(submittedAt: acceptedSubmission.submission.submittedAt), serverNow: serverNow)
         }
         switch scenario {
         case .open:
-            return Fixture.session(now() < deadline ? .open(deadline: deadline) : .outsideWindow)
+            return Fixture.session(serverNow < deadline ? .open(deadline: deadline) : .outsideWindow, serverNow: serverNow)
         case .outsideWindow:
-            return Fixture.session(.outsideWindow)
+            return Fixture.session(.outsideWindow, serverNow: serverNow)
         case .alreadySubmitted:
-            return Fixture.session(.alreadySubmitted(submittedAt: Fixture.submittedAt))
+            return Fixture.session(.alreadySubmitted(submittedAt: Fixture.submittedAt), serverNow: serverNow)
         case .failure:
             throw FetchFailedError()
         }
@@ -106,8 +107,8 @@ extension MockVerificationRepository {
             return calendar.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 8, minute: 4)) ?? .distantPast
         }()
 
-        static func session(_ availability: VerificationAvailability) -> VerificationSession {
-            VerificationSession(area: area, window: window, availability: availability)
+        static func session(_ availability: VerificationAvailability, serverNow: Date) -> VerificationSession {
+            VerificationSession(area: area, window: window, availability: availability, serverNow: serverNow)
         }
     }
 }

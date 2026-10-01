@@ -4,7 +4,7 @@ import os
 import UIKit
 
 /// 청소 인증 흐름: 촬영 안내 → 촬영 → 확인 → 제출.
-/// 인증 가능 여부·마감은 서버 값으로 판단하고, 클라이언트 시간은 마감 도달 시 화면 전환에만 쓴다.
+/// 인증 가능 여부·마감은 서버 값으로 판단한다. 마감 도달 시 화면 전환은 서버 시각으로 보정한 시계로 계산한다.
 @Observable
 @MainActor
 final class CameraVerificationViewModel {
@@ -37,9 +37,11 @@ final class CameraVerificationViewModel {
     struct CapturedPhoto: Equatable {
         let photo: VerificationPhoto
         let image: UIImage
+        /// 한 번이라도 보내기 시작했는지. 서버는 마감 전에 시작한 사진의 재시도를 마감 후에도 받으므로, 이 사진은 시간 초과로 보내지 않는다.
+        var hasStartedUpload = false
 
         static func == (lhs: Self, rhs: Self) -> Bool {
-            lhs.photo == rhs.photo
+            lhs.photo == rhs.photo && lhs.hasStartedUpload == rhs.hasStartedUpload
         }
     }
 
@@ -47,6 +49,13 @@ final class CameraVerificationViewModel {
     private(set) var sheet: Sheet?
     private(set) var session: VerificationSession?
     private(set) var isTakingPhoto = false
+    private(set) var isSwitchingCamera = false
+    /// 카메라 세션이 돌고 있어 찍을 수 있는지. 시작 성공 후 true, 중단·오류 시 false.
+    private(set) var isCameraReady = false
+    /// 세션 중단·시작 실패로 카메라를 쓸 수 없다. 화면에 안내를 겹친다.
+    private(set) var isCameraUnavailable = false
+    /// 촬영·변환에 실패한 횟수. 바뀔 때마다 화면이 토스트와 VoiceOver 안내를 띄운다.
+    private(set) var captureFailureCount = 0
 
     let camera: CameraService
 
@@ -54,6 +63,8 @@ final class CameraVerificationViewModel {
     private let submitPhotoUseCase: SubmitVerificationPhotoUseCase
     private let permission: CameraPermission
     private let now: () -> Date
+    /// 서버 시각 - 기기 시각. 응답 지연만큼의 오차는 남지만 기기 시계를 바꿔 마감을 넘기는 것은 막는다.
+    private var clockOffset: TimeInterval = 0
     private let logger = Logger(subsystem: "EcoGuard", category: "Verification")
 
     init(
@@ -73,7 +84,9 @@ final class CameraVerificationViewModel {
         self.now = now
         self.state = state
         self.sheet = sheet
-        self.session = session
+        if let session {
+            apply(session)
+        }
     }
 
     /// 서버가 정한 마감 시각. 인증 가능할 때만 있다.
@@ -82,11 +95,30 @@ final class CameraVerificationViewModel {
         return deadline
     }
 
+    /// 서버 기준 지금 시각.
+    var serverNow: Date {
+        serverDate(fromDevice: now())
+    }
+
+    /// 기기 시각을 서버 기준으로 바꾼다. 화면의 남은 시간 표시에 쓴다.
+    func serverDate(fromDevice date: Date) -> Date {
+        date.addingTimeInterval(clockOffset)
+    }
+
+    /// 셔터를 누를 수 있는지.
+    var canTakePhoto: Bool {
+        state == .capturing && isCameraReady && !isTakingPhoto && !isSwitchingCamera
+    }
+
+    var canSwitchCamera: Bool {
+        state == .capturing && isCameraReady && !isTakingPhoto && !isSwitchingCamera
+    }
+
     func load() async {
         state = .loading
         do {
             let session = try await fetchSessionUseCase.execute()
-            self.session = session
+            apply(session)
             state = .guide
             switch session.availability {
             case .open:
@@ -130,40 +162,59 @@ final class CameraVerificationViewModel {
         state = .guide
     }
 
-    func takePhoto() async {
-        guard state == .capturing, !isTakingPhoto else { return }
-        isTakingPhoto = true
-        defer { isTakingPhoto = false }
-        do {
-            let image = try await camera.capturePhoto()
-            guard state == .capturing else { return }
-            guard let output = VerificationPhotoEncoder.encode(image) else {
-                logger.error("인증 사진 JPEG 변환 실패")
-                return
+    /// 촬영 화면이 보이는 동안 카메라를 켜 두고 세션 중단·오류에 맞춰 셔터를 막거나 다시 연다.
+    /// 화면이 사라져 작업이 취소되면 끝난다.
+    func runCamera() async {
+        let events = camera.events()
+        await startCameraSession()
+        for await event in events {
+            switch event {
+            case .interrupted:
+                isCameraReady = false
+                isCameraUnavailable = true
+            case .interruptionEnded:
+                isCameraReady = true
+                isCameraUnavailable = false
+            case .runtimeError:
+                // 미디어 서비스 재설정 등으로 세션이 멈췄다. 다시 시작해 본다.
+                isCameraReady = false
+                isCameraUnavailable = true
+                await startCameraSession()
             }
-            let photo = VerificationPhoto(id: UUID(), jpegData: output.jpegData, capturedAt: now())
-            state = .confirming(CapturedPhoto(photo: photo, image: output.image))
-        } catch is CancellationError {
-            return
-        } catch {
-            logError("촬영 실패", error)
-        }
-    }
-
-    /// 촬영 화면이 보일 때 카메라를 켠다.
-    func startCamera() async {
-        do {
-            try await camera.start()
-        } catch {
-            logError("카메라 시작 실패", error)
         }
     }
 
     func stopCamera() {
         camera.stop()
+        isCameraReady = false
+    }
+
+    func takePhoto() async {
+        guard canTakePhoto else { return }
+        isTakingPhoto = true
+        defer { isTakingPhoto = false }
+        do {
+            let data = try await camera.capturePhoto()
+            guard let output = await VerificationPhotoEncoder.encodeInBackground(data) else {
+                logger.error("인증 사진 변환 실패")
+                captureFailureCount += 1
+                return
+            }
+            guard state == .capturing else { return }
+            let photo = VerificationPhoto(id: UUID(), jpegData: output.jpegData, capturedAt: serverNow)
+            state = .confirming(CapturedPhoto(photo: photo, image: output.image))
+        } catch is CancellationError {
+            return
+        } catch {
+            logError("촬영 실패", error)
+            captureFailureCount += 1
+        }
     }
 
     func switchCamera() async {
+        guard canSwitchCamera else { return }
+        isSwitchingCamera = true
+        defer { isSwitchingCamera = false }
         do {
             try await camera.switchPosition()
         } catch {
@@ -174,7 +225,10 @@ final class CameraVerificationViewModel {
     /// 확인 화면의 `다시 찍기`·뒤로가기. 새 사진이므로 마감이 지났으면 시간 초과로 보낸다.
     func retake() {
         guard case .confirming = state else { return }
-        guard !expireIfNeeded() else { return }
+        guard serverNow < (deadline ?? .distantFuture) else {
+            state = .timedOut
+            return
+        }
         state = .capturing
     }
 
@@ -187,7 +241,7 @@ final class CameraVerificationViewModel {
     /// 확인 화면의 `보내기`, 업로드 실패 화면의 `같은 사진 다시 보내기`.
     /// 같은 사진은 같은 `photo.id`로 보내 마감 전에 시작한 업로드를 마감 후에도 이어 갈 수 있게 한다.
     func submit() async {
-        let captured: CapturedPhoto
+        var captured: CapturedPhoto
         switch state {
         case .confirming(let photo), .uploadFailed(let photo):
             captured = photo
@@ -195,6 +249,7 @@ final class CameraVerificationViewModel {
             return
         }
         let previous = state
+        captured.hasStartedUpload = true
         state = .uploading(captured)
         do {
             let submission = try await submitPhotoUseCase.execute(captured.photo)
@@ -217,7 +272,7 @@ final class CameraVerificationViewModel {
         guard state == .timedOut else { return }
         do {
             let session = try await fetchSessionUseCase.execute()
-            self.session = session
+            apply(session)
             if case .alreadySubmitted(let submittedAt) = session.availability {
                 sheet = .alreadySubmitted(submittedAt: submittedAt)
             }
@@ -232,20 +287,45 @@ final class CameraVerificationViewModel {
         sheet = nil
     }
 
-    /// 마감이 지났고 아직 업로드를 시작하지 않았으면 시간 초과로 바꾼다. 바꿨으면 true.
-    /// 화면이 마감 시각에 부른다. 업로드 중·실패·완료 상태는 마감 전에 시작한 제출이므로 그대로 둔다.
+    /// 마감까지 남은 시간(서버 기준). 마감이 없으면 nil.
+    func timeUntilDeadline() -> TimeInterval? {
+        deadline.map { $0.timeIntervalSince(serverNow) }
+    }
+
+    /// 마감이 지났고 아직 업로드를 시작하지 않은 사진이면 시간 초과로 바꾼다. 바꿨으면 true.
+    /// 화면이 마감 시각·앱 복귀 때 부른다. 업로드를 시작한 사진(업로드 중·실패·그 뒤 확인 화면)과 완료는 그대로 둔다.
     @discardableResult
     func expireIfNeeded() -> Bool {
-        guard let deadline, now() >= deadline else { return false }
+        guard let deadline, serverNow >= deadline else { return false }
         switch state {
-        case .guide, .capturing, .confirming:
-            state = .timedOut
-            if sheet == .permissionRequired {
-                sheet = nil
-            }
-            return true
+        case .guide, .capturing:
+            break
+        case .confirming(let photo):
+            guard !photo.hasStartedUpload else { return false }
         case .loading, .loadFailed, .uploading, .uploadFailed, .submitted, .timedOut:
             return false
+        }
+        state = .timedOut
+        if sheet == .permissionRequired {
+            sheet = nil
+        }
+        return true
+    }
+
+    private func apply(_ session: VerificationSession) {
+        self.session = session
+        clockOffset = session.serverNow.timeIntervalSince(now())
+    }
+
+    private func startCameraSession() async {
+        do {
+            try await camera.start()
+            isCameraReady = true
+            isCameraUnavailable = false
+        } catch {
+            logError("카메라 시작 실패", error)
+            isCameraReady = false
+            isCameraUnavailable = true
         }
     }
 

@@ -25,8 +25,7 @@ struct CameraVerificationView: View {
             }
             // 마감 시각이 되면 아직 보내기 시작하지 않은 촬영을 시간 초과로 바꾼다.
             .task(id: viewModel.deadline) {
-                guard let deadline = viewModel.deadline else { return }
-                let interval = deadline.timeIntervalSinceNow
+                guard let interval = viewModel.timeUntilDeadline() else { return }
                 if interval > 0 {
                     try? await Task.sleep(for: .seconds(interval))
                 }
@@ -153,7 +152,8 @@ private extension CameraVerificationViewModel {
         sheet: Sheet? = nil,
         availability: VerificationAvailability? = nil
     ) -> CameraVerificationViewModel {
-        let availability = availability ?? .open(deadline: .now.addingTimeInterval(MockVerificationRepository.Fixture.remainingUntilDeadline))
+        let now = Date.now
+        let availability = availability ?? .open(deadline: now.addingTimeInterval(MockVerificationRepository.Fixture.remainingUntilDeadline))
         let repository = MockVerificationRepository(delay: .zero)
         return CameraVerificationViewModel(
             fetchSessionUseCase: FetchVerificationSessionUseCase(verificationRepository: repository),
@@ -162,12 +162,12 @@ private extension CameraVerificationViewModel {
             permission: FakeCameraPermission(),
             state: state,
             sheet: sheet,
-            session: MockVerificationRepository.Fixture.session(availability)
+            session: MockVerificationRepository.Fixture.session(availability, serverNow: now)
         )
     }
 
     static var previewPhoto: CapturedPhoto {
-        let encoded = VerificationPhotoEncoder.encode(FakeCameraService.makeSampleImage())
+        let encoded = VerificationPhotoEncoder.encode(FakeCameraService().sampleData)
         let photo = VerificationPhoto(
             id: UUID(),
             jpegData: encoded?.jpegData ?? Data(),
