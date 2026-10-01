@@ -6,15 +6,21 @@ final class DIContainer {
     let webAdminURL: URL?
 
     private let authRepository: AuthRepository
+    private let homeRepository: HomeRepository
 
-    init(authRepository: AuthRepository, webAdminURL: URL?) {
+    init(authRepository: AuthRepository, homeRepository: HomeRepository, webAdminURL: URL?) {
         self.authRepository = authRepository
+        self.homeRepository = homeRepository
         self.webAdminURL = webAdminURL
     }
 
-    /// 실제 OAuth 구현 전까지 Mock을 쓴다.
+    /// 실제 OAuth·서버 구현 전까지 Mock을 쓴다.
     static func live() -> DIContainer {
-        DIContainer(authRepository: MockAuthRepository(), webAdminURL: AppConfig.webAdminURL)
+        DIContainer(
+            authRepository: MockAuthRepository(),
+            homeRepository: MockHomeRepository(),
+            webAdminURL: AppConfig.webAdminURL
+        )
     }
 
     func makeLoginViewModel(state: LoginViewModel.State = .idle) -> LoginViewModel {
@@ -24,11 +30,27 @@ final class DIContainer {
             state: state
         )
     }
+
+    func makeHomeViewModel(state: HomeViewModel.State = .loading) -> HomeViewModel {
+        HomeViewModel(
+            fetchHomeUseCase: FetchHomeUseCase(homeRepository: homeRepository),
+            dismissNoticeUseCase: DismissNoticeUseCase(homeRepository: homeRepository),
+            state: state
+        )
+    }
 }
 
 extension DIContainer {
     /// Preview용. 지연 없이 정해진 결과를 돌려주는 Mock을 쓴다.
-    static func preview(outcome: MockAuthRepository.Outcome = .student, webAdminURL: URL? = nil) -> DIContainer {
-        DIContainer(authRepository: MockAuthRepository(outcome: outcome, delay: .zero), webAdminURL: webAdminURL)
+    static func preview(
+        outcome: MockAuthRepository.Outcome = .student,
+        homeScenario: MockHomeRepository.Scenario = .notSubmitted,
+        webAdminURL: URL? = nil
+    ) -> DIContainer {
+        DIContainer(
+            authRepository: MockAuthRepository(outcome: outcome, delay: .zero),
+            homeRepository: MockHomeRepository(scenario: homeScenario, delay: .zero),
+            webAdminURL: webAdminURL
+        )
     }
 }
