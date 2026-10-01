@@ -273,6 +273,26 @@ struct HomeViewModelTests {
         #expect(viewModel.state == loaded)
     }
 
+    // MARK: - 카메라 버튼
+
+    @Test(arguments: [
+        (MockHomeRepository.Scenario.notSubmitted, true),
+        (.notOpenYet, true),
+        (.approved, true),
+        (.recruiting, false),
+        (.awaitingAssignment, false),
+        (.excluded, false),
+        (.failure, false)
+    ])
+    func cameraIsAvailableOnlyWhileActive(scenario: MockHomeRepository.Scenario, expected: Bool) async {
+        let (viewModel, _) = makeViewModel(scenarios: [scenario])
+        #expect(viewModel.isCameraAvailable == false)
+
+        await viewModel.load()
+
+        #expect(viewModel.isCameraAvailable == expected)
+    }
+
     @Test func dismissNoticeWithoutNoticeDoesNothing() async {
         let (viewModel, repository) = makeViewModel(scenarios: [.approved])
         await viewModel.load()

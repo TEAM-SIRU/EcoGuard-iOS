@@ -71,6 +71,12 @@ final class HomeViewModel {
         await load()
     }
 
+    /// 가운데 카메라 버튼을 켤지. 구역을 배정받아 활동 중일 때만 켠다.
+    var isCameraAvailable: Bool {
+        guard case .loaded(let summary) = state, case .active = summary.status else { return false }
+        return true
+    }
+
     /// 인증 버튼을 켤지. 마감이 지나면 다시 조회되기 전에도 끈다.
     func canVerify(at date: Date) -> Bool {
         guard case .loaded(let summary) = state, case .active(let cleaning) = summary.status else { return false }
