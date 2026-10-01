@@ -7,10 +7,17 @@ final class DIContainer {
 
     private let authRepository: AuthRepository
     private let homeRepository: HomeRepository
+    private let recruitmentRepository: RecruitmentRepository
 
-    init(authRepository: AuthRepository, homeRepository: HomeRepository, webAdminURL: URL?) {
+    init(
+        authRepository: AuthRepository,
+        homeRepository: HomeRepository,
+        recruitmentRepository: RecruitmentRepository,
+        webAdminURL: URL?
+    ) {
         self.authRepository = authRepository
         self.homeRepository = homeRepository
+        self.recruitmentRepository = recruitmentRepository
         self.webAdminURL = webAdminURL
     }
 
@@ -19,6 +26,7 @@ final class DIContainer {
         DIContainer(
             authRepository: MockAuthRepository(),
             homeRepository: MockHomeRepository(),
+            recruitmentRepository: MockRecruitmentRepository(),
             webAdminURL: AppConfig.webAdminURL
         )
     }
@@ -38,6 +46,29 @@ final class DIContainer {
             state: state
         )
     }
+
+    func makeRecruitmentNoticeViewModel(state: RecruitmentNoticeViewModel.State = .loading) -> RecruitmentNoticeViewModel {
+        RecruitmentNoticeViewModel(
+            fetchRecruitmentUseCase: FetchRecruitmentUseCase(recruitmentRepository: recruitmentRepository),
+            state: state
+        )
+    }
+
+    func makeRecruitmentApplyViewModel(applicant: Applicant, capacityPerClass: Int) -> RecruitmentApplyViewModel {
+        RecruitmentApplyViewModel(
+            applicant: applicant,
+            capacityPerClass: capacityPerClass,
+            applyRecruitmentUseCase: ApplyRecruitmentUseCase(recruitmentRepository: recruitmentRepository)
+        )
+    }
+
+    /// `outcome`을 넘기면 신청 직후 결과를 그대로 보여 주고, nil이면 내 신청을 불러온다.
+    func makeApplicationResultViewModel(outcome: ApplicationOutcome? = nil) -> ApplicationResultViewModel {
+        ApplicationResultViewModel(
+            outcome: outcome,
+            fetchMyApplicationUseCase: FetchMyApplicationUseCase(recruitmentRepository: recruitmentRepository)
+        )
+    }
 }
 
 extension DIContainer {
@@ -45,11 +76,18 @@ extension DIContainer {
     static func preview(
         outcome: MockAuthRepository.Outcome = .student,
         homeScenario: MockHomeRepository.Scenario = .notSubmitted,
+        recruitmentScenario: MockRecruitmentRepository.Scenario = .open,
+        applyOutcomes: [MockRecruitmentRepository.ApplyOutcome] = [.approved],
         webAdminURL: URL? = nil
     ) -> DIContainer {
         DIContainer(
             authRepository: MockAuthRepository(outcome: outcome, delay: .zero),
             homeRepository: MockHomeRepository(scenario: homeScenario, delay: .zero),
+            recruitmentRepository: MockRecruitmentRepository(
+                scenario: recruitmentScenario,
+                applyOutcomes: applyOutcomes,
+                delay: .zero
+            ),
             webAdminURL: webAdminURL
         )
     }
