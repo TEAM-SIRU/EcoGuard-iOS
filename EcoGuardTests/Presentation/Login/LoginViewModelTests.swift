@@ -7,7 +7,14 @@ struct LoginViewModelTests {
         outcome: MockAuthRepository.Outcome,
         delay: Duration = .zero
     ) -> (LoginViewModel, MockAuthRepository) {
-        let repository = MockAuthRepository(outcome: outcome, delay: delay)
+        makeViewModel(outcomes: [outcome], delay: delay)
+    }
+
+    private func makeViewModel(
+        outcomes: [MockAuthRepository.Outcome],
+        delay: Duration = .zero
+    ) -> (LoginViewModel, MockAuthRepository) {
+        let repository = MockAuthRepository(outcomes: outcomes, delay: delay)
         let viewModel = LoginViewModel(
             loginUseCase: LoginUseCase(authRepository: repository),
             logoutUseCase: LogoutUseCase(authRepository: repository)
@@ -66,6 +73,48 @@ struct LoginViewModelTests {
 
     @Test func logoutFromTeacherReturnsToIdle() async {
         let (viewModel, repository) = makeViewModel(outcome: .teacher)
+        await viewModel.login()
+
+        await viewModel.logout()
+
+        #expect(repository.logoutCallCount == 1)
+        #expect(viewModel.state == .idle)
+    }
+
+    @Test func retryAfterFailureCanSucceed() async {
+        let (viewModel, repository) = makeViewModel(outcomes: [.failure, .student])
+
+        await viewModel.login()
+        #expect(viewModel.state == .failed)
+        await viewModel.login()
+
+        #expect(repository.loginCallCount == 2)
+        #expect(viewModel.state == .loggedIn)
+    }
+
+    @Test func userCancelledLoginReturnsToIdle() async {
+        let (viewModel, _) = makeViewModel(outcome: .cancelled)
+
+        await viewModel.login()
+
+        #expect(viewModel.state == .idle)
+    }
+
+    @Test func taskCancelledDuringLoginReturnsToIdle() async {
+        let (viewModel, _) = makeViewModel(outcome: .student, delay: .seconds(10))
+
+        let login = Task { await viewModel.login() }
+        while viewModel.state != .loading {
+            await Task.yield()
+        }
+        login.cancel()
+        await login.value
+
+        #expect(viewModel.state == .idle)
+    }
+
+    @Test func logoutAfterFailureReturnsToIdle() async {
+        let (viewModel, repository) = makeViewModel(outcome: .failure)
         await viewModel.login()
 
         await viewModel.logout()
