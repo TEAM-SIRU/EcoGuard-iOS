@@ -353,7 +353,7 @@ final class NoticeListViewModel {
 | Caption Regular (컴포넌트) | 13/18 Regular | `.captionRegular` |
 
 - 모든 텍스트 스타일에 자간 -1%(size × -0.01)를 적용한다.
-- Noto Sans KR 기본 줄높이(약 1.448em)보다 작은 lineHeight는 iOS에서 줄일 수 없어 Figma보다 줄마다 0.6~1.7pt 커진다.
+- Noto Sans KR 기본 줄높이(약 1.448em)보다 작은 lineHeight는 iOS에서 줄일 수 없어 Figma보다 줄마다 0.3~1.7pt 커진다(title1·title2·sub·caption·buttonLarge·button·captionRegular).
 
 
 ### 간격 / 라운드 / 레이아웃
