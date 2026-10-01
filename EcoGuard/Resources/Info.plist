@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>청소 구역 사진을 찍어 오늘 청소를 인증하려면 카메라 접근이 필요해요.</string>
 	<key>EcoWebAdminURL</key>
 	<string>https://$(ECO_WEB_ADMIN_HOST)</string>
 	<key>UIAppFonts</key>
