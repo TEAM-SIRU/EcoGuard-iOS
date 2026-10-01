@@ -13,6 +13,8 @@ struct HeroIcon: View {
 
     let icon: ImageResource
     let style: Style
+    /// 아이콘 색. 없으면 스타일 기본색(logo: primary, badge: caption)을 쓴다.
+    var tint: Color?
 
     var body: some View {
         content
@@ -27,17 +29,17 @@ struct HeroIcon: View {
             Image(icon)
                 .resizable()
                 .frame(width: Metrics.logoIconSize, height: Metrics.logoIconSize)
-                .foregroundStyle(Color.ecoPrimary)
-        case .result(let tint):
+                .foregroundStyle(tint ?? Color.ecoPrimary)
+        case .result(let resultTint):
             Image(icon)
                 .resizable()
                 .frame(width: Metrics.logoIconSize, height: Metrics.logoIconSize)
-                .foregroundStyle(tint)
+                .foregroundStyle(resultTint)
         case .badge:
             Image(icon)
                 .resizable()
                 .frame(width: Metrics.badgeIconSize, height: Metrics.badgeIconSize)
-                .foregroundStyle(Color.ecoTextCaption)
+                .foregroundStyle(tint ?? Color.ecoTextCaption)
                 .frame(width: Metrics.badgeSize, height: Metrics.badgeSize)
                 .background(Color.ecoBadgeBackground, in: Circle())
         }

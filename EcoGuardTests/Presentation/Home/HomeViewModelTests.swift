@@ -42,15 +42,20 @@ struct HomeViewModelTests {
         #expect(viewModel.state == .loading)
     }
 
+    // 기대값은 MainActor인 Fixture를 읽으므로 @Test 인자(비격리 문맥)가 아니라 본문에서 만든다.
     @Test(arguments: [
-        (MockHomeRepository.Scenario.notSubmitted, TodayVerification.open(deadline: Date(timeIntervalSinceReferenceDate: 332))),
-        (.aiReviewing, .aiReviewing(submittedAt: MockHomeRepository.Fixture.submittedAt)),
-        (.teacherReviewing, .teacherReviewing(submittedAt: MockHomeRepository.Fixture.submittedAt)),
-        (.approved, .approved(earnedMinutes: 10)),
-        (.rejected, .rejected(reason: "사진에 청소 구역이 잘 보이지 않아요")),
-        (.notOpenYet, .notOpenYet(opensAt: MockHomeRepository.Fixture.opensAt(onDayOf: Date(timeIntervalSinceReferenceDate: 0))))
+        MockHomeRepository.Scenario.notSubmitted, .aiReviewing, .teacherReviewing, .approved, .rejected, .notOpenYet
     ])
-    func activeScenarioMapsToTodayVerification(scenario: MockHomeRepository.Scenario, expected: TodayVerification) async {
+    func activeScenarioMapsToTodayVerification(scenario: MockHomeRepository.Scenario) async {
+        let expected: TodayVerification? = switch scenario {
+        case .notSubmitted: .open(deadline: Date(timeIntervalSinceReferenceDate: 332))
+        case .aiReviewing: .aiReviewing(submittedAt: MockHomeRepository.Fixture.submittedAt)
+        case .teacherReviewing: .teacherReviewing(submittedAt: MockHomeRepository.Fixture.submittedAt)
+        case .approved: .approved(earnedMinutes: 10)
+        case .rejected: .rejected(reason: "사진에 청소 구역이 잘 보이지 않아요")
+        case .notOpenYet: .notOpenYet(opensAt: MockHomeRepository.Fixture.opensAt(onDayOf: Date(timeIntervalSinceReferenceDate: 0)))
+        default: nil
+        }
         let (viewModel, _) = makeViewModel(scenarios: [scenario])
 
         await viewModel.load()

@@ -339,6 +339,11 @@ final class NoticeListViewModel {
 | `02 홈` 공지 카드 그림자 (변수 아님) | rgba(26,31,41,0.08) | 공지 카드 그림자 | `Color.ecoShadowNotice` |
 | `Tab bar` 그림자 255:2 (변수 아님) | rgba(26,31,41,0.06) | 하단 탭 바 그림자 | `Color.ecoShadowTabBar` |
 | `Camera FAB` 그림자 255:27 (변수 아님) | rgba(31,171,84,0.32) | 카메라 버튼 그림자 | `Color.ecoShadowCameraButton` |
+| `06-2 청소 인증 · 촬영` 배경 (239:150, 변수 아님) | #101214 | 카메라 화면 배경 | `Color.ecoCameraBackground` |
+| `06-2` 뷰파인더·전환 버튼 (239:163, 239:171, 변수 아님) | #2B2F33 | 카메라 화면 면 | `Color.ecoCameraSurface` |
+| white (`06-2` 글자·아이콘·셔터) | #FFFFFF | 카메라 화면 위 글자·아이콘 | `Color.ecoOnCamera` |
+| `06-2` 단계 표시 `2/3 · 촬영` (239:161, 변수 아님) | #C4CAD1 | 카메라 화면 보조 글자 | `Color.ecoOnCameraSub` |
+| `06-2` 촬영 안내 말풍선 (239:165, 변수 아님) | #000000, 불투명도 80% | 카메라 안내 말풍선 배경 | `Color.ecoCameraGuideBackground` |
 
 - 그림자는 `.ecoShadow(.card)` (0 / 2 / blur 10) · `.ecoShadow(.notice)` (0 / 4 / blur 16) · `.ecoShadow(.tabBar)` (0 / -4 / blur 16) · `.ecoShadow(.cameraButton)` (0 / 6 / blur 14)로만 쓴다. 색과 값은 `EcoShadow`에 있다.
 - `02 홈` 공지 본문 글자 #4E5968 · 강조 #191F28은 Figma 변수가 아닌 raw hex라 `ecoTextSub` · `ecoTextPrimary`로 대체했다.
