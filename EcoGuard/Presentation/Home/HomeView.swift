@@ -157,6 +157,7 @@ struct HomeView: View {
     HomeView(viewModel: DIContainer(
         authRepository: MockAuthRepository(),
         homeRepository: MockHomeRepository(delay: .seconds(3600)),
+        recruitmentRepository: MockRecruitmentRepository(),
         webAdminURL: nil
     ).makeHomeViewModel())
 }

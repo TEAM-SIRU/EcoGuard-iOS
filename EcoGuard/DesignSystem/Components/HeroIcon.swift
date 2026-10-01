@@ -3,10 +3,12 @@ import SwiftUI
 /// 화면 가운데 큰 아이콘. 80 정사각 영역에 그린다.
 /// - `logo`: Figma `Logo` (238:128). 64 아이콘만 둔다.
 /// - `badge`: Figma 교사 안내 (309:43). 64 원 배경 가운데에 30 아이콘을 둔다.
+/// - `result`: Figma 신청 결과 (246:119 check · 246:135 x). 64 아이콘을 `tint` 색으로 둔다.
 struct HeroIcon: View {
     enum Style {
         case logo
         case badge
+        case result(tint: Color)
     }
 
     let icon: ImageResource
@@ -26,6 +28,11 @@ struct HeroIcon: View {
                 .resizable()
                 .frame(width: Metrics.logoIconSize, height: Metrics.logoIconSize)
                 .foregroundStyle(Color.ecoPrimary)
+        case .result(let tint):
+            Image(icon)
+                .resizable()
+                .frame(width: Metrics.logoIconSize, height: Metrics.logoIconSize)
+                .foregroundStyle(tint)
         case .badge:
             Image(icon)
                 .resizable()
@@ -50,5 +57,7 @@ private extension HeroIcon {
     HStack(spacing: Spacing.lg) {
         HeroIcon(icon: .iconSprout, style: .logo)
         HeroIcon(icon: .iconList, style: .badge)
+        HeroIcon(icon: .iconCheckHero, style: .result(tint: .ecoPrimary))
+        HeroIcon(icon: .iconXHero, style: .result(tint: .ecoRejected))
     }
 }

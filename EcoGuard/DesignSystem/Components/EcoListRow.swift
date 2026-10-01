@@ -1,27 +1,33 @@
 import SwiftUI
 
 /// Figma `ListRow`. 아이콘 타일 + 본문(body1) + 보조(sub) + 오른쪽 액세서리.
+/// 모집 공고 안내 행(246:33)처럼 아이콘 없이 화면 좌우 여백에 맞출 때는 `icon: nil`, `horizontalPadding: Spacing.screenHorizontal`.
 struct EcoListRow<Accessory: View>: View {
-    private let icon: ImageResource
+    private let icon: ImageResource?
     private let title: String
     private let subtitle: String?
+    private let horizontalPadding: CGFloat
     private let accessory: Accessory
 
     init(
-        icon: ImageResource,
+        icon: ImageResource?,
         title: String,
         subtitle: String? = nil,
+        horizontalPadding: CGFloat = Spacing.lg,
         @ViewBuilder accessory: () -> Accessory
     ) {
         self.icon = icon
         self.title = title
         self.subtitle = subtitle
+        self.horizontalPadding = horizontalPadding
         self.accessory = accessory()
     }
 
     var body: some View {
         HStack(spacing: Metrics.spacing) {
-            IconTile(icon: icon)
+            if let icon {
+                IconTile(icon: icon)
+            }
             VStack(alignment: .leading, spacing: Metrics.textSpacing) {
                 Text(title)
                     .ecoFont(.body1)
@@ -35,15 +41,15 @@ struct EcoListRow<Accessory: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             accessory
         }
-        .padding(.horizontal, Spacing.lg)
+        .padding(.horizontal, horizontalPadding)
         .padding(.vertical, Metrics.verticalPadding)
         .accessibilityElement(children: .combine)
     }
 }
 
 extension EcoListRow where Accessory == EmptyView {
-    init(icon: ImageResource, title: String, subtitle: String? = nil) {
-        self.init(icon: icon, title: title, subtitle: subtitle) { EmptyView() }
+    init(icon: ImageResource?, title: String, subtitle: String? = nil, horizontalPadding: CGFloat = Spacing.lg) {
+        self.init(icon: icon, title: title, subtitle: subtitle, horizontalPadding: horizontalPadding) { EmptyView() }
     }
 }
 
