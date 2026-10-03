@@ -47,7 +47,7 @@ struct RecruitmentApplyViewModelTests {
 
         let outcome = await viewModel.submit()
 
-        #expect(outcome == .applied(Fixture.application(.approved)))
+        #expect(outcome == .applied(Fixture.application()))
         #expect(repository.appliedMotivations == ["교실을 깨끗하게 쓰고 싶어요"])
         #expect(viewModel.submitState == .idle)
     }
@@ -63,7 +63,7 @@ struct RecruitmentApplyViewModelTests {
         let second = await viewModel.submit()
 
         #expect(second == nil)
-        #expect(await first.value == .applied(Fixture.application(.approved)))
+        #expect(await first.value == .applied(Fixture.application()))
         #expect(repository.applyCallCount == 1)
     }
 
@@ -79,7 +79,7 @@ struct RecruitmentApplyViewModelTests {
 
         let retried = await viewModel.submit()
 
-        #expect(retried == .applied(Fixture.application(.approved)))
+        #expect(retried == .applied(Fixture.application()))
         #expect(repository.applyCallCount == 2)
         #expect(viewModel.submitState == .idle)
     }
@@ -112,6 +112,6 @@ struct RecruitmentApplyViewModelTests {
         let (viewModel, _) = makeViewModel(applyOutcomes: [.alreadyApplied])
         viewModel.motivation = "열심히 할게요"
 
-        #expect(await viewModel.submit() == .applied(Fixture.application(.approved)))
+        #expect(await viewModel.submit() == .applied(Fixture.application()))
     }
 }

@@ -64,7 +64,6 @@ struct ApplicationResultContent: Equatable {
     enum Icon: Equatable {
         case check
         case cross
-        case clock
     }
 
     let icon: Icon
@@ -88,24 +87,11 @@ struct ApplicationResultContent: Equatable {
                 order: application.order,
                 appliedAt: RecruitmentFormatter.appliedAt(application.appliedAt)
             )
-            switch application.status {
-            case .approved:
-                icon = .check
-                title = RecruitmentCopy.Result.approvedTitle
-                message = "\(applied)\n"
-                    + (application.isAreaAssigned ? RecruitmentCopy.Result.areaAssigned : RecruitmentCopy.Result.awaitingAssignment)
-                isPrimaryAction = true
-            case .pending:
-                icon = .clock
-                title = RecruitmentCopy.Result.pendingTitle
-                message = "\(applied)\n\(RecruitmentCopy.Result.pendingMessage)"
-                isPrimaryAction = true
-            case .rejected:
-                icon = .cross
-                title = RecruitmentCopy.Result.rejectedTitle
-                message = "\(applied)\n\(RecruitmentCopy.Result.rejectedMessage)"
-                isPrimaryAction = false
-            }
+            icon = .check
+            title = RecruitmentCopy.Result.approvedTitle
+            message = "\(applied)\n"
+                + (application.isAreaAssigned ? RecruitmentCopy.Result.areaAssigned : RecruitmentCopy.Result.awaitingAssignment)
+            isPrimaryAction = true
         }
     }
 }

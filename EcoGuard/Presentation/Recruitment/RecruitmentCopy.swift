@@ -51,7 +51,7 @@ enum RecruitmentCopy {
     enum Apply {
         // Figma 309:169
         static let title: LocalizedStringKey = "환경지킴이 신청"
-        /// "신청하면 바로 확정돼요"는 신청 결과 대기(PENDING) 상태와 맞지 않아 사용자 확인 중이다.
+        /// 신청하면 바로 확정된다(선착순, 2026-10-03 결정).
         static func subtitle(capacity: Int) -> LocalizedStringKey { "신청하면 바로 확정돼요.\n반마다 \(capacity)명이 차면 마감돼요." }
         static let submit: LocalizedStringKey = "신청하기"
 
@@ -77,12 +77,8 @@ enum RecruitmentCopy {
         /// 새 문구. 신청하는 사이 신청 기간이 끝났다(제목은 246:128과 같다).
         static let periodEndedMessage = "신청하는 사이 신청 기간이 끝났어요.\n다음 모집 때 다시 신청해 주세요."
 
-        // 새 문구: 구역 배정 완료·대기(PENDING)·반려(REJECTED)
+        // 새 문구: 구역 배정 완료
         static let areaAssigned = "청소 구역이 배정됐어요. 홈에서 확인해 주세요."
-        static let pendingTitle = "신청했어요"
-        static let pendingMessage = "선생님이 확인하면 알려드려요."
-        static let rejectedTitle = "신청이 반려됐어요"
-        static let rejectedMessage = "다음 모집 때 다시 신청해 주세요."
 
         // 새 문구: 결과 화면 단독 조회
         static let notAppliedTitle: LocalizedStringKey = "아직 신청하지 않았어요"

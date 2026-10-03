@@ -81,8 +81,6 @@ struct ApplicationResultView: View {
             HeroIcon(icon: .iconCheckHero, style: .result(tint: .ecoPrimary))
         case .cross:
             HeroIcon(icon: .iconXHero, style: .result(tint: .ecoRejected))
-        case .clock:
-            HeroIcon(icon: .iconClockLarge, style: .badge)
         }
     }
 }
@@ -92,19 +90,11 @@ private func resultPreview(_ outcome: ApplicationOutcome?) -> some View {
 }
 
 #Preview("승인 · 배정 대기") {
-    resultPreview(.applied(MockRecruitmentRepository.Fixture.application(.approved)))
+    resultPreview(.applied(MockRecruitmentRepository.Fixture.application()))
 }
 
 #Preview("승인 · 배정 완료") {
-    resultPreview(.applied(MockRecruitmentRepository.Fixture.application(.approved, isAreaAssigned: true)))
-}
-
-#Preview("대기") {
-    resultPreview(.applied(MockRecruitmentRepository.Fixture.application(.pending)))
-}
-
-#Preview("반려") {
-    resultPreview(.applied(MockRecruitmentRepository.Fixture.application(.rejected)))
+    resultPreview(.applied(MockRecruitmentRepository.Fixture.application(isAreaAssigned: true)))
 }
 
 #Preview("신청 중 마감") {

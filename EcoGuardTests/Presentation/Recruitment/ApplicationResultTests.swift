@@ -6,7 +6,7 @@ struct ApplicationResultTests {
     private typealias Fixture = MockRecruitmentRepository.Fixture
 
     @Test func approvedBeforeAssignmentWaitsForArea() {
-        let content = ApplicationResultContent(outcome: .applied(Fixture.application(.approved)))
+        let content = ApplicationResultContent(outcome: .applied(Fixture.application()))
 
         #expect(content.icon == .check)
         #expect(content.title == "환경지킴이가 됐어요")
@@ -15,25 +15,9 @@ struct ApplicationResultTests {
     }
 
     @Test func approvedAfterAssignmentPointsToHome() {
-        let content = ApplicationResultContent(outcome: .applied(Fixture.application(.approved, isAreaAssigned: true)))
+        let content = ApplicationResultContent(outcome: .applied(Fixture.application(isAreaAssigned: true)))
 
         #expect(content.message.hasSuffix("청소 구역이 배정됐어요. 홈에서 확인해 주세요."))
-    }
-
-    @Test func pendingShowsOrderAndWaits() {
-        let content = ApplicationResultContent(outcome: .applied(Fixture.application(.pending)))
-
-        #expect(content.icon == .clock)
-        #expect(content.title == "신청했어요")
-        #expect(content.message.hasPrefix("4번째로 신청했어요"))
-    }
-
-    @Test func rejectedUsesSecondaryAction() {
-        let content = ApplicationResultContent(outcome: .applied(Fixture.application(.rejected)))
-
-        #expect(content.icon == .cross)
-        #expect(content.title == "신청이 반려됐어요")
-        #expect(!content.isPrimaryAction)
     }
 
     @Test func closedWhileApplyingMatchesFigma() {
@@ -71,7 +55,7 @@ struct ApplicationResultTests {
     @Test(arguments: [MockRecruitmentRepository.Scenario.applied, .open, .failure])
     func loadsMyApplicationWhenOpenedAlone(scenario: MockRecruitmentRepository.Scenario) async {
         let expected: ApplicationResultViewModel.State = switch scenario {
-        case .applied: .loaded(.applied(Fixture.application(.approved)))
+        case .applied: .loaded(.applied(Fixture.application()))
         case .failure: .failed
         default: .notApplied
         }
