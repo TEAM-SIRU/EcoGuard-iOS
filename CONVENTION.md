@@ -323,7 +323,7 @@ final class NoticeListViewModel {
 | orange/700 | #b35f00 | #B35F00 (Pending) | `Color.ecoPending` |
 | orange/500 | #f08c00 | #F08C00 (Pending icon) | `Color.ecoPendingIcon` |
 | white | #ffffff | 라벨 없음 (primary 위 글자·아이콘) | `Color.ecoOnPrimary` |
-| grey/300 | #c9d0cd | 라벨 없음 (역할 미확인) | 토큰 미등록 (역할 결정 필요) |
+| grey/300 | #c9d0cd | `05 청소구역` 청소 구역 칸 테두리 (239:46) | `Color.ecoBorderStrong` |
 | fg/default | #1F2328 | 라벨 없음 (역할 미확인, 앱 토큰인지 불명) | 토큰 미등록. 다른 라이브러리(GitHub Primer `fg.default`와 같은 값) 변수일 가능성 |
 
 컴포넌트 전용 시맨틱 colorset (값은 위 변수와 같아도 역할이 달라 따로 둔다):

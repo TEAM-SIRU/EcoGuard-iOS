@@ -7,6 +7,8 @@ struct MainTabView: View {
     @State private var viewModel = MainTabViewModel()
     /// 홈 위에 전체 화면으로 띄우는 흐름(청소 인증, 모집·신청).
     @State private var presented: PresentedFlow?
+    /// 탭을 오가도 도면을 다시 불러오지 않도록 셸이 들고 있는다.
+    @State private var cleaningAreaViewModel: CleaningAreaViewModel?
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -39,6 +41,10 @@ struct MainTabView: View {
                 Task { await homeViewModel.refresh() }
             }
             .onChange(of: viewModel.selectedTab) { _, tab in
+                // 구역 탭을 처음 열 때 한 번 만든다. 탭을 오가도 다시 불러오지 않는다.
+                if tab == .area, cleaningAreaViewModel == nil {
+                    cleaningAreaViewModel = container.makeCleaningAreaViewModel()
+                }
                 guard tab == .home else { return }
                 Task { await homeViewModel.refreshIfNeeded(now: .now) }
             }
@@ -78,7 +84,11 @@ struct MainTabView: View {
                     openApplicationResult: { presented = .applicationResult(container.makeApplicationResultViewModel()) }
                 )
             )
-        case .area, .records, .myPage:
+        case .area:
+            if let cleaningAreaViewModel {
+                CleaningAreaView(viewModel: cleaningAreaViewModel)
+            }
+        case .records, .myPage:
             ComingSoonView(title: viewModel.selectedTab.title)
         }
     }
