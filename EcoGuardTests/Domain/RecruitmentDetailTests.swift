@@ -34,7 +34,7 @@ struct RecruitmentDetailTests {
 
     @Test(arguments: [RecruitmentDetail.Phase.open, .upcoming, .ended])
     func myApplicationWinsOverPhaseAndCapacity(phase: RecruitmentDetail.Phase) {
-        let application = Fixture.application(.approved)
+        let application = Fixture.application()
         let detail = Fixture.detail(phase: phase, appliedCount: 6, myApplication: application)
 
         #expect(detail.status == .applied(application))

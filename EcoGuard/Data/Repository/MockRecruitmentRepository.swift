@@ -16,8 +16,6 @@ final class MockRecruitmentRepository: RecruitmentRepository {
         case approved
         /// 승인됐고 청소 구역까지 배정됐다.
         case approvedAndAssigned
-        case pending
-        case rejected
         case full
         case notInPeriod
         case alreadyApplied
@@ -61,7 +59,7 @@ final class MockRecruitmentRepository: RecruitmentRepository {
         switch scenario {
         case .open: return Fixture.detail(phase: .open, appliedCount: 4)
         case .full: return Fixture.detail(phase: .open, appliedCount: 6)
-        case .applied: return Fixture.detail(phase: .open, appliedCount: 4, myApplication: Fixture.application(.approved))
+        case .applied: return Fixture.detail(phase: .open, appliedCount: 4, myApplication: Fixture.application())
         case .upcoming: return Fixture.detail(phase: .upcoming, appliedCount: 0)
         case .ended: return Fixture.detail(phase: .ended, appliedCount: 5)
         case .none: return nil
@@ -81,13 +79,11 @@ final class MockRecruitmentRepository: RecruitmentRepository {
         let outcome = applyOutcomes.count > 1 ? applyOutcomes.removeFirst() : applyOutcomes[0]
         try await Task.sleep(for: delay)
         switch outcome {
-        case .approved: return Fixture.application(.approved)
-        case .approvedAndAssigned: return Fixture.application(.approved, isAreaAssigned: true)
-        case .pending: return Fixture.application(.pending)
-        case .rejected: return Fixture.application(.rejected)
+        case .approved: return Fixture.application()
+        case .approvedAndAssigned: return Fixture.application(isAreaAssigned: true)
         case .full: throw RecruitmentError.full
         case .notInPeriod: throw RecruitmentError.notInPeriod
-        case .alreadyApplied: throw RecruitmentError.alreadyApplied(Fixture.application(.approved))
+        case .alreadyApplied: throw RecruitmentError.alreadyApplied(Fixture.application())
         case .failure: throw RequestFailedError()
         }
     }
@@ -96,7 +92,7 @@ final class MockRecruitmentRepository: RecruitmentRepository {
         try await Task.sleep(for: delay)
         switch currentScenario {
         case .failure: throw RequestFailedError()
-        case .applied: return Fixture.application(.approved)
+        case .applied: return Fixture.application()
         default: return nil
         }
     }
@@ -129,8 +125,8 @@ extension MockRecruitmentRepository {
         }
 
         /// Figma `9월 1일(화) 12:34에 4번째로 신청했어요`.
-        static func application(_ status: RecruitmentApplication.Status, isAreaAssigned: Bool = false) -> RecruitmentApplication {
-            RecruitmentApplication(order: 4, appliedAt: date(month: 9, day: 1, hour: 12, minute: 34), status: status, isAreaAssigned: isAreaAssigned)
+        static func application(isAreaAssigned: Bool = false) -> RecruitmentApplication {
+            RecruitmentApplication(order: 4, appliedAt: date(month: 9, day: 1, hour: 12, minute: 34), isAreaAssigned: isAreaAssigned)
         }
 
         private static func date(month: Int, day: Int, hour: Int = 0, minute: Int = 0) -> Date {

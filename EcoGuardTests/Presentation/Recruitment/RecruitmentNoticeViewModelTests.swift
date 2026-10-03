@@ -37,7 +37,7 @@ struct RecruitmentNoticeViewModelTests {
         let expected: RecruitmentStatus? = switch scenario {
         case .open: .open
         case .full: .full
-        case .applied: .applied(MockRecruitmentRepository.Fixture.application(.approved))
+        case .applied: .applied(MockRecruitmentRepository.Fixture.application())
         case .upcoming: .upcoming
         case .ended: .ended
         case .none, .failure: nil
@@ -125,7 +125,7 @@ struct RecruitmentNoticeViewModelTests {
         await viewModel.refresh()
 
         #expect(repository.fetchCallCount == 2)
-        #expect(status(viewModel) == .applied(MockRecruitmentRepository.Fixture.application(.approved)))
+        #expect(status(viewModel) == .applied(MockRecruitmentRepository.Fixture.application()))
     }
 
     @Test func failureThenRetrySucceeds() async {
