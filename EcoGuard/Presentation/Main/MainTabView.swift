@@ -2,8 +2,11 @@ import SwiftUI
 
 /// 학생 로그인 후 앱 셸. 하단 탭 바(Figma `Tab bar` 255:2)와 가운데 카메라 버튼.
 struct MainTabView: View {
+    let container: DIContainer
     let homeViewModel: HomeViewModel
     @State private var viewModel = MainTabViewModel()
+    /// 홈 위에 전체 화면으로 띄우는 흐름(청소 인증, 모집·신청).
+    @State private var presented: PresentedFlow?
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -39,6 +42,27 @@ struct MainTabView: View {
                 guard tab == .home else { return }
                 Task { await homeViewModel.refreshIfNeeded(now: .now) }
             }
+            // 인증·신청 흐름을 닫으면 홈 상태(인증 결과, 가입 상태)가 바뀌었을 수 있어 다시 조회한다.
+            .fullScreenCover(item: $presented, onDismiss: { Task { await homeViewModel.refresh() } }) { flow in
+                flowView(flow)
+            }
+    }
+
+    @ViewBuilder
+    private func flowView(_ flow: PresentedFlow) -> some View {
+        switch flow {
+        case .camera(let cameraViewModel):
+            CameraVerificationView(
+                viewModel: cameraViewModel,
+                actions: CameraVerificationView.Actions(close: dismissFlow)
+            )
+        case .recruitment:
+            RecruitmentFlowView(container: container, onExit: dismissFlow)
+        case .applicationResult(let resultViewModel):
+            NavigationStack {
+                ApplicationResultView(viewModel: resultViewModel, onExit: dismissFlow)
+            }
+        }
     }
 
     @ViewBuilder
@@ -47,7 +71,12 @@ struct MainTabView: View {
         case .home:
             HomeView(
                 viewModel: homeViewModel,
-                actions: HomeView.Actions(verify: openCamera, openRecords: { viewModel.select(.records) })
+                actions: HomeView.Actions(
+                    verify: openCamera,
+                    openRecords: { viewModel.select(.records) },
+                    openRecruitment: { presented = .recruitment },
+                    openApplicationResult: { presented = .applicationResult(container.makeApplicationResultViewModel()) }
+                )
             )
         case .area, .records, .myPage:
             ComingSoonView(title: viewModel.selectedTab.title)
@@ -60,8 +89,13 @@ struct MainTabView: View {
         }
     }
 
-    // TODO: 청소 인증(카메라) 화면 이슈에서 연결
-    private func openCamera() {}
+    private func openCamera() {
+        presented = .camera(container.makeCameraVerificationViewModel())
+    }
+
+    private func dismissFlow() {
+        presented = nil
+    }
 }
 
 /// 아직 만들지 않은 탭의 임시 화면.
@@ -84,9 +118,24 @@ private struct ComingSoonView: View {
 }
 
 #Preview("활동 중") {
-    MainTabView(homeViewModel: DIContainer.preview(homeScenario: .notSubmitted).makeHomeViewModel())
+    MainTabView(container: .preview(), homeViewModel: DIContainer.preview(homeScenario: .notSubmitted).makeHomeViewModel())
 }
 
 #Preview("모집 기간") {
-    MainTabView(homeViewModel: DIContainer.preview(homeScenario: .recruiting).makeHomeViewModel())
+    MainTabView(container: .preview(), homeViewModel: DIContainer.preview(homeScenario: .recruiting).makeHomeViewModel())
+}
+
+/// 셸에서 전체 화면으로 띄우는 흐름. 띄울 때마다 새 ViewModel로 시작한다.
+private enum PresentedFlow: Identifiable {
+    case camera(CameraVerificationViewModel)
+    case recruitment
+    case applicationResult(ApplicationResultViewModel)
+
+    var id: String {
+        switch self {
+        case .camera: "camera"
+        case .recruitment: "recruitment"
+        case .applicationResult: "applicationResult"
+        }
+    }
 }
