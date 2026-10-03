@@ -5,7 +5,6 @@ import SwiftUI
 struct HomeView: View {
     /// 아직 없는 화면으로 가는 동작. 연결 전까지 기본값은 아무것도 하지 않는다.
     struct Actions {
-        // TODO: 카메라 화면(청소 인증) 이슈에서 연결
         var verify: () -> Void = {}
         var openNotices: () -> Void = {}
         var openNotice: (Notice) -> Void = { _ in }
