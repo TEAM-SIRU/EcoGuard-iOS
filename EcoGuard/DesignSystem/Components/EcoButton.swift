@@ -3,14 +3,21 @@ import SwiftUI
 /// Figma `Button/primary` · `Button/secondary` · `Button/disabled` (높이 56, 풀와이드, radius 16).
 /// 비활성은 `.disabled(true)`로 표현한다. 로딩 중에는 loader 아이콘을 돌리고 탭을 무시한다.
 /// async `action`을 넘기면 끝날 때까지 스스로 로딩 상태가 되어 중복 탭을 막는다.
+/// `size: .compact`는 빈 화면 안 버튼(Figma `05 청소구역 · 조회 실패` 317:1284, 140 × 48)이다.
 struct EcoButton: View {
     enum Style {
         case primary
         case secondary
     }
 
+    enum Size {
+        case regular
+        case compact
+    }
+
     private let title: LocalizedStringKey
     private let style: Style
+    private let size: Size
     private let leadingIcon: ImageResource?
     private let isLoading: Bool
     private let action: Action
@@ -20,12 +27,14 @@ struct EcoButton: View {
     init(
         _ title: LocalizedStringKey,
         style: Style = .primary,
+        size: Size = .regular,
         leadingIcon: ImageResource? = nil,
         isLoading: Bool = false,
         action: @escaping () -> Void
     ) {
         self.title = title
         self.style = style
+        self.size = size
         self.leadingIcon = leadingIcon
         self.isLoading = isLoading
         self.action = .sync(action)
@@ -34,12 +43,14 @@ struct EcoButton: View {
     init(
         _ title: LocalizedStringKey,
         style: Style = .primary,
+        size: Size = .regular,
         leadingIcon: ImageResource? = nil,
         isLoading: Bool = false,
         action: @escaping () async -> Void
     ) {
         self.title = title
         self.style = style
+        self.size = size
         self.leadingIcon = leadingIcon
         self.isLoading = isLoading
         self.action = .async(action)
@@ -47,7 +58,7 @@ struct EcoButton: View {
 
     var body: some View {
         Button(action: perform) {
-            EcoButtonLabel(title: title, style: style, leadingIcon: leadingIcon, isLoading: isShowingLoading)
+            EcoButtonLabel(title: title, style: style, size: size, leadingIcon: leadingIcon, isLoading: isShowingLoading)
         }
         .buttonStyle(EcoButtonStyle())
         // 로딩을 `.disabled`로 막으면 VoiceOver가 비활성과 똑같이 "흐리게 표시됨"으로 읽는다. 탭은 `perform`에서 무시한다.
@@ -84,6 +95,7 @@ private extension EcoButton {
 private struct EcoButtonLabel: View {
     let title: LocalizedStringKey
     let style: EcoButton.Style
+    var size: EcoButton.Size = .regular
     let leadingIcon: ImageResource?
     let isLoading: Bool
 
@@ -104,8 +116,8 @@ private struct EcoButtonLabel: View {
                 .lineLimit(1)
         }
         .foregroundStyle(appearance.foreground)
-        .frame(maxWidth: .infinity)
-        .frame(height: Metrics.height)
+        .frame(maxWidth: size == .regular ? .infinity : Metrics.compactWidth)
+        .frame(height: size == .regular ? Metrics.height : Metrics.compactHeight)
         .background(appearance.background, in: RoundedRectangle(cornerRadius: Radius.button))
         .contentShape(RoundedRectangle(cornerRadius: Radius.button))
         .opacity(isLoading ? Metrics.loadingOpacity : 1)
@@ -132,6 +144,8 @@ private struct EcoButtonLabel: View {
 
     enum Metrics {
         static let height: CGFloat = 56
+        static let compactWidth: CGFloat = 140
+        static let compactHeight: CGFloat = 48
         static let iconSize: CGFloat = 20
         static let loadingOpacity: Double = 0.72
     }
