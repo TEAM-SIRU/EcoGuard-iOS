@@ -77,6 +77,41 @@ struct VerificationPhotoView: View {
     }
 }
 
+extension VerificationPhotoView {
+    /// Figma 사진 높이. 반려 `Photo` (309:17) 128 · 결과 (309:3) 200 · 상세 (317:456) 256.
+    enum Height {
+        static let compact: CGFloat = 128
+        static let regular: CGFloat = 200
+        static let large: CGFloat = 256
+    }
+}
+
+/// AI 검수 결과(반려 사유). Figma `AI 검수 결과` (239:258). grey/50 배경, 사방 20, radius 16, 줄 사이 6.
+struct VerificationReviewNote: View {
+    let title: String
+    let guide: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Metrics.titleSpacing) {
+            Text("AI 검수 결과")
+                .ecoFont(.caption)
+                .foregroundStyle(Color.ecoTextCaption)
+            Text(verbatim: title)
+                .ecoFont(.body1Bold)
+                .foregroundStyle(Color.ecoTextPrimary)
+            if let guide {
+                Text(verbatim: guide)
+                    .ecoFont(.body2)
+                    .foregroundStyle(Color.ecoTextSub)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.xl)
+        .background(Color.ecoSurface, in: RoundedRectangle(cornerRadius: Radius.button))
+        .accessibilityElement(children: .combine)
+    }
+}
+
 /// 이름·값 표. Figma `Info table` (239:197).
 struct VerificationInfoTable: View {
     struct Row: Identifiable {
