@@ -7,8 +7,16 @@ struct MainTabView: View {
     @State private var viewModel = MainTabViewModel()
     /// 홈 위에 전체 화면으로 띄우는 흐름(청소 인증, 모집·신청).
     @State private var presented: PresentedFlow?
+    /// 탭을 오가도 도면을 다시 불러오지 않도록 셸이 들고 있는다.
+    @State private var cleaningAreaViewModel: CleaningAreaViewModel
 
     @Environment(\.scenePhase) private var scenePhase
+
+    init(container: DIContainer, homeViewModel: HomeViewModel) {
+        self.container = container
+        self.homeViewModel = homeViewModel
+        _cleaningAreaViewModel = State(initialValue: container.makeCleaningAreaViewModel())
+    }
 
     var body: some View {
         content
@@ -78,7 +86,9 @@ struct MainTabView: View {
                     openApplicationResult: { presented = .applicationResult(container.makeApplicationResultViewModel()) }
                 )
             )
-        case .area, .records, .myPage:
+        case .area:
+            CleaningAreaView(viewModel: cleaningAreaViewModel)
+        case .records, .myPage:
             ComingSoonView(title: viewModel.selectedTab.title)
         }
     }
