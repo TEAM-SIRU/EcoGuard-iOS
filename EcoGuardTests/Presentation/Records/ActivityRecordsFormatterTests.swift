@@ -88,6 +88,16 @@ struct ActivityRecordsFormatterTests {
         #expect(ActivityRecordsFormatter.recordDate(date(day: 29)) == "9월 29일(화)")
     }
 
+    @Test func monthCopyNamesMonthUnlessCurrent() {
+        let current = YearMonth(year: 2026, month: 10)
+
+        #expect(ActivityRecordsFormatter.totalTitle(current, current: current) == "이번 달 활동 시간")
+        #expect(ActivityRecordsFormatter.emptyTitle(current, current: current) == "이번 달 기록이 아직 없어요")
+        #expect(ActivityRecordsFormatter.totalTitle(YearMonth(year: 2026, month: 9), current: current) == "9월 활동 시간")
+        #expect(ActivityRecordsFormatter.emptyTitle(YearMonth(year: 2026, month: 9), current: current) == "9월 기록이 아직 없어요")
+        #expect(ActivityRecordsFormatter.totalTitle(YearMonth(year: 2025, month: 12), current: current) == "2025년 12월 활동 시간")
+    }
+
     @Test func detailPerResultMatchesFigma() {
         let submitted = date(day: 29, hour: 8, minute: 4)
 

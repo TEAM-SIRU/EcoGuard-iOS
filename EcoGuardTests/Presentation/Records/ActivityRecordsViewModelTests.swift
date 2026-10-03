@@ -12,8 +12,8 @@ struct ActivityRecordsViewModelTests {
         delay: Duration = .zero,
         now: Date? = nil
     ) -> (ActivityRecordsViewModel, MockActivityRepository) {
-        let repository = MockActivityRepository(scenarios: scenarios, delay: delay)
         let today = now ?? MockActivityRepository.Fixture.today
+        let repository = MockActivityRepository(scenarios: scenarios, delay: delay, now: { today })
         let viewModel = ActivityRecordsViewModel(
             fetchActivityMonthUseCase: FetchActivityMonthUseCase(activityRepository: repository),
             earliestMonth: YearMonth(year: 2026, month: 3),
@@ -70,8 +70,29 @@ struct ActivityRecordsViewModelTests {
         #expect(viewModel.selectedMonth == august)
         let month = try #require(loadedMonth(viewModel))
         #expect(month.month == august)
-        #expect(month.records.isEmpty)
-        #expect(month.totalMinutes == 0)
+        #expect(month.records != MockActivityRepository.Fixture.records)
+    }
+
+    /// Mock은 오늘 기준 이번 달·지난달에만 기록을 만든다. 그 전 달은 빈 달이다.
+    @Test func mockGeneratesRecentMonthsRelativeToToday() async throws {
+        // 2026-10-02(금) 09:00 KST
+        let now = Date(timeIntervalSince1970: 1_790_866_800 + 9 * 3600)
+        let repository = MockActivityRepository(scenario: .records, delay: .zero, now: { now })
+
+        let october = try await repository.fetchMonth(year: 2026, month: 10)
+        #expect(october.records.map(\.result) == [.reviewing, .approved])
+        #expect(october.totalMinutes == 10)
+
+        let septemberMonth = try await repository.fetchMonth(year: 2026, month: 9)
+        #expect(septemberMonth.records == MockActivityRepository.Fixture.records)
+
+        let august = try await repository.fetchMonth(year: 2026, month: 8)
+        #expect(august.records.isEmpty)
+
+        let generatedAugust = MockActivityRepository.Fixture.generatedRecords(in: YearMonth(year: 2026, month: 8), now: now)
+        #expect(generatedAugust.count == 21)
+        #expect(generatedAugust.filter { $0.result == .approved }.count == 19)
+        #expect(generatedAugust.map(\.date) == generatedAugust.map(\.date).sorted(by: >))
     }
 
     @Test(arguments: [(2026, 10), (2027, 1), (2026, 2), (2026, 9)])

@@ -71,6 +71,23 @@ enum ActivityRecordsFormatter {
         String(localized: "\(String(month.year))년 \(month.month)월")
     }
 
+    /// 고른 달이 이번 달이면 "이번 달 활동 시간", 아니면 "9월 활동 시간".
+    static func totalTitle(_ month: YearMonth, current: YearMonth) -> String {
+        String(localized: "\(monthName(month, current: current)) 활동 시간")
+    }
+
+    /// 고른 달이 이번 달이면 "이번 달 기록이 아직 없어요", 아니면 "9월 기록이 아직 없어요".
+    static func emptyTitle(_ month: YearMonth, current: YearMonth) -> String {
+        String(localized: "\(monthName(month, current: current)) 기록이 아직 없어요")
+    }
+
+    /// 다른 해의 달은 연도를 붙인다("2025년 12월").
+    private static func monthName(_ month: YearMonth, current: YearMonth) -> String {
+        if month == current { return String(localized: "이번 달") }
+        if month.year == current.year { return String(localized: "\(month.month)월") }
+        return self.month(month)
+    }
+
     /// "70분"
     static func minutes(_ minutes: Int) -> String {
         String(localized: "\(minutes)분")

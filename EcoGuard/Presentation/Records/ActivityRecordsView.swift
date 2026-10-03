@@ -90,7 +90,7 @@ struct ActivityRecordsView: View {
                 .padding(.bottom, Spacing.xl)
             monthButton
             EcoStatSummary(
-                title: String(localized: "이번 달 활동 시간"),
+                title: ActivityRecordsFormatter.totalTitle(viewModel.selectedMonth, current: viewModel.currentMonth),
                 value: ActivityRecordsFormatter.minutes(month.totalMinutes),
                 isHighlighted: month.totalMinutes > 0,
                 stats: [
@@ -106,7 +106,7 @@ struct ActivityRecordsView: View {
             if month.records.isEmpty {
                 EcoEmptyState(
                     icon: .iconListHero,
-                    title: "이번 달 기록이 아직 없어요",
+                    title: "\(ActivityRecordsFormatter.emptyTitle(viewModel.selectedMonth, current: viewModel.currentMonth))",
                     message: "청소를 인증하면 여기에 쌓여요",
                     action: actions.verify.map { verify in .init(title: "청소 인증하러 가기", size: .wide, perform: verify) }
                 )
@@ -223,7 +223,7 @@ private extension ActivityRecord.Result {
 private func recordsPreview(_ scenario: MockActivityRepository.Scenario, delay: Duration = .zero) -> some View {
     ActivityRecordsView(
         viewModel: DIContainer.preview().makeActivityRecordsViewModel(
-            repository: MockActivityRepository(scenario: scenario, delay: delay),
+            repository: MockActivityRepository(scenario: scenario, delay: delay, now: { MockActivityRepository.Fixture.today }),
             now: { MockActivityRepository.Fixture.today }
         ),
         actions: .init(verify: {})
