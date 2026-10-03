@@ -9,6 +9,8 @@ struct MainTabView: View {
     @State private var presented: PresentedFlow?
     /// 탭을 오가도 도면을 다시 불러오지 않도록 셸이 들고 있는다.
     @State private var cleaningAreaViewModel: CleaningAreaViewModel?
+    /// 탭을 오가도 고른 달과 기록을 유지하도록 셸이 들고 있는다.
+    @State private var activityRecordsViewModel: ActivityRecordsViewModel?
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -45,11 +47,14 @@ struct MainTabView: View {
                 if tab == .area, cleaningAreaViewModel == nil {
                     cleaningAreaViewModel = container.makeCleaningAreaViewModel()
                 }
+                if tab == .records, activityRecordsViewModel == nil {
+                    activityRecordsViewModel = container.makeActivityRecordsViewModel()
+                }
                 guard tab == .home else { return }
                 Task { await homeViewModel.refreshIfNeeded(now: .now) }
             }
-            // 인증·신청 흐름을 닫으면 홈 상태(인증 결과, 가입 상태)가 바뀌었을 수 있어 다시 조회한다.
-            .fullScreenCover(item: $presented, onDismiss: { Task { await homeViewModel.refresh() } }) { flow in
+            // 인증·신청 흐름을 닫으면 홈 상태(인증 결과, 가입 상태)와 활동 기록(오늘 제출분)이 바뀌었을 수 있어 다시 조회한다.
+            .fullScreenCover(item: $presented, onDismiss: refreshAfterFlow) { flow in
                 flowView(flow)
             }
     }
@@ -88,7 +93,15 @@ struct MainTabView: View {
             if let cleaningAreaViewModel {
                 CleaningAreaView(viewModel: cleaningAreaViewModel)
             }
-        case .records, .myPage:
+        case .records:
+            if let activityRecordsViewModel {
+                ActivityRecordsView(
+                    viewModel: activityRecordsViewModel,
+                    // 카메라 버튼과 같이 활동 중일 때만 빈 기록에서 인증으로 보낸다.
+                    actions: ActivityRecordsView.Actions(verify: homeViewModel.isCameraAvailable ? { openCamera() } : nil)
+                )
+            }
+        case .myPage:
             ComingSoonView(title: viewModel.selectedTab.title)
         }
     }
@@ -101,6 +114,12 @@ struct MainTabView: View {
 
     private func openCamera() {
         presented = .camera(container.makeCameraVerificationViewModel())
+    }
+
+    private func refreshAfterFlow() {
+        Task { await homeViewModel.refresh() }
+        guard let activityRecordsViewModel else { return }
+        Task { await activityRecordsViewModel.refresh() }
     }
 
     private func dismissFlow() {

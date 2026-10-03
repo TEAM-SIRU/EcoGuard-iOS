@@ -4,6 +4,7 @@ import SwiftUI
 /// 비활성은 `.disabled(true)`로 표현한다. 로딩 중에는 loader 아이콘을 돌리고 탭을 무시한다.
 /// async `action`을 넘기면 끝날 때까지 스스로 로딩 상태가 되어 중복 탭을 막는다.
 /// `size: .compact`는 빈 화면 안 버튼(Figma `05 청소구역 · 조회 실패` 317:1284, 140 × 48)이다.
+/// `size: .wide`는 빈 기록 안 버튼(Figma `07 활동 기록 · 빈 상태` 240:138, 200 × 44, radius 12)이다.
 struct EcoButton: View {
     enum Style {
         case primary
@@ -13,6 +14,7 @@ struct EcoButton: View {
     enum Size {
         case regular
         case compact
+        case wide
     }
 
     private let title: LocalizedStringKey
@@ -116,11 +118,31 @@ private struct EcoButtonLabel: View {
                 .lineLimit(1)
         }
         .foregroundStyle(appearance.foreground)
-        .frame(maxWidth: size == .regular ? .infinity : Metrics.compactWidth)
-        .frame(height: size == .regular ? Metrics.height : Metrics.compactHeight)
-        .background(appearance.background, in: RoundedRectangle(cornerRadius: Radius.button))
-        .contentShape(RoundedRectangle(cornerRadius: Radius.button))
+        .frame(maxWidth: width)
+        .frame(height: height)
+        .background(appearance.background, in: RoundedRectangle(cornerRadius: cornerRadius))
+        .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
         .opacity(isLoading ? Metrics.loadingOpacity : 1)
+    }
+
+    private var width: CGFloat {
+        switch size {
+        case .regular: .infinity
+        case .compact: Metrics.compactWidth
+        case .wide: Metrics.wideWidth
+        }
+    }
+
+    private var height: CGFloat {
+        switch size {
+        case .regular: Metrics.height
+        case .compact: Metrics.compactHeight
+        case .wide: Metrics.wideHeight
+        }
+    }
+
+    private var cornerRadius: CGFloat {
+        size == .wide ? Radius.tile : Radius.button
     }
 
     private var appearance: Appearance {
@@ -146,6 +168,8 @@ private struct EcoButtonLabel: View {
         static let height: CGFloat = 56
         static let compactWidth: CGFloat = 140
         static let compactHeight: CGFloat = 48
+        static let wideWidth: CGFloat = 200
+        static let wideHeight: CGFloat = 44
         static let iconSize: CGFloat = 20
         static let loadingOpacity: Double = 0.72
     }

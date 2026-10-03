@@ -88,7 +88,7 @@ enum ActivityRecordsFormatter {
 
     /// 결과별 보조줄. "본관 2층 복도 A · 08:04", "08:05 · +10분 · 이의신청 승인", "본관 2층 복도 A · 인증하지 않았어요".
     static func detail(_ record: ActivityRecord) -> String {
-        let time = record.submittedAt.map(HomeFormatter.clockTime)
+        let time = record.submittedAt.map { HomeFormatter.clockTime($0) }
         let parts: [String?] = switch record.result {
         case .reviewing, .rejected:
             [record.area, time]

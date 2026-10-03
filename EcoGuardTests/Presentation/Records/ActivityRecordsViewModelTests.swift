@@ -163,8 +163,9 @@ struct ActivityRecordsViewModelTests {
         #expect(loadedMonth(viewModel)?.month == september)
     }
 
-    @Test func cancelledFirstLoadDoesNotStayLoading() async {
-        let (viewModel, repository) = makeViewModel(scenarios: [.records], delay: .seconds(10))
+    /// 탭을 떠나 취소되면 .loading으로 남아 돌아왔을 때 화면의 `.task`가 다시 불러온다.
+    @Test func cancelledFirstLoadStaysLoadingForReload() async {
+        let (viewModel, repository) = makeViewModel(scenarios: [.records], delay: .milliseconds(300))
 
         let load = Task { await viewModel.load() }
         while repository.requestedMonths.isEmpty {
@@ -172,8 +173,11 @@ struct ActivityRecordsViewModelTests {
         }
         load.cancel()
         await load.value
+        #expect(viewModel.state == .loading)
 
-        #expect(viewModel.state == .failed)
+        await viewModel.load()
+        #expect(repository.requestedMonths == [september, september])
+        #expect(loadedMonth(viewModel)?.month == september)
     }
 
     @Test func cancelledReloadReturnsToPreviousContent() async {
