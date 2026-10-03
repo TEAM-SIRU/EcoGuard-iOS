@@ -9,6 +9,7 @@ struct CleaningAreaView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Color.ecoCard)
             .task {
+                // 불러온 화면이 없으면(처음, 탭을 떠나 취소됨) 다시 불러온다. 실패 화면은 사용자가 다시 시도한다.
                 guard viewModel.state == .loading else { return }
                 await viewModel.load()
             }
@@ -145,7 +146,7 @@ private struct SpanRow: Layout {
     let spacing: CGFloat
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? 0
+        let width = proposal.replacingUnspecifiedDimensions().width
         let height = subviews.indices.map { subviews[$0].sizeThatFits(.init(width: cellWidth(at: $0, total: width, subviews: subviews), height: nil)).height }.max() ?? 0
         return CGSize(width: width, height: height)
     }
@@ -161,7 +162,7 @@ private struct SpanRow: Layout {
 
     private func cellWidth(at index: Int, total: CGFloat, subviews: Subviews) -> CGFloat {
         let spans = subviews.map { max($0[SpanKey.self], 1) }
-        let available = total - spacing * CGFloat(max(subviews.count - 1, 0))
+        let available = max(0, total - spacing * CGFloat(max(subviews.count - 1, 0)))
         return available * CGFloat(spans[index]) / CGFloat(spans.reduce(0, +))
     }
 }

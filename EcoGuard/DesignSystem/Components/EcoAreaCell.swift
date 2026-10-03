@@ -14,8 +14,8 @@ struct EcoAreaCell: View {
 
     var body: some View {
         content
-            .frame(maxWidth: .infinity)
-            .frame(height: Metrics.height)
+            .padding(Spacing.xs)
+            .frame(maxWidth: .infinity, minHeight: Metrics.height)
             .background(style.fill, in: RoundedRectangle(cornerRadius: Radius.tile))
             .overlay {
                 if let border = style.border {
@@ -36,6 +36,8 @@ struct EcoAreaCell: View {
                     Image(.iconPinSmall)
                         .resizable()
                         .frame(width: Metrics.pinSize, height: Metrics.pinSize)
+                        // Figma 핀은 green/500(Primary). 글자(Text on white)보다 밝다.
+                        .foregroundStyle(Color.ecoPrimary)
                     Text(verbatim: name)
                         .ecoFont(.body2Bold)
                 }

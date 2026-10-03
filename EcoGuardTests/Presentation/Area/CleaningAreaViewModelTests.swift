@@ -104,8 +104,37 @@ struct CleaningAreaViewModelTests {
         #expect(repository.fetchCallCount == 1)
     }
 
+    @Test func cancelledFirstLoadStaysLoadingAndReloads() async {
+        let (viewModel, repository) = makeViewModel(scenarios: [.assigned], delay: .seconds(10))
+
+        let task = Task { await viewModel.load() }
+        try? await Task.sleep(for: .milliseconds(50))
+        task.cancel()
+        await task.value
+
+        // 탭을 떠나 취소돼도 실패 화면에 갇히지 않고, 돌아오면 다시 불러온다.
+        #expect(viewModel.state == .loading)
+        #expect(repository.fetchCallCount == 1)
+    }
+
+    @Test func emptyFloorsAreTreatedAsUnassigned() async {
+        let repository = EmptyFloorsRepository()
+        let viewModel = CleaningAreaViewModel(fetchCleaningAreaUseCase: FetchCleaningAreaUseCase(cleaningAreaRepository: repository))
+
+        await viewModel.load()
+
+        #expect(viewModel.state == .loaded(.unassigned))
+        #expect(viewModel.selectedFloor == nil)
+    }
+
     @Test func membersPutMeLast() {
         #expect(CleaningAreaFormatter.members(Fixture.area) == "김서연 · 이도윤 · 나(최민준)")
         #expect(CleaningAreaFormatter.window(Fixture.area) == "08:00 – 08:10")
+    }
+}
+
+private struct EmptyFloorsRepository: CleaningAreaRepository {
+    func fetchCleaningArea() async throws -> CleaningAreaSummary {
+        .assigned(floors: [], myFloorID: "2F", area: MockCleaningAreaRepository.Fixture.area)
     }
 }

@@ -42,8 +42,9 @@ final class CleaningAreaViewModel {
         state = .loading
         do {
             apply(try await fetchCleaningAreaUseCase.execute())
-        } catch is CancellationError {
-            state = previous == .loading ? .failed : previous
+        } catch where error.isCancellation {
+            // 탭을 떠나 취소되면 이전 화면으로 돌린다. 처음 불러오던 중이었다면 .loading으로 남겨 돌아왔을 때 다시 불러온다.
+            state = previous
         } catch {
             logError(error)
             state = .failed
@@ -61,7 +62,7 @@ final class CleaningAreaViewModel {
         defer { isFetching = false }
         do {
             apply(try await fetchCleaningAreaUseCase.execute())
-        } catch is CancellationError {
+        } catch where error.isCancellation {
             return
         } catch {
             logError(error)
@@ -76,6 +77,12 @@ final class CleaningAreaViewModel {
     private func apply(_ summary: CleaningAreaSummary) {
         state = .loaded(summary)
         // 고른 층이 새 도면에도 있으면 유지하고, 없으면 내 구역 층으로 돌아간다.
+        // 층 목록이 비어 있으면 그릴 도면이 없으므로 미배정과 같게 본다.
+        if case .assigned(let floors, _, _) = summary, floors.isEmpty {
+            state = .loaded(.unassigned)
+            selectedFloorID = nil
+            return
+        }
         if case .assigned(let floors, let myFloorID, _) = summary {
             if !floors.contains(where: { $0.id == selectedFloorID }) {
                 selectedFloorID = myFloorID
@@ -94,5 +101,12 @@ private extension CleaningAreaSummary {
     var myFloorID: String? {
         if case .assigned(_, let myFloorID, _) = self { return myFloorID }
         return nil
+    }
+}
+
+private extension Error {
+    /// Swift 동시성 취소와 URLSession 취소(`URLError.cancelled`)를 모두 취소로 본다.
+    var isCancellation: Bool {
+        self is CancellationError || (self as? URLError)?.code == .cancelled
     }
 }
