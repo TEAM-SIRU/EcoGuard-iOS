@@ -64,7 +64,7 @@ struct VerificationResultView: View {
                 primaryTitle: "결과 다시 확인",
                 primaryAction: { await viewModel.retry() },
                 back: close,
-                goHome: goHome
+                secondaryAction: goHome
             )
         }
     }
@@ -117,7 +117,7 @@ private struct VerificationResultSummaryView: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         Spacer(minLength: 0)
-                        VerificationResultHeader(content: content, icon: heroIcon)
+                        VerificationResultHeader(title: content.title, message: content.message, icon: heroIcon)
                             .padding(.bottom, Spacing.xxxl)
                         VerificationResultPhoto(url: photoURL, height: VerificationPhotoView.Height.regular)
                             .padding(.bottom, Spacing.xxl)
@@ -160,7 +160,8 @@ private struct VerificationResultRejectedView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     VerificationResultHeader(
-                        content: content,
+                        title: content.title,
+                        message: content.message,
                         icon: HeroIcon(icon: .iconAlertHero, style: .result(tint: .ecoRejected))
                     )
                     .padding(.top, Spacing.xxxl)
@@ -221,20 +222,21 @@ private struct VerificationResultDetailView: View {
     }
 }
 
-/// 가운데 아이콘 + 제목 + 설명.
-private struct VerificationResultHeader: View {
-    let content: VerificationResultContent
+/// 가운데 아이콘 + 제목 + 설명. 이의신청 완료·결과 화면도 같이 쓴다.
+struct VerificationResultHeader: View {
+    let title: String
+    let message: String
     let icon: HeroIcon
 
     var body: some View {
         VStack(spacing: Spacing.lg) {
             icon
             VStack(spacing: Spacing.sm) {
-                Text(verbatim: content.title)
+                Text(verbatim: title)
                     .ecoFont(.title2)
                     .foregroundStyle(Color.ecoTextPrimary)
                     .accessibilityAddTraits(.isHeader)
-                Text(verbatim: content.message)
+                Text(verbatim: message)
                     .ecoFont(.body2)
                     .foregroundStyle(Color.ecoTextSub)
             }
@@ -245,8 +247,8 @@ private struct VerificationResultHeader: View {
 }
 
 /// 제출한 사진. 주소가 없거나 불러오지 못하면 자리표시를 그린다.
-/// VoiceOver는 사진이 보일 때만 이미지로 읽고, 자리표시일 때는 사진이 없다는 것을 알린다.
-private struct VerificationResultPhoto: View {
+/// VoiceOver는 사진이 보일 때만 이미지로 읽고, 자리표시일 때는 사진이 없다는 것을 알린다. 이의신청 결과 화면도 같이 쓴다.
+struct VerificationResultPhoto: View {
     private enum Phase {
         case loading
         case loaded

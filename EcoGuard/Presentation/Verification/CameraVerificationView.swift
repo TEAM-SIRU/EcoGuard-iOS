@@ -59,7 +59,7 @@ struct CameraVerificationView: View {
                 primaryTitle: "다시 시도",
                 primaryAction: { await viewModel.load() },
                 back: actions.close,
-                goHome: actions.close
+                secondaryAction: actions.close
             )
         case .guide:
             VerificationGuideView(area: viewModel.session?.area ?? "", back: actions.close) {
@@ -82,7 +82,7 @@ struct CameraVerificationView: View {
                 primaryTitle: "같은 사진 다시 보내기",
                 primaryAction: viewModel.submit,
                 back: viewModel.returnToConfirm,
-                goHome: actions.close
+                secondaryAction: actions.close
             )
         case .submitted(let captured, let submittedAt):
             VerificationSubmittedView(captured: captured, submittedAt: submittedAt, area: viewModel.session?.area, goHome: actions.close)
@@ -93,7 +93,7 @@ struct CameraVerificationView: View {
                 primaryTitle: "업로드 상태 확인",
                 primaryAction: viewModel.checkUploadStatus,
                 back: actions.close,
-                goHome: actions.close
+                secondaryAction: actions.close
             )
         }
     }

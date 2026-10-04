@@ -87,13 +87,15 @@ extension VerificationPhotoView {
 }
 
 /// AI 검수 결과(반려 사유). Figma `AI 검수 결과` (239:258). grey/50 배경, 사방 20, radius 16, 줄 사이 6.
+/// 이의신청 반려의 `선생님 답변` (317:1215)도 같은 모양이라 `label`만 바꿔 쓴다.
 struct VerificationReviewNote: View {
+    var label: LocalizedStringKey = "AI 검수 결과"
     let title: String
     let guide: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metrics.titleSpacing) {
-            Text("AI 검수 결과")
+            Text(label)
                 .ecoFont(.caption)
                 .foregroundStyle(Color.ecoTextCaption)
             Text(verbatim: title)

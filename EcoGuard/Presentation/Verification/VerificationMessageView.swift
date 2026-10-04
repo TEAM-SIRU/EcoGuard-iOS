@@ -1,13 +1,16 @@
 import SwiftUI
 
 /// Figma `06-5 업로드 실패` (514:20) · `06-6 시간 초과` (514:49). 제목·설명과 하단 버튼 두 개.
+/// 이의신청 제출 실패 (514:165) · 결과 승인 (514:194)도 같은 구성이다. 승인은 제목 아래 `highlight`(+10분)를 둔다.
 struct VerificationMessageView: View {
     let title: LocalizedStringKey
+    var highlight: String?
     let message: LocalizedStringKey
     let primaryTitle: LocalizedStringKey
     let primaryAction: () async -> Void
     let back: () -> Void
-    let goHome: () -> Void
+    var secondaryTitle: LocalizedStringKey = "홈으로"
+    let secondaryAction: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,6 +21,11 @@ struct VerificationMessageView: View {
                         .ecoFont(.title1)
                         .foregroundStyle(Color.ecoTextPrimary)
                         .accessibilityAddTraits(.isHeader)
+                    if let highlight {
+                        Text(verbatim: highlight)
+                            .ecoFont(.display)
+                            .foregroundStyle(Color.ecoPrimaryText)
+                    }
                     Text(message)
                         .ecoFont(.body2)
                         .foregroundStyle(Color.ecoTextSub)
@@ -34,7 +42,7 @@ struct VerificationMessageView: View {
                     EcoButton(primaryTitle) {
                         await primaryAction()
                     }
-                    EcoButton("홈으로", style: .secondary, action: goHome)
+                    EcoButton(secondaryTitle, style: .secondary, action: secondaryAction)
                 }
             }
         }
