@@ -8,21 +8,25 @@ final class MockAuthRepository: AuthRepository {
     }
 
     struct LoginFailedError: Error {}
+    struct LogoutFailedError: Error {}
 
     private var outcomes: [Outcome]
     private let delay: Duration
+    private let logoutFails: Bool
     private(set) var loginCallCount = 0
     private(set) var logoutCallCount = 0
 
     /// 호출마다 `outcomes`를 앞에서부터 하나씩 쓰고, 마지막 결과는 이후 호출에도 계속 쓴다.
-    init(outcomes: [Outcome], delay: Duration = .seconds(1)) {
+    /// `logoutFails`면 로그아웃이 지연 후 실패한다(서버 요청 실패 흉내).
+    init(outcomes: [Outcome], delay: Duration = .seconds(1), logoutFails: Bool = false) {
         precondition(!outcomes.isEmpty, "outcomes는 비어 있을 수 없다")
         self.outcomes = outcomes
         self.delay = delay
+        self.logoutFails = logoutFails
     }
 
-    convenience init(outcome: Outcome = .student, delay: Duration = .seconds(1)) {
-        self.init(outcomes: [outcome], delay: delay)
+    convenience init(outcome: Outcome = .student, delay: Duration = .seconds(1), logoutFails: Bool = false) {
+        self.init(outcomes: [outcome], delay: delay, logoutFails: logoutFails)
     }
 
     func login() async throws -> UserRole {
@@ -41,7 +45,11 @@ final class MockAuthRepository: AuthRepository {
         }
     }
 
-    func logout() async {
+    func logout() async throws {
         logoutCallCount += 1
+        try await Task.sleep(for: delay)
+        if logoutFails {
+            throw LogoutFailedError()
+        }
     }
 }

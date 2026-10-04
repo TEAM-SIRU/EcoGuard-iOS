@@ -5,7 +5,7 @@ struct LogoutUseCase {
         self.authRepository = authRepository
     }
 
-    func execute() async {
-        await authRepository.logout()
+    func execute() async throws {
+        try await authRepository.logout()
     }
 }

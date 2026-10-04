@@ -5,7 +5,8 @@ final class DIContainer {
     /// 교사 안내 화면의 웹 관리자 주소. 없으면 복사·공유 버튼을 숨긴다.
     let webAdminURL: URL?
 
-    private let authRepository: AuthRepository
+    /// 로그인·로그아웃이 같은 저장소를 써야 해서 화면별 확장(`DIContainer+MyPage`)에서도 쓴다.
+    let authRepository: AuthRepository
     private let homeRepository: HomeRepository
     private let recruitmentRepository: RecruitmentRepository
 
