@@ -42,7 +42,7 @@ enum ActivityRecordsFormatter {
     /// 기록·휴일을 `today`(KST) 기준 몇 주 전인지로 묶는다. 최근 주가 먼저 온다.
     /// 여러 주에 걸친 휴일은 주마다 그 주 안의 구간으로 나눠 각 주에 안내한다.
     static func sections(for month: ActivityMonth, today: Date) -> [ActivityWeekSection] {
-        let holidays = month.holidays.flatMap(splitByWeek)
+        let holidays = month.holidays.flatMap { splitByWeek($0) }
         let items = month.records.map(ActivityWeekSection.Item.record) + holidays.map(ActivityWeekSection.Item.holiday)
         let grouped = Dictionary(grouping: items) { weeksAgo(of: $0.date, today: today) }
         return grouped.keys.sorted().map { weeksAgo in
@@ -83,6 +83,16 @@ enum ActivityRecordsFormatter {
         }
     }
 
+    /// "2026년"
+    static func year(_ year: Int) -> String {
+        String(localized: "\(String(year))년")
+    }
+
+    /// "9월"
+    static func monthOnly(_ month: YearMonth) -> String {
+        String(localized: "\(month.month)월")
+    }
+
     /// "2026년 9월"
     static func month(_ month: YearMonth) -> String {
         String(localized: "\(String(month.year))년 \(month.month)월")
@@ -101,7 +111,7 @@ enum ActivityRecordsFormatter {
     /// 다른 해의 달은 연도를 붙인다("2025년 12월").
     private static func monthName(_ month: YearMonth, current: YearMonth) -> String {
         if month == current { return String(localized: "이번 달") }
-        if month.year == current.year { return String(localized: "\(month.month)월") }
+        if month.year == current.year { return monthOnly(month) }
         return self.month(month)
     }
 

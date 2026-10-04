@@ -3,16 +3,28 @@ import SwiftUI
 /// Figma `07 활동 기록 · 월 변경 팝업` (504:173) 월 선택 카드. 월 항목은 `Month/Default` · `Month/Selected` (504:185).
 /// 폭 342, 안쪽 여백·간격 24. radius는 Figma 변수(24) 대신 프로젝트 카드 라운드(`Radius.card`)를 쓴다.
 /// `range` 밖의 달과 연도는 고를 수 없다. 화면 위에 띄울 때는 `.ecoMonthPicker(isPresented:...)`를 쓴다.
+/// 연도·달 문구는 화면의 다른 월 문구와 같은 곳에서 만들도록 `yearTitle` · `monthTitle`로 받는다.
 struct EcoMonthPickerDialog: View {
     let range: ClosedRange<YearMonth>
+    let yearTitle: (Int) -> String
+    let monthTitle: (YearMonth) -> String
     let onApply: (YearMonth) -> Void
     let onCancel: () -> Void
 
     @State private var year: Int
     @State private var draft: YearMonth
 
-    init(selection: YearMonth, range: ClosedRange<YearMonth>, onApply: @escaping (YearMonth) -> Void, onCancel: @escaping () -> Void) {
+    init(
+        selection: YearMonth,
+        range: ClosedRange<YearMonth>,
+        yearTitle: @escaping (Int) -> String,
+        monthTitle: @escaping (YearMonth) -> String,
+        onApply: @escaping (YearMonth) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
         self.range = range
+        self.yearTitle = yearTitle
+        self.monthTitle = monthTitle
         self.onApply = onApply
         self.onCancel = onCancel
         _year = State(initialValue: selection.year)
@@ -59,7 +71,7 @@ struct EcoMonthPickerDialog: View {
     private var yearRow: some View {
         HStack(spacing: Spacing.sm) {
             yearButton(icon: .iconPagePrevious, label: "이전 연도", target: year - 1)
-            Text(verbatim: "\(year)년")
+            Text(yearTitle(year))
                 .ecoFont(.title4)
                 .foregroundStyle(Color.ecoTextPrimary)
                 .frame(maxWidth: .infinity)
@@ -85,7 +97,7 @@ struct EcoMonthPickerDialog: View {
         let isSelected = month == draft
         let isEnabled = range.contains(month)
         return Button { draft = month } label: {
-            Text(verbatim: "\(month.month)월")
+            Text(monthTitle(month))
                 .ecoFont(.title5)
                 .foregroundStyle(isSelected ? Color.ecoOnPrimary : isEnabled ? Color.ecoTextPrimary : Color.ecoDisabled)
                 .frame(maxWidth: .infinity)
@@ -118,31 +130,49 @@ extension View {
         isPresented: Binding<Bool>,
         selection: YearMonth,
         range: ClosedRange<YearMonth>,
+        yearTitle: @escaping (Int) -> String,
+        monthTitle: @escaping (YearMonth) -> String,
         onApply: @escaping (YearMonth) -> Void
     ) -> some View {
-        // 전체 화면 덮개는 아래에서 올라오는 전환이 기본이라, 띄우고 닫을 때 전환을 끄고 안에서 딤·카드를 서서히 보여 준다.
-        let binding = Binding(
-            get: { isPresented.wrappedValue },
-            set: { newValue in
-                var transaction = Transaction()
-                transaction.disablesAnimations = true
-                withTransaction(transaction) { isPresented.wrappedValue = newValue }
+        modifier(EcoMonthPickerModifier(
+            isPresented: isPresented,
+            selection: selection,
+            range: range,
+            yearTitle: yearTitle,
+            monthTitle: monthTitle,
+            onApply: onApply
+        ))
+    }
+}
+
+private struct EcoMonthPickerModifier: ViewModifier {
+    @Binding var isPresented: Bool
+    let selection: YearMonth
+    let range: ClosedRange<YearMonth>
+    let yearTitle: (Int) -> String
+    let monthTitle: (YearMonth) -> String
+    let onApply: (YearMonth) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            // fullScreenCover의 아래에서 올라오는 전환 대신 딤·카드가 스스로 서서히 나타나게 한다.
+            .transaction(value: isPresented) { $0.disablesAnimations = true }
+            .fullScreenCover(isPresented: $isPresented) {
+                DimmedDialog(onDismiss: { isPresented = false }) {
+                    EcoMonthPickerDialog(
+                        selection: selection,
+                        range: range,
+                        yearTitle: yearTitle,
+                        monthTitle: monthTitle,
+                        onApply: { month in
+                            isPresented = false
+                            onApply(month)
+                        },
+                        onCancel: { isPresented = false }
+                    )
+                }
+                .presentationBackground(.clear)
             }
-        )
-        return fullScreenCover(isPresented: binding) {
-            DimmedDialog(onDismiss: { binding.wrappedValue = false }) {
-                EcoMonthPickerDialog(
-                    selection: selection,
-                    range: range,
-                    onApply: { month in
-                        binding.wrappedValue = false
-                        onApply(month)
-                    },
-                    onCancel: { binding.wrappedValue = false }
-                )
-            }
-            .presentationBackground(.clear)
-        }
     }
 }
 
@@ -194,6 +224,8 @@ private enum Metrics {
         EcoMonthPickerDialog(
             selection: YearMonth(year: 2026, month: 9),
             range: YearMonth(year: 2026, month: 3)...YearMonth(year: 2026, month: 10),
+            yearTitle: { ActivityRecordsFormatter.year($0) },
+            monthTitle: { ActivityRecordsFormatter.monthOnly($0) },
             onApply: { _ in },
             onCancel: {}
         )

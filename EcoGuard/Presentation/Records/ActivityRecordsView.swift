@@ -27,6 +27,8 @@ struct ActivityRecordsView: View {
                 isPresented: $isMonthPickerPresented,
                 selection: viewModel.selectedMonth,
                 range: viewModel.selectableMonths,
+                yearTitle: { ActivityRecordsFormatter.year($0) },
+                monthTitle: { ActivityRecordsFormatter.monthOnly($0) },
                 onApply: viewModel.selectMonth
             )
     }
@@ -243,6 +245,8 @@ private func recordsPreview(_ scenario: MockActivityRepository.Scenario, delay: 
         EcoMonthPickerDialog(
             selection: MockActivityRepository.Fixture.month,
             range: DIContainer.activityRecordsEarliestMonth...MockActivityRepository.Fixture.month,
+            yearTitle: { ActivityRecordsFormatter.year($0) },
+            monthTitle: { ActivityRecordsFormatter.monthOnly($0) },
             onApply: { _ in },
             onCancel: {}
         )

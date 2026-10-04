@@ -83,6 +83,8 @@ struct ActivityRecordsFormatterTests {
 
     @Test func monthAndCountsMatchFigma() {
         #expect(ActivityRecordsFormatter.month(YearMonth(year: 2026, month: 9)) == "2026년 9월")
+        #expect(ActivityRecordsFormatter.year(2026) == "2026년")
+        #expect(ActivityRecordsFormatter.monthOnly(YearMonth(year: 2026, month: 9)) == "9월")
         #expect(ActivityRecordsFormatter.minutes(70) == "70분")
         #expect(ActivityRecordsFormatter.count(7) == "7회")
         #expect(ActivityRecordsFormatter.recordDate(date(day: 29)) == "9월 29일(화)")
