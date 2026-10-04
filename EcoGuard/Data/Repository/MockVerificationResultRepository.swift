@@ -12,8 +12,10 @@ final class MockVerificationResultRepository: VerificationResultRepository {
 
     struct FetchFailedError: Error {}
 
-    private let scenario: Scenario
-    private let delay: Duration
+    /// 검수 중이던 결과가 나오는 흐름을 테스트에서 바꿔 볼 수 있다.
+    var scenario: Scenario
+    /// 테스트에서 첫 호출을 붙잡아 둔 뒤 다음 호출은 바로 끝내도록 바꿀 수 있다.
+    var delay: Duration
     private let error: Error
     private var remainingFailures: Int
     private(set) var fetchCallCount = 0

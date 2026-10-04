@@ -76,35 +76,79 @@ struct VerificationResultViewModelTests {
         task.cancel()
         await task.value
 
-        // 화면을 떠나 취소돼도 실패 화면에 갇히지 않는다.
+        // 화면을 떠나 취소돼도 실패 화면에 갇히지 않고, 다시 나타나면 새로 불러온다.
         #expect(viewModel.state == .loading)
         #expect(repository.fetchCallCount == 1)
+
+        repository.delay = .zero
+        await viewModel.load()
+
+        #expect(viewModel.state == .loaded(Fixture.result(status: .approved)))
+        #expect(repository.fetchCallCount == 2)
     }
 
-    @Test func cancelledURLRequestStaysLoading() async {
+    @Test func cancelledURLRequestWithoutTaskCancellationFails() async {
         let (viewModel, _) = makeViewModel(.approved, failuresBeforeSuccess: 1, error: URLError(.cancelled))
 
         await viewModel.load()
-        #expect(viewModel.state == .loading)
+        #expect(viewModel.state == .failed)
 
-        await viewModel.load()
+        await viewModel.retry()
         #expect(viewModel.state == .loaded(Fixture.result(status: .approved)))
     }
 
     @Test func cancelledRetryStaysLoadingNotFailed() async {
-        let failed = VerificationResultViewModel(
-            resultID: Fixture.id,
-            fetchResultUseCase: FetchVerificationResultUseCase(
-                verificationResultRepository: MockVerificationResultRepository(scenario: .approved, delay: .seconds(10))
-            ),
-            state: .failed
-        )
+        let (viewModel, repository) = makeViewModel(.approved, failuresBeforeSuccess: 1)
+        await viewModel.load()
+        #expect(viewModel.state == .failed)
+        repository.delay = .seconds(10)
 
-        let task = Task { await failed.retry() }
+        let task = Task { await viewModel.retry() }
         try? await Task.sleep(for: .milliseconds(50))
         task.cancel()
         await task.value
 
-        #expect(failed.state == .loading)
+        #expect(viewModel.state == .loading)
+    }
+
+    @Test func loadRefetchesWhileProcessing() async {
+        let (viewModel, repository) = makeViewModel(.processing)
+        await viewModel.load()
+        #expect(viewModel.state == .loaded(Fixture.result(status: .processing)))
+
+        repository.scenario = .approved
+        await viewModel.load()
+
+        #expect(viewModel.state == .loaded(Fixture.result(status: .approved)))
+        #expect(repository.fetchCallCount == 2)
+    }
+
+    @Test func refreshUpdatesProcessingResult() async {
+        let (viewModel, repository) = makeViewModel(.processing)
+        await viewModel.load()
+
+        repository.scenario = .rejected
+        await viewModel.refresh()
+
+        #expect(viewModel.state == .loaded(Fixture.result(status: .rejected)))
+    }
+
+    @Test func failedRefreshKeepsProcessingResult() async {
+        let (viewModel, repository) = makeViewModel(.processing)
+        await viewModel.load()
+
+        repository.scenario = .failure
+        await viewModel.refresh()
+
+        #expect(viewModel.state == .loaded(Fixture.result(status: .processing)))
+    }
+
+    @Test func refreshIgnoresFinalResult() async {
+        let (viewModel, repository) = makeViewModel(.approved)
+        await viewModel.load()
+
+        await viewModel.refresh()
+
+        #expect(repository.fetchCallCount == 1)
     }
 }

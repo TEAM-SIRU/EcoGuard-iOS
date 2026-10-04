@@ -107,6 +107,7 @@ struct VerificationReviewNote: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Spacing.xl)
+        // Figma 16은 Foundations `버튼·박스` 라운드라 카드(20)가 아닌 `Radius.button`을 쓴다.
         .background(Color.ecoSurface, in: RoundedRectangle(cornerRadius: Radius.button))
         .accessibilityElement(children: .combine)
     }
@@ -140,6 +141,7 @@ struct VerificationInfoTable: View {
             }
         }
         .padding(Spacing.xl)
+        // Figma `Info table` radius 16은 Foundations `버튼·박스` 라운드라 `Radius.button`을 쓴다.
         .background(Color.ecoSurface, in: RoundedRectangle(cornerRadius: Radius.button))
     }
 }

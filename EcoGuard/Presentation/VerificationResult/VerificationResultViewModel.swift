@@ -24,15 +24,35 @@ final class VerificationResultViewModel {
         self.state = state
     }
 
-    /// 화면이 나타날 때 부른다. 이미 불러왔으면 다시 부르지 않는다.
+    /// 화면이 나타날 때·앱으로 돌아올 때 부른다. 결과가 나왔으면 다시 부르지 않고, 검수 중이면 화면을 둔 채 다시 조회한다.
     func load() async {
-        if case .loaded = state { return }
-        await fetch()
+        switch state {
+        case .loaded(let result) where result.status == .processing:
+            await refresh()
+        case .loaded:
+            return
+        case .loading, .failed:
+            await fetch()
+        }
     }
 
     /// 조회 실패 화면의 `결과 다시 확인`. 사진은 다시 보내지 않고 결과만 다시 조회한다.
     func retry() async {
         await fetch()
+    }
+
+    /// 검수 중 화면을 그대로 둔 채 다시 조회한다. 당겨서 새로고침·앱 복귀에서 쓴다. 실패하면 지금 화면을 유지한다.
+    func refresh() async {
+        guard case .loaded(let result) = state, result.status == .processing else { return }
+        guard !isFetching else { return }
+        isFetching = true
+        defer { isFetching = false }
+        do {
+            state = .loaded(try await fetchResultUseCase.execute(id: resultID))
+        } catch {
+            guard !Task.isCancelled else { return }
+            logError(error)
+        }
     }
 
     private func fetch() async {
@@ -42,19 +62,16 @@ final class VerificationResultViewModel {
         state = .loading
         do {
             state = .loaded(try await fetchResultUseCase.execute(id: resultID))
-        } catch where Self.isCancellation(error) {
-            // 화면을 떠나 취소된 것은 조회 실패가 아니다. .loading에 두면 다시 나타날 때 `.task`가 새로 불러온다.
-            return
         } catch {
-            logger.error("인증 결과 조회 실패: \(String(describing: type(of: error)), privacy: .public) \(String(describing: error), privacy: .private)")
+            // 화면을 떠나 작업이 취소된 것은 조회 실패가 아니다. .loading에 두면 다시 나타날 때 `.task`가 새로 불러온다.
+            // 작업이 살아 있는데 온 취소 오류(`URLError.cancelled` 등)는 요청이 끊긴 것이라 실패로 둔다.
+            guard !Task.isCancelled else { return }
+            logError(error)
             state = .failed
         }
     }
 
-    /// `Task` 취소는 `CancellationError`로, 취소된 `URLSession` 요청은 `URLError.cancelled`로 온다.
-    private static func isCancellation(_ error: Error) -> Bool {
-        if error is CancellationError { return true }
-        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
-        return false
+    private func logError(_ error: Error) {
+        logger.error("인증 결과 조회 실패: \(String(describing: type(of: error)), privacy: .public) \(String(describing: error), privacy: .private)")
     }
 }

@@ -11,6 +11,7 @@ struct VerificationResultView: View {
     }
 
     @State private var viewModel: VerificationResultViewModel
+    @Environment(\.scenePhase) private var scenePhase
     private let entry: Entry
     private let close: () -> Void
     private let goHome: () -> Void
@@ -35,7 +36,9 @@ struct VerificationResultView: View {
         content
             .toolbar(.hidden, for: .navigationBar)
             .navigationBarBackButtonHidden()
-            .task {
+            // 앱으로 돌아올 때도 다시 불러 검수 중이던 결과를 갱신한다.
+            .task(id: scenePhase) {
+                guard scenePhase == .active else { return }
                 await viewModel.load()
             }
     }
@@ -45,8 +48,11 @@ struct VerificationResultView: View {
         switch viewModel.state {
         case .loading:
             VStack(spacing: 0) {
-                VerificationNavBar(back: close)
+                if entry == .history {
+                    VerificationNavBar(back: close)
+                }
                 ProgressView()
+                    .accessibilityLabel(Text("결과를 불러오는 중"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         case .loaded(let result):
@@ -84,7 +90,12 @@ struct VerificationResultView: View {
                 goHome: goHome
             )
         case .detail:
-            VerificationResultDetailView(content: content, photoURL: result.photoURL, back: close)
+            VerificationResultDetailView(
+                content: content,
+                photoURL: result.photoURL,
+                back: close,
+                refresh: { await viewModel.refresh() }
+            )
         }
     }
 }
@@ -179,11 +190,12 @@ private struct VerificationResultRejectedView: View {
     }
 }
 
-/// 검수 중 상세 (317:430).
+/// 검수 중 상세 (317:430). 당겨서 결과를 다시 확인할 수 있다.
 private struct VerificationResultDetailView: View {
     let content: VerificationResultContent
     let photoURL: URL?
     let back: () -> Void
+    let refresh: () async -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -202,7 +214,9 @@ private struct VerificationResultDetailView: View {
                     .padding(.horizontal, Spacing.screenHorizontal)
                 }
             }
-            .scrollBounceBehavior(.basedOnSize)
+            .refreshable {
+                await refresh()
+            }
         }
     }
 }
@@ -230,26 +244,55 @@ private struct VerificationResultHeader: View {
     }
 }
 
-/// 제출한 사진. 주소가 없거나 불러오는 중이면 자리표시를 그린다.
+/// 제출한 사진. 주소가 없거나 불러오지 못하면 자리표시를 그린다.
+/// VoiceOver는 사진이 보일 때만 이미지로 읽고, 자리표시일 때는 사진이 없다는 것을 알린다.
 private struct VerificationResultPhoto: View {
+    private enum Phase {
+        case loading
+        case loaded
+        case unavailable
+    }
+
     let url: URL?
     let height: CGFloat
+
+    @State private var phase: Phase = .loading
 
     var body: some View {
         VerificationPhotoView(image: nil, placeholder: "제출한 사진", height: height)
             .overlay {
                 if let url {
-                    AsyncImage(url: url) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } placeholder: {
-                        Color.clear
+                    AsyncImage(url: url) { asyncPhase in
+                        switch asyncPhase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .onAppear { phase = .loaded }
+                        case .failure:
+                            Color.clear
+                                .onAppear { phase = .unavailable }
+                        default:
+                            Color.clear
+                        }
                     }
-                    .accessibilityHidden(true)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityAddTraits(phase == .loaded ? .isImage : [])
+            .onChange(of: url, initial: true) {
+                phase = url == nil ? .unavailable : .loading
+            }
+    }
+
+    private var accessibilityLabel: Text {
+        switch phase {
+        case .loaded: Text("제출한 사진")
+        case .loading: Text("사진을 불러오는 중")
+        case .unavailable: Text("사진을 불러오지 못했어요")
+        }
     }
 }
 
