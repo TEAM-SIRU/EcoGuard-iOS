@@ -9,6 +9,8 @@ struct EcoButton: View {
     enum Style {
         case primary
         case secondary
+        /// `Button/secondary` 모양에 빨간 글자. 로그아웃처럼 되돌리기 어려운 동작(Figma `12 전체 · 로그아웃 확인` 309:167).
+        case destructive
     }
 
     enum Size {
@@ -155,6 +157,8 @@ private struct EcoButtonLabel: View {
             return Appearance(textStyle: .buttonLarge, foreground: .ecoOnPrimary, background: .ecoPrimary)
         case .secondary:
             return Appearance(textStyle: .button, foreground: .ecoTextSub, background: .ecoDivider)
+        case .destructive:
+            return Appearance(textStyle: .button, foreground: .ecoDestructive, background: .ecoDivider)
         }
     }
 
@@ -231,6 +235,7 @@ private struct SpinningLoaderIcon: View {
     VStack(spacing: Spacing.md) {
         EcoButton("청소 인증하기", leadingIcon: .iconCam) {}
         EcoButton("다시 찍기", style: .secondary) {}
+        EcoButton("로그아웃", style: .destructive) {}
         EcoButton("이의신청 보내기") {}
             .disabled(true)
         EcoButton("지금은 인증 시간이 아니에요", leadingIcon: .iconClockLarge) {}

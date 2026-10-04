@@ -45,8 +45,18 @@ final class LoginViewModel {
         }
     }
 
+    /// 서버 요청이 실패해도 로그인 화면으로 돌아간다. 기기의 토큰은 저장소가 지운다.
     func logout() async {
-        await logoutUseCase.execute()
+        do {
+            try await logoutUseCase.execute()
+        } catch {
+            logger.error("로그아웃 실패: \(String(describing: type(of: error)), privacy: .public) \(String(describing: error), privacy: .private)")
+        }
+        state = .idle
+    }
+
+    /// 다른 화면(마이페이지)에서 로그아웃을 마쳤을 때 로그인 화면으로만 돌린다. 저장소는 다시 부르지 않는다.
+    func didLogOut() {
         state = .idle
     }
 }

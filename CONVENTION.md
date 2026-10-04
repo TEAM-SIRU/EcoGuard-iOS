@@ -344,7 +344,9 @@ final class NoticeListViewModel {
 | white (`06-2` 글자·아이콘·셔터) | #FFFFFF | 카메라 화면 위 글자·아이콘 | `Color.ecoOnCamera` |
 | `06-2` 단계 표시 `2/3 · 촬영` (239:161, 변수 아님) | #C4CAD1 | 카메라 화면 보조 글자 | `Color.ecoOnCameraSub` |
 | `06-2` 촬영 안내 말풍선 (239:165, 변수 아님) | #000000, 불투명도 80% | 카메라 안내 말풍선 배경 | `Color.ecoCameraGuideBackground` |
-| `07 활동 기록 · 월 변경 팝업` 배경 딤 (504:172, 변수 아님) | #1A1F1D, 불투명도 40% | 팝업 뒤 화면 딤 | `Color.ecoDim` |
+| grey/900 (`Dim` 317:133 불투명도 40%, `07 활동 기록 · 월 변경 팝업` 504:172) | rgba(26,31,29,0.4) | 확인·월 변경 팝업 뒤 화면 가림 | `Color.ecoDim` |
+| red/500 (`12 전체 · 로그아웃 확인` 버튼 글자 309:168) | #D83B3B | 되돌리기 어려운 동작(로그아웃) 글자 | `Color.ecoDestructive` |
+| grey/400 (`12 전체` icon/chev 512:62, 변수 아님) | #B3BAB6 | 목록 행 이동 화살표 | `Color.ecoChevron` |
 
 - 그림자는 `.ecoShadow(.card)` (0 / 2 / blur 10) · `.ecoShadow(.notice)` (0 / 4 / blur 16) · `.ecoShadow(.tabBar)` (0 / -4 / blur 16) · `.ecoShadow(.cameraButton)` (0 / 6 / blur 14)로만 쓴다. 색과 값은 `EcoShadow`에 있다.
 - `02 홈` 공지 본문 글자 #4E5968 · 강조 #191F28은 Figma 변수가 아닌 raw hex라 `ecoTextSub` · `ecoTextPrimary`로 대체했다.
