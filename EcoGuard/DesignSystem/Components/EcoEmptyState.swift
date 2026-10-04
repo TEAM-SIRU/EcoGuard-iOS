@@ -1,10 +1,12 @@
 import SwiftUI
 
 /// 화면 가운데 빈 상태·실패 안내. Figma `06 청소구역 · 미배정` (246:152) · `05 청소구역 · 조회 실패` (317:1245).
-/// 64 영역 가운데 30 아이콘, 제목 body1Bold, 설명 body2, 선택 버튼(compact). 간격 12.
+/// `07 활동 기록 · 빈 상태` (240:129)처럼 버튼 크기가 다르면 `Action.size`로 고른다.
+/// 64 영역 가운데 30 아이콘, 제목 body1Bold, 설명 body2, 선택 버튼(기본 compact). 간격 12.
 struct EcoEmptyState: View {
     struct Action {
         let title: LocalizedStringKey
+        var size: EcoButton.Size = .compact
         let perform: () async -> Void
     }
 
@@ -32,7 +34,7 @@ struct EcoEmptyState: View {
             .multilineTextAlignment(.center)
             .accessibilityElement(children: .combine)
             if let action {
-                EcoButton(action.title, style: .secondary, size: .compact, action: action.perform)
+                EcoButton(action.title, style: .secondary, size: action.size, action: action.perform)
             }
         }
         .padding(.horizontal, Spacing.screenHorizontal)
