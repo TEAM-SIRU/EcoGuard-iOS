@@ -172,10 +172,12 @@ struct ActivityRecordsView: View {
 
     /// 제목만 위에 두고 안내를 가운데에 놓는다.
     private var failedView: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             title
                 .padding(.top, Spacing.sm)
                 .padding(.bottom, Spacing.xl)
+            // 다른 달은 불러올 수 있을 수 있어 실패 화면에서도 달을 바꿀 수 있게 둔다.
+            monthButton
             EcoEmptyState(
                 icon: .iconMapHero,
                 title: "기록을 불러오지 못했어요",

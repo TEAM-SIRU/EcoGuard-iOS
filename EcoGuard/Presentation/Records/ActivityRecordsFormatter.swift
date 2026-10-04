@@ -40,12 +40,29 @@ enum ActivityRecordsFormatter {
     private static let locale = Locale(identifier: "ko_KR")
 
     /// 기록·휴일을 `today`(KST) 기준 몇 주 전인지로 묶는다. 최근 주가 먼저 온다.
+    /// 여러 주에 걸친 휴일은 주마다 그 주 안의 구간으로 나눠 각 주에 안내한다.
     static func sections(for month: ActivityMonth, today: Date) -> [ActivityWeekSection] {
-        let items = month.records.map(ActivityWeekSection.Item.record) + month.holidays.map(ActivityWeekSection.Item.holiday)
+        let holidays = month.holidays.flatMap(splitByWeek)
+        let items = month.records.map(ActivityWeekSection.Item.record) + holidays.map(ActivityWeekSection.Item.holiday)
         let grouped = Dictionary(grouping: items) { weeksAgo(of: $0.date, today: today) }
         return grouped.keys.sorted().map { weeksAgo in
             ActivityWeekSection(weeksAgo: weeksAgo, items: (grouped[weeksAgo] ?? []).sorted { $0.date > $1.date })
         }
+    }
+
+    /// 9/25(금)–9/29(화) → [9/25–9/27, 9/28–9/29]. 주는 월요일에 시작한다.
+    static func splitByWeek(_ holiday: HolidayPeriod) -> [HolidayPeriod] {
+        var periods: [HolidayPeriod] = []
+        var start = holiday.start
+        while start <= holiday.end {
+            guard
+                let nextWeek = calendar.dateInterval(of: .weekOfYear, for: start)?.end,
+                let weekLastDay = calendar.date(byAdding: .day, value: -1, to: nextWeek)
+            else { return [holiday] }
+            periods.append(HolidayPeriod(start: start, end: min(holiday.end, weekLastDay)))
+            start = nextWeek
+        }
+        return periods
     }
 
     /// 0 → "이번 주", 1 → "지난주", 2 → "2주 전". 오늘 이후 날짜는 이번 주로 본다.

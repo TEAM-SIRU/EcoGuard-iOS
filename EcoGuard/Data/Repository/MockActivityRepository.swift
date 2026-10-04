@@ -7,6 +7,8 @@ final class MockActivityRepository: ActivityRepository {
         case records
         case empty
         case failure
+        /// URLSession 요청이 취소된 것처럼 `URLError.cancelled`를 던진다.
+        case cancelledURL
     }
 
     struct FetchFailedError: Error {}
@@ -42,6 +44,8 @@ final class MockActivityRepository: ActivityRepository {
             return ActivityMonth(month: requested, records: [], holidays: [])
         case .failure:
             throw FetchFailedError()
+        case .cancelledURL:
+            throw URLError(.cancelled)
         }
     }
 }

@@ -2,6 +2,14 @@ import Foundation
 import Testing
 @testable import EcoGuard
 
+private final class TestClock {
+    var now: Date
+
+    init(now: Date) {
+        self.now = now
+    }
+}
+
 @MainActor
 struct ActivityRecordsViewModelTests {
     private let september = YearMonth(year: 2026, month: 9)
@@ -214,5 +222,98 @@ struct ActivityRecordsViewModelTests {
         await reload.value
 
         #expect(viewModel.state == loaded)
+    }
+
+    @Test func cancelledURLDuringFirstLoadStaysLoading() async {
+        let (viewModel, _) = makeViewModel(scenarios: [.cancelledURL])
+
+        await viewModel.load()
+
+        #expect(viewModel.state == .loading)
+    }
+
+    @Test func cancelledURLDuringReloadReturnsToPreviousContent() async {
+        let (viewModel, _) = makeViewModel(scenarios: [.records, .cancelledURL])
+        await viewModel.load()
+        let loaded = viewModel.state
+
+        await viewModel.load()
+        #expect(viewModel.state == loaded)
+
+        await viewModel.refresh()
+        #expect(viewModel.state == loaded)
+    }
+
+    @Test func refreshRequestedWhileRefreshingFetchesOnceMore() async {
+        let (viewModel, repository) = makeViewModel(scenarios: [.records], delay: .milliseconds(100))
+        await viewModel.load()
+
+        let refresh = Task { await viewModel.refresh() }
+        while repository.requestedMonths.count < 2 {
+            await Task.yield()
+        }
+        await viewModel.refresh()
+        await viewModel.refresh()
+        await refresh.value
+
+        // 진행 중에 두 번 요청돼도 끝난 뒤 한 번만 더 조회한다.
+        #expect(repository.requestedMonths.count == 3)
+    }
+
+    private func makeViewModel(clock: TestClock) -> (ActivityRecordsViewModel, MockActivityRepository) {
+        let repository = MockActivityRepository(scenarios: [.records], delay: .zero, now: { clock.now })
+        let viewModel = ActivityRecordsViewModel(
+            fetchActivityMonthUseCase: FetchActivityMonthUseCase(activityRepository: repository),
+            earliestMonth: YearMonth(year: 2026, month: 3),
+            now: { clock.now }
+        )
+        return (viewModel, repository)
+    }
+
+    @Test func returnAfterMonthRolloverMovesToNewCurrentMonth() async {
+        let clock = TestClock(now: MockActivityRepository.Fixture.today)
+        let (viewModel, _) = makeViewModel(clock: clock)
+        await viewModel.load()
+
+        clock.now = MockActivityRepository.Fixture.today.addingTimeInterval(3 * 24 * 3600)
+        await viewModel.refreshOnReturn()
+
+        #expect(viewModel.selectedMonth == YearMonth(year: 2026, month: 10))
+        #expect(viewModel.state == .loading)
+    }
+
+    @Test func returnAfterMonthRolloverKeepsPastMonthSelection() async {
+        let clock = TestClock(now: MockActivityRepository.Fixture.today)
+        let (viewModel, repository) = makeViewModel(clock: clock)
+        viewModel.selectMonth(august)
+        await viewModel.load()
+
+        clock.now = MockActivityRepository.Fixture.today.addingTimeInterval(3 * 24 * 3600)
+        await viewModel.refreshOnReturn()
+
+        #expect(viewModel.selectedMonth == august)
+        #expect(repository.requestedMonths == [august, august])
+        #expect(loadedMonth(viewModel)?.month == august)
+    }
+
+    @Test func returnInSameMonthRefreshes() async {
+        let clock = TestClock(now: MockActivityRepository.Fixture.today)
+        let (viewModel, repository) = makeViewModel(clock: clock)
+        await viewModel.load()
+
+        await viewModel.refreshOnReturn()
+
+        #expect(viewModel.selectedMonth == september)
+        #expect(repository.requestedMonths == [september, september])
+    }
+
+    @Test func returnWhileLoadingLeavesLoadToView() async {
+        let clock = TestClock(now: MockActivityRepository.Fixture.today)
+        let (viewModel, repository) = makeViewModel(clock: clock)
+
+        await viewModel.refreshOnReturn()
+
+        #expect(viewModel.state == .loading)
+        #expect(repository.requestedMonths.isEmpty)
     }
 }

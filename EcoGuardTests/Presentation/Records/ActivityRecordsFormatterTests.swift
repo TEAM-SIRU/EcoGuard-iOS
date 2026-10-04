@@ -120,4 +120,26 @@ struct ActivityRecordsFormatterTests {
                 == "9월 30일–10월 2일" + suffix
         )
     }
+
+    @Test func holidaySpanningWeeksShowsInEachWeek() {
+        // 9/25(금)–9/29(화) 휴일, 오늘 9/30(수). 이번 주엔 28–29일, 지난주엔 25–27일로 나눠 안내한다.
+        let holiday = HolidayPeriod(start: date(day: 25), end: date(day: 29))
+        let month = ActivityMonth(month: YearMonth(year: 2026, month: 9), records: [], holidays: [holiday])
+
+        let sections = ActivityRecordsFormatter.sections(for: month, today: date(day: 30, hour: 9))
+
+        let texts: [[String]] = sections.map { section in
+            section.items.compactMap { item in
+                if case .holiday(let period) = item { ActivityRecordsFormatter.holiday(period) } else { nil }
+            }
+        }
+        #expect(sections.map(\.weeksAgo) == [0, 1])
+        #expect(texts == [["9월 28–29일 · 휴일로 청소하지 않아요"], ["9월 25–27일 · 휴일로 청소하지 않아요"]])
+    }
+
+    @Test func holidayWithinOneWeekIsNotSplit() {
+        let holiday = HolidayPeriod(start: date(day: 24), end: date(day: 25))
+
+        #expect(ActivityRecordsFormatter.splitByWeek(holiday) == [holiday])
+    }
 }

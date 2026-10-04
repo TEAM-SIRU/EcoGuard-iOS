@@ -23,6 +23,10 @@ final class ActivityRecordsViewModel {
     /// 조회마다 올린다. 응답이 왔을 때 값이 바뀌었으면(달을 바꿨거나 다시 불렀으면) 그 응답은 버린다.
     private var requestID = 0
     private var isRefreshing = false
+    /// 새로고침 중에 다시 요청되면 끝난 뒤 한 번 더 조회한다(인증 직후 복귀처럼 진행 중 응답보다 새 데이터가 필요할 때).
+    private var hasPendingRefresh = false
+    /// 마지막으로 확인한 "이번 달". 앱을 켜 둔 채 달이 바뀌었는지 알아내는 데 쓴다.
+    private var lastCurrentMonth: YearMonth
 
     init(
         fetchActivityMonthUseCase: FetchActivityMonthUseCase,
@@ -34,7 +38,9 @@ final class ActivityRecordsViewModel {
         self.earliestMonth = earliestMonth
         self.now = now
         self.state = state
-        selectedMonth = Self.month(containing: now())
+        let current = Self.month(containing: now())
+        selectedMonth = current
+        lastCurrentMonth = current
     }
 
     /// 오늘이 속한 달. 이후 달은 고를 수 없다.
@@ -76,24 +82,49 @@ final class ActivityRecordsViewModel {
     }
 
     /// 화면을 그대로 둔 채 다시 조회한다(당겨서 새로고침, 인증 후 복귀). 실패하면 지금 화면을 유지한다.
+    /// 진행 중에 다시 불리면 끝난 뒤 한 번 더 조회한다.
     func refresh() async {
         guard case .loaded = state else {
             await load()
             return
         }
-        guard !isRefreshing else { return }
-        isRefreshing = true
-        defer { isRefreshing = false }
-        let id = requestID
-        do {
-            let result = try await fetchActivityMonthUseCase.execute(selectedMonth)
-            guard id == requestID else { return }
-            state = .loaded(result)
-        } catch where error.isCancellation {
+        guard !isRefreshing else {
+            hasPendingRefresh = true
             return
-        } catch {
-            logError(error)
         }
+        isRefreshing = true
+        defer {
+            isRefreshing = false
+            hasPendingRefresh = false
+        }
+        repeat {
+            hasPendingRefresh = false
+            let id = requestID
+            do {
+                let result = try await fetchActivityMonthUseCase.execute(selectedMonth)
+                // 달을 바꿨거나 처음부터 다시 불렀으면 이 응답과 남은 요청은 버린다.
+                guard id == requestID else { return }
+                state = .loaded(result)
+            } catch where error.isCancellation {
+                return
+            } catch {
+                logError(error)
+            }
+        } while hasPendingRefresh
+    }
+
+    /// 기록 탭 진입·앱 복귀 때 부른다. 그사이 달이 바뀌었고 이전 "이번 달"을 보고 있었다면 새 이번 달로 옮겨 처음부터 불러오고,
+    /// 아니면 보던 달을 새로고침한다. 불러오는 중이면 화면의 `.task`가 맡으므로 두고 본다.
+    func refreshOnReturn() async {
+        let current = currentMonth
+        let previous = lastCurrentMonth
+        lastCurrentMonth = current
+        if current != previous, selectedMonth == previous {
+            selectMonth(current)
+            return
+        }
+        guard state != .loading else { return }
+        await refresh()
     }
 
     func retry() async {

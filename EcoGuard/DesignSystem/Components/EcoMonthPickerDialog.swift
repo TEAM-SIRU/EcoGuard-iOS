@@ -38,12 +38,22 @@ struct EcoMonthPickerDialog: View {
             }
             HStack(spacing: Spacing.sm) {
                 actionButton("취소", background: .ecoDivider, foreground: .ecoTextPrimary, action: onCancel)
-                actionButton("적용", background: .ecoPrimary, foreground: .ecoOnPrimary) { onApply(draft) }
+                // 다른 연도로 넘겨 그 연도에서 아직 달을 고르지 않았으면 적용할 수 없다.
+                actionButton(
+                    "적용",
+                    background: canApply ? .ecoPrimary : .ecoDivider,
+                    foreground: canApply ? .ecoOnPrimary : .ecoDisabled
+                ) { onApply(draft) }
+                .disabled(!canApply)
             }
         }
         .padding(Spacing.xxl)
         .frame(maxWidth: Metrics.width)
         .background(Color.ecoCard, in: RoundedRectangle(cornerRadius: Radius.card))
+    }
+
+    private var canApply: Bool {
+        draft.year == year
     }
 
     private var yearRow: some View {

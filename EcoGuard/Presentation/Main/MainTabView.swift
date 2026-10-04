@@ -41,14 +41,22 @@ struct MainTabView: View {
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 Task { await homeViewModel.refresh() }
+                if let activityRecordsViewModel {
+                    Task { await activityRecordsViewModel.refreshOnReturn() }
+                }
             }
             .onChange(of: viewModel.selectedTab) { _, tab in
                 // 구역 탭을 처음 열 때 한 번 만든다. 탭을 오가도 다시 불러오지 않는다.
                 if tab == .area, cleaningAreaViewModel == nil {
                     cleaningAreaViewModel = container.makeCleaningAreaViewModel()
                 }
-                if tab == .records, activityRecordsViewModel == nil {
-                    activityRecordsViewModel = container.makeActivityRecordsViewModel()
+                if tab == .records {
+                    // 처음 열 때 한 번 만들고, 이후 탭에 돌아올 때마다 새로고침한다(달이 바뀌었으면 이번 달로).
+                    if let activityRecordsViewModel {
+                        Task { await activityRecordsViewModel.refreshOnReturn() }
+                    } else {
+                        activityRecordsViewModel = container.makeActivityRecordsViewModel()
+                    }
                 }
                 guard tab == .home else { return }
                 Task { await homeViewModel.refreshIfNeeded(now: .now) }
