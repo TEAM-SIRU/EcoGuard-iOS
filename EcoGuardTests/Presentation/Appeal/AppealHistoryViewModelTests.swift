@@ -110,10 +110,14 @@ struct AppealHistoryViewModelTests {
 
     @Test func submittedAppealAppearsFirst() async throws {
         let (viewModel, repository) = makeViewModel()
-        let submitted = try await SubmitAppealUseCase(appealRepository: repository).execute(
+        let result = try await SubmitAppealUseCase(appealRepository: repository).execute(
             AppealDraft(requestID: "request-1", verificationID: Fixture.target.verificationID, message: "내용", photos: []),
-            checksPreviousSubmission: false
+            unconfirmedAttempts: []
         )
+        guard case .submitted(let submitted) = result else {
+            Issue.record("처음 보낸 이의신청은 바로 접수돼야 한다")
+            return
+        }
 
         await viewModel.load()
 

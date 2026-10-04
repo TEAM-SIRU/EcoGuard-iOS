@@ -113,16 +113,68 @@ struct AppealFormViewModelTests {
         #expect(viewModel.message == message)
     }
 
-    @Test func editedResubmitAfterFailureStillChecksPreviousSubmission() async {
+    @Test func editedResubmitAfterReceivedFailureShowsAlreadyReceived() async throws {
         let (viewModel, repository) = makeViewModel([.failureAfterReceived, .success])
         _ = await viewModel.submit()
         viewModel.editAfterFailure()
         viewModel.message = "내용을 고쳤어요"
 
-        _ = await viewModel.submit()
+        // 처음 내용이 이미 접수됐으므로 고친 내용을 보내지 않고(중복 접수 방지) 반영되지 않았다고 안내한다.
+        #expect(await viewModel.submit() == nil)
 
         #expect(repository.statusCheckCallCount == 1)
         #expect(repository.submitCallCount == 1)
+        #expect(viewModel.isShowingAlreadyReceived)
+        let appeal = try #require(viewModel.alreadyReceivedAppeal)
+        #expect(appeal.id == "appeal-request-1")
+        #expect(viewModel.phase == .editing)
+
+        viewModel.confirmAlreadyReceived()
+
+        #expect(viewModel.isShowingAlreadyReceived == false)
+        #expect(viewModel.alreadyReceivedAppeal == appeal)
+    }
+
+    @Test func resubmitWithSameContentAfterReceivedFailureCompletes() async throws {
+        let (viewModel, repository) = makeViewModel([.failureAfterReceived, .success])
+        _ = await viewModel.submit()
+        viewModel.editAfterFailure()
+        viewModel.message = "내용을 고쳤어요"
+        viewModel.message = message
+
+        let appeal = try #require(await viewModel.submit())
+
+        #expect(appeal.id == "appeal-request-1")
+        #expect(repository.submitCallCount == 1)
+        #expect(viewModel.isShowingAlreadyReceived == false)
+        #expect(viewModel.alreadyReceivedAppeal == nil)
+    }
+
+    @Test func editedPhotosAfterReceivedFailureShowsAlreadyReceived() async {
+        let (viewModel, repository) = makeViewModel([.failureAfterReceived, .success])
+        _ = await viewModel.submit()
+        viewModel.editAfterFailure()
+        viewModel.addPhoto(Data([1]))
+
+        #expect(await viewModel.submit() == nil)
+
+        #expect(repository.submitCallCount == 1)
+        #expect(viewModel.isShowingAlreadyReceived)
+    }
+
+    @Test func editedResubmitAfterUnreceivedFailureSendsNewContent() async throws {
+        let (viewModel, repository) = makeViewModel([.failure, .success])
+        _ = await viewModel.submit()
+        viewModel.editAfterFailure()
+        viewModel.message = "내용을 고쳤어요"
+
+        _ = try #require(await viewModel.submit())
+
+        #expect(repository.statusCheckCallCount == 1)
+        #expect(repository.submitCallCount == 2)
+        #expect(repository.lastDraft?.message == "내용을 고쳤어요")
+        #expect(repository.lastDraft?.requestID == "request-1")
+        #expect(viewModel.isShowingAlreadyReceived == false)
     }
 
     @Test func submitWhileSubmittingIsIgnored() async {

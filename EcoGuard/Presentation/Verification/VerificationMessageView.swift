@@ -11,10 +11,13 @@ struct VerificationMessageView: View {
     let back: () -> Void
     var secondaryTitle: LocalizedStringKey = "홈으로"
     let secondaryAction: () -> Void
+    /// 첫 버튼 동작이 진행 중이다. 뒤로·두 번째 버튼만 막는다. 첫 버튼은 `EcoButton`이 스스로 로딩으로 보여 준다.
+    var isBusy = false
 
     var body: some View {
         VStack(spacing: 0) {
             VerificationNavBar(back: back)
+                .disabled(isBusy)
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
                     Text(title)
@@ -43,6 +46,7 @@ struct VerificationMessageView: View {
                         await primaryAction()
                     }
                     EcoButton(secondaryTitle, style: .secondary, action: secondaryAction)
+                        .disabled(isBusy)
                 }
             }
         }

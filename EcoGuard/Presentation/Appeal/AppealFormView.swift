@@ -41,6 +41,31 @@ struct AppealFormView: View {
                 guard new == .tooLong, old != .tooLong else { return }
                 AccessibilityNotification.Announcement(String(localized: tooLongMessage)).post()
             }
+            // 응답이 끊긴 처음 제출이 이미 접수돼 고친 내용이 반영되지 않았다. Figma에 없는 안내라 공용 팝업으로 알린다.
+            .ecoDialog(
+                isPresented: alreadyReceivedBinding,
+                onCancel: viewModel.confirmAlreadyReceived,
+                onDismiss: {
+                    if let appeal = viewModel.alreadyReceivedAppeal {
+                        onSubmitted(appeal)
+                    }
+                }
+            ) {
+                EcoDialog("이미 접수된 이의신청이 있어요", message: "처음 보낸 내용으로 접수됐어요. 수정한 내용은 반영되지 않았어요") {
+                    EcoButton("확인", action: viewModel.confirmAlreadyReceived)
+                }
+            }
+    }
+
+    private var alreadyReceivedBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.isShowingAlreadyReceived },
+            set: { isPresented in
+                if !isPresented {
+                    viewModel.confirmAlreadyReceived()
+                }
+            }
+        )
     }
 
     @ViewBuilder
@@ -60,10 +85,10 @@ struct AppealFormView: View {
                 },
                 back: viewModel.editAfterFailure,
                 secondaryTitle: "내용 수정하기",
-                secondaryAction: viewModel.editAfterFailure
+                secondaryAction: viewModel.editAfterFailure,
+                // 다시 보내는 중에는 작성 화면으로 돌아가지 못하게 막는다(결과를 놓치거나 중복 제출되지 않게).
+                isBusy: viewModel.phase == .retrying
             )
-            // 다시 보내는 중에는 작성 화면으로 돌아가지 못하게 막는다(결과를 놓치거나 중복 제출되지 않게).
-            .disabled(viewModel.phase == .retrying)
         }
     }
 

@@ -65,6 +65,14 @@ struct AppealDraft: Equatable {
     let photos: [AppealPhoto]
 }
 
+/// 이의신청 제출 결과.
+enum AppealSubmissionResult: Equatable {
+    case submitted(Appeal)
+    /// 앞서 응답을 받지 못한 제출이 이미 접수돼 있었고, 그 뒤 고친 지금 내용과 다르다.
+    /// 같은 `requestID`라 지금 내용은 보내지 않는다(중복 접수 방지). 처음 접수된 내용으로 완료된 것을 알려야 한다.
+    case alreadyReceived(Appeal)
+}
+
 /// 이의신청 내용 입력 규칙.
 enum AppealMessage {
     static let maxLength = 300
