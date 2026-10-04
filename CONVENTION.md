@@ -363,7 +363,7 @@ final class NoticeListViewModel {
   - `Body 1 · 17/25 Medium` → `.ecoFont(.body1)` = Medium 17, lineHeight 25
   - `Caption · 13/18 Bold` → `.ecoFont(.caption)` = Bold 13, lineHeight 18
 
-#### 텍스트 스타일 (Foundations 7개 + 컴포넌트 4개 + 홈 6개 + 탭 바 2개)
+#### 텍스트 스타일 (Foundations 7개 + 컴포넌트 4개 + 홈 6개 + 탭 바 2개 + 이의신청 1개)
 
 | Figma 이름 | 값 | Swift 이름 제안 |
 |---|---|---|
@@ -386,6 +386,7 @@ final class NoticeListViewModel {
 | 홈 자세히 보기·모집 인원 | 15/22 Bold | `.body2Bold` |
 | 탭 바 라벨 (비선택) | 12/16 Medium | `.caption2Medium` |
 | 탭 바 라벨 (선택) | 12/16 Bold | `.caption2Bold` |
+| 이의신청 승인 적립 시간 (+10분, 514:223) | 32/34 Bold | `.display` |
 
 - 모든 텍스트 스타일에 자간 -1%(size × -0.01)를 적용한다.
 - Noto Sans KR 기본 줄높이(약 1.448em)보다 작은 lineHeight는 iOS에서 줄일 수 없어 Figma보다 줄마다 0.3~1.7pt 커진다(title1·title2·sub·caption·buttonLarge·button·captionRegular).
@@ -414,6 +415,8 @@ final class NoticeListViewModel {
 ### 아이콘
 - Figma 컴포넌트명: `icon/cam`, `icon/check`, `icon/clock`, `icon/alert`, `icon/circle`, `icon/pin` (6개, 버튼 내 아이콘 20x20 확인)
 - 상태 칩 매핑: `Chip/ok`(icon/check, 승인), `Chip/wait`(icon/clock, 검수 중), `Chip/rej`(icon/alert, 반려), `Chip/none`(icon/circle, 미제출)
+  - 이의신청 내역 `Chip/wait`(317:1061)은 문구가 `검토 중`이라 `StatusChip.Status.reviewing`으로 둔다.
+- `iconCamMedium` (24): Figma `09 이의신청` `Add photo` 안 `icon/cam` (307:102). 20(`iconCam`)·26(`iconCamLarge`)과 크기가 달라 따로 둔다.
 - SF Symbol로 대체할지, 커스텀 에셋으로 넣을지는 **결정 필요** (Figma에서 벡터 원본 미확인).
 
 ### 미확인 / 결정 필요

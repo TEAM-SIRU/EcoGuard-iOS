@@ -6,6 +6,8 @@ struct StatusChip: View {
     enum Status {
         case approved
         case processing
+        /// 이의신청 선생님 검토 중. Figma `09-3 이의신청 내역` `Chip/wait` (317:1061).
+        case reviewing
         case rejected
         // `none`은 Optional.none과 겹쳐 `Status?`에서 모호해지므로 피했다.
         case notSubmitted
@@ -41,6 +43,7 @@ private extension StatusChip.Status {
         switch self {
         case .approved: "승인"
         case .processing: "검수 중"
+        case .reviewing: "검토 중"
         case .rejected: "반려"
         case .notSubmitted: "미제출"
         }
@@ -49,7 +52,7 @@ private extension StatusChip.Status {
     var icon: ImageResource {
         switch self {
         case .approved: .iconCheck
-        case .processing: .iconClock
+        case .processing, .reviewing: .iconClock
         case .rejected: .iconAlert
         case .notSubmitted: .iconCircle
         }
@@ -58,7 +61,7 @@ private extension StatusChip.Status {
     var textColor: Color {
         switch self {
         case .approved: .ecoPrimaryText
-        case .processing: .ecoPending
+        case .processing, .reviewing: .ecoPending
         case .rejected: .ecoRejected
         case .notSubmitted: .ecoTextSub
         }
@@ -77,6 +80,7 @@ private extension StatusChip.Status {
     HStack(spacing: Spacing.sm) {
         StatusChip(status: .approved)
         StatusChip(status: .processing)
+        StatusChip(status: .reviewing)
         StatusChip(status: .rejected)
         StatusChip(status: .notSubmitted)
     }

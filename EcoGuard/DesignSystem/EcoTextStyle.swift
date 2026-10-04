@@ -31,11 +31,13 @@ enum EcoTextStyle: CaseIterable {
     case caption2Medium
     /// Figma `Tab bar` 선택 라벨 12/16 Bold.
     case caption2Bold
+    /// Figma `09-4 이의신청 결과 · 승인` 적립 시간(+10분, 514:223) 32/34 Bold.
+    case display
 
     /// 번들 폰트 PostScript 이름. `fc-scan`으로 OTF 파일에서 확인한 값이다.
     var fontName: String {
         switch self {
-        case .title1, .title2, .title3, .caption, .buttonLarge, .button, .body1Bold, .title4, .title5, .body2Bold, .caption2Bold:
+        case .title1, .title2, .title3, .caption, .buttonLarge, .button, .body1Bold, .title4, .title5, .body2Bold, .caption2Bold, .display:
             "NotoSansKR-Bold"
         case .body1, .body2Medium, .subMedium, .captionMedium, .caption2Medium:
             "NotoSansKR-Medium"
@@ -64,6 +66,7 @@ enum EcoTextStyle: CaseIterable {
         case .captionMedium: 13
         case .body2Bold: 15
         case .caption2Medium, .caption2Bold: 12
+        case .display: 32
         }
     }
 
@@ -87,6 +90,7 @@ enum EcoTextStyle: CaseIterable {
         case .captionMedium: 18
         case .body2Bold: 22
         case .caption2Medium, .caption2Bold: 16
+        case .display: 34
         }
     }
 
