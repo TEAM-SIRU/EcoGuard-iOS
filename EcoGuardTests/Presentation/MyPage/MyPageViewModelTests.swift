@@ -8,17 +8,32 @@ struct MyPageViewModelTests {
         var loggedOutCount = 0
     }
 
+    /// 메모리에만 값을 두는 설정 저장소. 저장한 적이 없으면 켠 상태다.
+    private final class InMemoryNotificationSettingRepository: NotificationSettingRepository {
+        private var isOn: Bool?
+
+        func isCleaningReminderOn() -> Bool { isOn ?? true }
+        func setCleaningReminderOn(_ isOn: Bool) { self.isOn = isOn }
+    }
+
     private func makeViewModel(
         scenarios: [MockMyPageRepository.Scenario] = [.guardian],
         logoutDelay: Duration = .zero,
-        logoutFails: Bool = false
+        logoutFails: Bool = false,
+        settings: NotificationSettingRepository? = nil
     ) -> (MyPageViewModel, MockAuthRepository, MockMyPageRepository, LogoutSpy) {
         let authRepository = MockAuthRepository(delay: logoutDelay, logoutFails: logoutFails)
         let myPageRepository = MockMyPageRepository(scenarios: scenarios, delay: .zero)
         let spy = LogoutSpy()
-        let viewModel = MyPageViewModel(
-            fetchMyPageUseCase: FetchMyPageUseCase(myPageRepository: myPageRepository),
-            logoutUseCase: LogoutUseCase(authRepository: authRepository),
+        let container = DIContainer(
+            authRepository: authRepository,
+            homeRepository: MockHomeRepository(delay: .zero),
+            recruitmentRepository: MockRecruitmentRepository(delay: .zero),
+            webAdminURL: nil
+        )
+        let viewModel = container.makeMyPageViewModel(
+            repository: myPageRepository,
+            notificationSettingRepository: settings ?? InMemoryNotificationSettingRepository(),
             onLoggedOut: { spy.loggedOutCount += 1 }
         )
         return (viewModel, authRepository, myPageRepository, spy)
@@ -43,15 +58,22 @@ struct MyPageViewModelTests {
         #expect(viewModel.state == .loaded(MockMyPageRepository.Fixture.guardian))
     }
 
-    @Test func cleaningReminderStartsOnAndToggles() {
+    @Test func cleaningReminderIsOnByDefault() {
         let (viewModel, _, _, _) = makeViewModel()
-        #expect(viewModel.isCleaningReminderOn)
 
-        viewModel.isCleaningReminderOn = false
-        #expect(!viewModel.isCleaningReminderOn)
-
-        viewModel.isCleaningReminderOn = true
         #expect(viewModel.isCleaningReminderOn)
+    }
+
+    @Test func cleaningReminderChoiceIsKeptForNextVisit() {
+        let settings = InMemoryNotificationSettingRepository()
+        let (first, _, _, _) = makeViewModel(settings: settings)
+
+        first.setCleaningReminder(false)
+        let (second, _, _, _) = makeViewModel(settings: settings)
+
+        #expect(!first.isCleaningReminderOn)
+        #expect(!second.isCleaningReminderOn)
+        #expect(!settings.isCleaningReminderOn())
     }
 
     @Test func requestLogoutShowsConfirm() {
@@ -74,16 +96,30 @@ struct MyPageViewModelTests {
         #expect(spy.loggedOutCount == 0)
     }
 
-    @Test func confirmLogsOutAndCallsCompletion() async {
+    @Test func confirmLogsOutAndCallsCompletionAfterDismiss() async {
         let (viewModel, authRepository, _, spy) = makeViewModel()
         viewModel.requestLogout()
 
         await viewModel.confirmLogout()
 
         #expect(authRepository.logoutCallCount == 1)
-        #expect(spy.loggedOutCount == 1)
         #expect(!viewModel.isLogoutConfirmPresented)
         #expect(!viewModel.isLoggingOut)
+        #expect(spy.loggedOutCount == 0)
+
+        viewModel.logoutConfirmDidDismiss()
+
+        #expect(spy.loggedOutCount == 1)
+    }
+
+    @Test func dismissAfterCancelDoesNotCallCompletion() {
+        let (viewModel, _, _, spy) = makeViewModel()
+        viewModel.requestLogout()
+
+        viewModel.cancelLogout()
+        viewModel.logoutConfirmDidDismiss()
+
+        #expect(spy.loggedOutCount == 0)
     }
 
     @Test func failedLogoutStillCallsCompletion() async {
@@ -91,6 +127,7 @@ struct MyPageViewModelTests {
         viewModel.requestLogout()
 
         await viewModel.confirmLogout()
+        viewModel.logoutConfirmDidDismiss()
 
         #expect(authRepository.logoutCallCount == 1)
         #expect(spy.loggedOutCount == 1)
@@ -116,12 +153,23 @@ struct MyPageViewModelTests {
         }
         await viewModel.confirmLogout()
         viewModel.cancelLogout()
-        viewModel.requestLogout()
         #expect(viewModel.isLogoutConfirmPresented)
         await first.value
+        viewModel.logoutConfirmDidDismiss()
+        viewModel.logoutConfirmDidDismiss()
 
         #expect(authRepository.logoutCallCount == 1)
         #expect(spy.loggedOutCount == 1)
+    }
+
+    @Test func requestLogoutAfterLoggingOutDoesNotReopenConfirm() async {
+        let (viewModel, _, _, _) = makeViewModel()
+        viewModel.requestLogout()
+        await viewModel.confirmLogout()
+
+        // 팝업이 내려가는 동안 로그아웃 행을 다시 눌러도 열리지 않는다.
+        viewModel.requestLogout()
+
         #expect(!viewModel.isLogoutConfirmPresented)
     }
 }

@@ -39,25 +39,28 @@ struct EcoDialog<Buttons: View>: View {
 extension View {
     /// 화면 전체(탭 바 포함)를 `Dim`으로 덮고 가운데에 `dialog`를 띄운다.
     /// 바깥을 눌러도 닫지 않는다. VoiceOver 닫기 동작(두 손가락 문지르기)은 `onCancel`을 부른다.
+    /// `onDismiss`는 팝업이 화면에서 다 내려간 뒤 불린다.
     func ecoDialog<Dialog: View>(
         isPresented: Binding<Bool>,
         onCancel: @escaping () -> Void,
+        onDismiss: (() -> Void)? = nil,
         @ViewBuilder dialog: @escaping () -> Dialog
     ) -> some View {
-        modifier(EcoDialogModifier(isPresented: isPresented, onCancel: onCancel, dialog: dialog))
+        modifier(EcoDialogModifier(isPresented: isPresented, onCancel: onCancel, onDismiss: onDismiss, dialog: dialog))
     }
 }
 
 private struct EcoDialogModifier<Dialog: View>: ViewModifier {
     @Binding var isPresented: Bool
     let onCancel: () -> Void
+    let onDismiss: (() -> Void)?
     let dialog: () -> Dialog
 
     func body(content: Content) -> some View {
         content
             // fullScreenCover의 아래에서 올라오는 전환 대신 Dim이 스스로 나타나게 한다.
             .transaction(value: isPresented) { $0.disablesAnimations = true }
-            .fullScreenCover(isPresented: $isPresented) {
+            .fullScreenCover(isPresented: $isPresented, onDismiss: onDismiss) {
                 EcoDialogContainer(onCancel: onCancel, dialog: dialog)
                     .presentationBackground(.clear)
             }

@@ -13,7 +13,7 @@ struct MyPageView: View {
         var openHelp: () -> Void = {}
     }
 
-    @Bindable var viewModel: MyPageViewModel
+    let viewModel: MyPageViewModel
     var actions = Actions()
 
     var body: some View {
@@ -29,7 +29,11 @@ struct MyPageView: View {
                     EcoListRowDisclosure(value: summary?.hasApplied == true ? "신청 완료" : nil)
                 }
                 .menuButton(action: actions.openApplicationResult)
-                EcoToggleRow(title: "청소 알림", isOn: $viewModel.isCleaningReminderOn, horizontalPadding: Spacing.screenHorizontal)
+                EcoToggleRow(
+                    title: "청소 알림",
+                    isOn: Binding(get: { viewModel.isCleaningReminderOn }, set: viewModel.setCleaningReminder),
+                    horizontalPadding: Spacing.screenHorizontal
+                )
                 EcoListRow(icon: nil, title: "이의신청 내역", horizontalPadding: Spacing.screenHorizontal) {
                     EcoListRowDisclosure()
                 }
@@ -54,9 +58,14 @@ struct MyPageView: View {
             guard viewModel.state == .loading else { return }
             await viewModel.load()
         }
-        .ecoDialog(isPresented: logoutConfirmBinding, onCancel: viewModel.cancelLogout) {
+        .ecoDialog(
+            isPresented: logoutConfirmBinding,
+            onCancel: viewModel.cancelLogout,
+            onDismiss: viewModel.logoutConfirmDidDismiss
+        ) {
             EcoDialog("로그아웃할까요?", message: "다시 들어오려면 DataGSM으로 로그인해야 해요") {
                 EcoButton("취소", style: .secondary, action: viewModel.cancelLogout)
+                    .disabled(viewModel.isLoggingOut)
                 EcoButton("로그아웃", style: .destructive, isLoading: viewModel.isLoggingOut) {
                     await viewModel.confirmLogout()
                 }
@@ -169,13 +178,21 @@ private func myPagePreview(
     delay: Duration = .zero,
     isCleaningReminderOn: Bool = true
 ) -> MyPageViewModel {
-    let viewModel = DIContainer.preview().makeMyPageViewModel(
-        logoutUseCase: LogoutUseCase(authRepository: MockAuthRepository(delay: .seconds(3600))),
+    // Preview가 앱 설정을 바꾸지 않게 따로 둔 저장소를 쓴다.
+    let defaults = UserDefaults(suiteName: "preview.myPage") ?? .standard
+    let settings = NotificationSettingRepositoryImpl(defaults: defaults)
+    settings.setCleaningReminderOn(isCleaningReminderOn)
+    let container = DIContainer(
+        authRepository: MockAuthRepository(delay: .seconds(3600)),
+        homeRepository: MockHomeRepository(delay: .zero),
+        recruitmentRepository: MockRecruitmentRepository(delay: .zero),
+        webAdminURL: nil
+    )
+    return container.makeMyPageViewModel(
         repository: MockMyPageRepository(scenario: scenario, delay: delay),
+        notificationSettingRepository: settings,
         onLoggedOut: {}
     )
-    viewModel.isCleaningReminderOn = isCleaningReminderOn
-    return viewModel
 }
 
 #Preview("환경지킴이") { MyPageView(viewModel: myPagePreview()) }

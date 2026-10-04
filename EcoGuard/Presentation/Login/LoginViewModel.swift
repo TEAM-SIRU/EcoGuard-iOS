@@ -54,4 +54,9 @@ final class LoginViewModel {
         }
         state = .idle
     }
+
+    /// 다른 화면(마이페이지)에서 로그아웃을 마쳤을 때 로그인 화면으로만 돌린다. 저장소는 다시 부르지 않는다.
+    func didLogOut() {
+        state = .idle
+    }
 }
