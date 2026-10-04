@@ -415,6 +415,8 @@ final class NoticeListViewModel {
 ### 아이콘
 - Figma 컴포넌트명: `icon/cam`, `icon/check`, `icon/clock`, `icon/alert`, `icon/circle`, `icon/pin` (6개, 버튼 내 아이콘 20x20 확인)
 - 상태 칩 매핑: `Chip/ok`(icon/check, 승인), `Chip/wait`(icon/clock, 검수 중), `Chip/rej`(icon/alert, 반려), `Chip/none`(icon/circle, 미제출)
+  - 이의신청 내역 `Chip/wait`(317:1061)은 문구가 `검토 중`이라 `StatusChip.Status.reviewing`으로 둔다.
+- `iconCamMedium` (24): Figma `09 이의신청` `Add photo` 안 `icon/cam` (307:102). 20(`iconCam`)·26(`iconCamLarge`)과 크기가 달라 따로 둔다.
 - SF Symbol로 대체할지, 커스텀 에셋으로 넣을지는 **결정 필요** (Figma에서 벡터 원본 미확인).
 
 ### 미확인 / 결정 필요
