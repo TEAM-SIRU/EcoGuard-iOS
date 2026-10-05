@@ -95,4 +95,8 @@ private struct URLCancelledRepository: NoticeRepository {
     func fetchNotices() async throws -> [Notice] {
         throw URLError(.cancelled)
     }
+
+    func fetchNotice(id: Notice.ID) async throws -> Notice? {
+        throw URLError(.cancelled)
+    }
 }

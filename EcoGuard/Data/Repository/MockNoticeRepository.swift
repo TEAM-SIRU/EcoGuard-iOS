@@ -33,6 +33,10 @@ final class MockNoticeRepository: NoticeRepository {
         case .failure: throw FetchFailedError()
         }
     }
+
+    func fetchNotice(id: Notice.ID) async throws -> Notice? {
+        try await fetchNotices().first { $0.id == id }
+    }
 }
 
 extension MockNoticeRepository {

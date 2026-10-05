@@ -10,27 +10,34 @@ final class DIContainer {
     /// 컨테이너를 만들 때(앱 시작) 키체인을 한 번만 읽어 둔다. `RootView`가 다시 만들어져도 다시 읽지 않는다.
     private let hadStoredSessionAtLaunch: Bool
     private let homeRepository: HomeRepository
-    private let recruitmentRepository: RecruitmentRepository
+    /// 실제 저장소들이 같이 쓰는 클라이언트. 토큰(`AuthSession`)은 로그인 저장소와 하나를 쓴다. 서버 주소가 없으면(Mock) nil.
+    /// 화면별 확장(`DIContainer+Notice` 등)에서 써서 읽기는 열어 둔다.
+    private(set) lazy var apiClient: APIClient? = (authRepository as? AuthRepositoryImpl)?.apiClient
+    /// 모집 공고·신청·결과 화면이 같은 저장소를 쓴다(신청할 공고 ID를 들고 있다).
+    private lazy var recruitmentRepository: RecruitmentRepository =
+        apiClient.map { RecruitmentRepositoryImpl(apiClient: $0) } ?? MockRecruitmentRepository()
 
+    /// `recruitmentRepository`를 주지 않으면 서버 주소에 따라 실제 구현이나 Mock을 쓴다.
     init(
         authRepository: AuthRepository,
         homeRepository: HomeRepository,
-        recruitmentRepository: RecruitmentRepository,
+        recruitmentRepository: RecruitmentRepository? = nil,
         webAdminURL: URL?
     ) {
         self.authRepository = authRepository
         self.hadStoredSessionAtLaunch = authRepository.hasStoredSession()
         self.homeRepository = homeRepository
-        self.recruitmentRepository = recruitmentRepository
         self.webAdminURL = webAdminURL
+        if let recruitmentRepository {
+            self.recruitmentRepository = recruitmentRepository
+        }
     }
 
-    /// 서버 주소(`ECO_API_HOST`)가 정해지기 전까지 Mock을 쓴다. 다른 저장소는 아직 모두 Mock이다.
+    /// 서버 주소(`ECO_API_HOST`)가 정해지기 전까지 Mock을 쓴다. 저장소마다 실제 구현이 생기는 대로 바꾼다.
     static func live() -> DIContainer {
         DIContainer(
             authRepository: makeAuthRepository(apiBaseURL: AppConfig.apiBaseURL),
             homeRepository: MockHomeRepository(),
-            recruitmentRepository: MockRecruitmentRepository(),
             webAdminURL: AppConfig.webAdminURL
         )
     }

@@ -1,11 +1,11 @@
 import Foundation
 
 extension DIContainer {
-    /// 공지 화면.
-    // TODO: 서버 연동 때 저장소를 DIContainer 프로퍼티로 옮기고 실제 구현으로 바꾼다.
+    /// 공지 화면. `repository`를 주지 않으면 서버 주소에 따라 실제 구현이나 Mock을 쓴다.
     func makeNoticeViewModel(
-        repository: NoticeRepository = MockNoticeRepository()
+        repository: NoticeRepository? = nil
     ) -> NoticeViewModel {
-        NoticeViewModel(fetchNoticesUseCase: FetchNoticesUseCase(noticeRepository: repository))
+        let repository = repository ?? apiClient.map { NoticeRepositoryImpl(apiClient: $0) } ?? MockNoticeRepository()
+        return NoticeViewModel(fetchNoticesUseCase: FetchNoticesUseCase(noticeRepository: repository))
     }
 }
