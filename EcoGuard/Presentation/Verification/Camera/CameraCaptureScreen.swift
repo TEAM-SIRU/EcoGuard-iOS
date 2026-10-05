@@ -16,6 +16,8 @@ struct CameraCaptureScreen<Banner: View>: View {
     @ViewBuilder var banner: Banner
 
     @State private var isShowingFailureToast = false
+    /// 실패 토스트를 띄울 때마다 늘린다.
+    @State private var failureToastID = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -41,8 +43,13 @@ struct CameraCaptureScreen<Banner: View>: View {
         .onDisappear {
             capture.stop()
         }
-        .task(id: capture.captureFailureCount) {
-            guard capture.captureFailureCount > 0 else { return }
+        // 늘어났을 때만 안내한다. 화면이 나타날 때의 값(이전 촬영의 실패)이나 `run()`이 0으로 되돌린 것은 무시한다.
+        .onChange(of: capture.captureFailureCount) { old, new in
+            guard new > old else { return }
+            failureToastID += 1
+        }
+        .task(id: failureToastID) {
+            guard failureToastID > 0 else { return }
             AccessibilityNotification.Announcement(String(localized: captureFailedMessage)).post()
             isShowingFailureToast = true
             // 다시 실패하면 이 작업은 취소되고 새 작업이 시간을 처음부터 센다.

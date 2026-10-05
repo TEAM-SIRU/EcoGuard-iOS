@@ -15,7 +15,8 @@ final class CameraCapture {
     private(set) var isCameraReady = false
     /// 세션 중단·시작 실패로 카메라를 쓸 수 없다. 화면에 안내를 겹친다.
     private(set) var isCameraUnavailable = false
-    /// 촬영·변환에 실패한 횟수. 바뀔 때마다 화면이 토스트와 VoiceOver 안내를 띄운다.
+    /// 촬영·변환에 실패한 횟수. 늘어날 때마다 화면이 토스트와 VoiceOver 안내를 띄운다.
+    /// 촬영 화면에 들어올 때마다(`run()`) 0부터 센다. 이전 촬영의 실패가 다시 들어왔을 때 안내되지 않게 한다.
     private(set) var captureFailureCount = 0
 
     private let logger = Logger(subsystem: "EcoGuard", category: "Camera")
@@ -35,6 +36,7 @@ final class CameraCapture {
     /// 촬영 화면이 보이는 동안 카메라를 켜 두고 세션 중단·오류에 맞춰 셔터를 막거나 다시 연다.
     /// 화면이 사라져 작업이 취소되면 끝난다.
     func run() async {
+        captureFailureCount = 0
         let events = camera.events()
         await startSession()
         for await event in events {

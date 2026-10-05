@@ -72,10 +72,9 @@ final class MainTabViewModel {
 
     /// 홈의 종 아이콘·공지 카드·`공지 보기`. 전체 탭으로 옮기지 않고 홈 위에 쌓아 뒤로 가면 홈으로 돌아온다.
     func openNotices(focusing notice: Notice? = nil) {
-        let route = HomeRoute.notices(focusedNoticeID: notice?.id)
-        // 같은 화면을 연달아 쌓지 않는다(빠른 연속 탭).
-        guard homePath.last != route else { return }
-        homePath.append(route)
+        // 공지 위에는 쌓을 화면이 없다. 빠른 연속 탭(종 아이콘과 공지 카드 등)으로 공지 화면이 겹쳐 쌓이지 않게 한다.
+        guard homePath.isEmpty else { return }
+        homePath.append(.notices(focusedNoticeID: notice?.id))
     }
 
     func popHome() {

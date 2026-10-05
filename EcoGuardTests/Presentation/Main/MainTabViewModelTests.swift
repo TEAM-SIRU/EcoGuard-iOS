@@ -63,6 +63,15 @@ struct MainTabViewModelTests {
         #expect(viewModel.homePath.count == 1)
     }
 
+    @Test func openingDifferentNoticesInARowStacksOnce() {
+        let viewModel = MainTabViewModel()
+
+        viewModel.openNotices()
+        viewModel.openNotices(focusing: MockHomeRepository.Fixture.notice)
+
+        #expect(viewModel.homePath == [.notices(focusedNoticeID: nil)])
+    }
+
     @Test func backFromNoticesReturnsToHome() {
         let viewModel = MainTabViewModel()
         viewModel.openNotices()

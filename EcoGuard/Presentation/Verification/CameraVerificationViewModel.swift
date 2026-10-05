@@ -160,15 +160,6 @@ final class CameraVerificationViewModel {
         state = .guide
     }
 
-    /// 촬영 화면이 보이는 동안 카메라를 켜 둔다. 화면이 사라져 작업이 취소되면 끝난다.
-    func runCamera() async {
-        await capture.run()
-    }
-
-    func stopCamera() {
-        capture.stop()
-    }
-
     func takePhoto() async {
         guard canTakePhoto, let output = await capture.takePhoto() else { return }
         guard state == .capturing else { return }

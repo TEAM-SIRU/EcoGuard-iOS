@@ -125,6 +125,28 @@ struct AppealPhotoCaptureViewModelTests {
         #expect(viewModel.presentation == .camera)
     }
 
+    @Test func photoTakenWithFullAttachmentsIsNotAdded() async throws {
+        let (capture, _) = makeViewModel()
+        let form = AppealFormViewModel(
+            target: MockAppealRepository.Fixture.target,
+            submitAppealUseCase: SubmitAppealUseCase(appealRepository: MockAppealRepository(delay: .zero))
+        )
+        for index in 0..<AppealMessage.maxPhotoCount {
+            form.addPhoto(Data([UInt8(index)]))
+        }
+        let attached = form.photos
+        await capture.open()
+        let cameraTask = await startCamera(capture)
+
+        let jpegData = try #require(await capture.takePhoto())
+        form.addPhoto(jpegData)
+        capture.capture.stop()
+        await cameraTask.value
+
+        #expect(form.canAddPhoto == false)
+        #expect(form.photos == attached)
+    }
+
     @Test func takenPhotoIsAddedToAppealForm() async throws {
         let (capture, _) = makeViewModel()
         let repository = MockAppealRepository(delay: .zero)
