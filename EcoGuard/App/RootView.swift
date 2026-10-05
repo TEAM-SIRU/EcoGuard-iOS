@@ -17,6 +17,12 @@ struct RootView: View {
             .onChange(of: loginViewModel.state, initial: true) { _, state in
                 homeViewModel = state == .loggedIn ? container.makeHomeViewModel() : nil
             }
+            .task {
+                // 토큰 재발급이 실패하면 저장소가 토큰을 지운 뒤 알린다. 마이페이지 로그아웃과 같은 경로로 로그인 화면에 돌린다.
+                for await _ in container.authRepository.sessionExpirations() {
+                    loginViewModel.didLogOut()
+                }
+            }
     }
 
     @ViewBuilder

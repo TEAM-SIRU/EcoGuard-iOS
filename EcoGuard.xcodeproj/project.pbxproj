@@ -370,6 +370,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				ECO_API_HOST = "";
 				ECO_WEB_ADMIN_HOST = "";
 				INFOPLIST_FILE = EcoGuard/Resources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = EcoGuard;
@@ -405,6 +406,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				ECO_API_HOST = "";
 				ECO_WEB_ADMIN_HOST = "";
 				INFOPLIST_FILE = EcoGuard/Resources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = EcoGuard;

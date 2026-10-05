@@ -22,21 +22,39 @@ final class DIContainer {
         self.webAdminURL = webAdminURL
     }
 
-    /// 실제 OAuth·서버 구현 전까지 Mock을 쓴다.
+    /// 서버 주소(`ECO_API_HOST`)가 정해지기 전까지 Mock을 쓴다. 다른 저장소는 아직 모두 Mock이다.
     static func live() -> DIContainer {
         DIContainer(
-            authRepository: MockAuthRepository(),
+            authRepository: makeAuthRepository(apiBaseURL: AppConfig.apiBaseURL),
             homeRepository: MockHomeRepository(),
             recruitmentRepository: MockRecruitmentRepository(),
             webAdminURL: AppConfig.webAdminURL
         )
     }
 
-    func makeLoginViewModel(state: LoginViewModel.State = .idle) -> LoginViewModel {
+    /// 서버 주소가 없으면 Mock, 있으면 키체인에 토큰을 두는 실제 저장소.
+    static func makeAuthRepository(
+        apiBaseURL: URL?,
+        session: URLSession = .shared,
+        tokenStore: TokenStore = KeychainTokenStore()
+    ) -> AuthRepository {
+        guard let apiBaseURL else { return MockAuthRepository() }
+        let httpClient = HTTPClient(baseURL: apiBaseURL, session: session)
+        let apiClient = APIClient(
+            httpClient: httpClient,
+            authSession: AuthSession(tokenStore: tokenStore, httpClient: httpClient)
+        )
+        // TODO: dataGSM OAuth 연동 때 인가 코드를 받아 오는 구현으로 바꾼다. 그 전까지 실제 모드 로그인은 실패한다.
+        return AuthRepositoryImpl(apiClient: apiClient, authorizationCode: { throw AuthorizationCodeUnavailableError() })
+    }
+
+    /// `state`를 주지 않으면 저장된 토큰이 있을 때 로그인 유지(`.loggedIn`)로 시작한다.
+    /// 교사는 토큰을 저장하지 않으므로 저장된 토큰은 학생 세션이다.
+    func makeLoginViewModel(state: LoginViewModel.State? = nil) -> LoginViewModel {
         LoginViewModel(
             loginUseCase: LoginUseCase(authRepository: authRepository),
             logoutUseCase: LogoutUseCase(authRepository: authRepository),
-            state: state
+            state: state ?? (authRepository.hasStoredSession() ? .loggedIn : .idle)
         )
     }
 
@@ -71,6 +89,9 @@ final class DIContainer {
         )
     }
 }
+
+/// dataGSM OAuth가 아직 없어 인가 코드를 받을 수 없다.
+struct AuthorizationCodeUnavailableError: Error {}
 
 extension DIContainer {
     /// Preview용. 지연 없이 정해진 결과를 돌려주는 Mock을 쓴다.
