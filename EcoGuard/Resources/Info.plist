@@ -8,6 +8,12 @@
 	<string>https://$(ECO_WEB_ADMIN_HOST)</string>
 	<key>EcoAPIBaseURL</key>
 	<string>https://$(ECO_API_HOST)</string>
+	<key>EcoOAuthAuthorizeURL</key>
+	<string>https://$(ECO_OAUTH_AUTHORIZE_HOST)</string>
+	<key>EcoOAuthClientID</key>
+	<string>$(ECO_OAUTH_CLIENT_ID)</string>
+	<key>EcoOAuthRedirectURI</key>
+	<string>$(ECO_OAUTH_REDIRECT_SCHEME)://$(ECO_OAUTH_REDIRECT_HOST)</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>NotoSansKR-Regular.otf</string>
