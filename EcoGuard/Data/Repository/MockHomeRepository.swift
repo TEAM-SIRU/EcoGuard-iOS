@@ -11,6 +11,9 @@ final class MockHomeRepository: HomeRepository {
         case notOpenYet
         case recruiting
         case awaitingAssignment
+        case applicationPending
+        case notSelected
+        case notRecruiting
         case excluded
         case failure
     }
@@ -106,6 +109,12 @@ extension MockHomeRepository {
                 )
             case .awaitingAssignment:
                 HomeSummary(status: .awaitingAssignment, notice: notice)
+            case .applicationPending:
+                HomeSummary(status: .applicationPending, notice: notice)
+            case .notSelected:
+                HomeSummary(status: .notSelected, notice: notice)
+            case .notRecruiting:
+                HomeSummary(status: .notRecruiting, notice: notice)
             case .excluded:
                 HomeSummary(status: .excluded(reason: "본인 요청으로 활동을 중단했어요."), notice: nil)
             case .failure:

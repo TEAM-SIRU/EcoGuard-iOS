@@ -6,8 +6,8 @@ final class HomeRepositoryImpl: HomeRepository {
     private let defaults: UserDefaults
     private let now: () -> Date
 
-    /// 서버에 공지 닫기 API가 없어 닫은 공지 ID를 기기에 둔다.
-    static let dismissedNoticeIDsKey = "home.dismissedNoticeIDs"
+    /// 서버에 공지 닫기 API가 없어 닫은 공지 ID를 기기에 둔다. 세션을 지울 때 같이 지운다(`UserDefaultsSessionUserStore`).
+    nonisolated static let dismissedNoticeIDsKey = "home.dismissedNoticeIDs"
 
     init(apiClient: APIClient, defaults: UserDefaults = .standard, now: @escaping () -> Date = Date.init) {
         self.apiClient = apiClient
@@ -32,14 +32,17 @@ final class HomeRepositoryImpl: HomeRepository {
                 now: now()
             ))
         } else {
-            async let application = Self.sendAllowingMissing(HomeDTO.Application.self, .Home.myApplication, missingCode: "NO_APPLICATION", apiClient: apiClient)
-            async let recruitment = Self.sendAllowingMissing(
+            let recruitment = try await Self.sendAllowingMissing(
                 HomeDTO.CurrentRecruitment.self,
                 .Home.currentRecruitment,
                 missingCode: "NO_ACTIVE_RECRUITMENT",
                 apiClient: apiClient
             )
-            status = try HomeMapper.unassignedStatus(application: try await application, recruitment: try await recruitment)
+            // 현재 공고에 신청했을 때만 내 신청(가장 최근 신청)을 본다. 지난 공고의 신청은 이번 상태가 아니다.
+            let application = recruitment?.alreadyApplied == true
+                ? try await Self.sendAllowingMissing(HomeDTO.Application.self, .Home.myApplication, missingCode: "NO_APPLICATION", apiClient: apiClient)
+                : nil
+            status = HomeMapper.unassignedStatus(recruitment: recruitment, application: application, now: now())
         }
         return HomeSummary(status: status, notice: await notice)
     }

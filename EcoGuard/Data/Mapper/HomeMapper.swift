@@ -43,24 +43,25 @@ nonisolated enum HomeMapper {
         )
     }
 
-    /// 구역 배정 전. 홈 도메인에 모집 없음·미선발 상태가 없어 가장 가까운 상태로 둔다(실패 화면을 띄우지 않는다).
-    /// - 모집 중이고 아직 신청하지 않음 → 모집
-    /// - 이번 모집에서 선발되지 않음 → 제외(사유: 선발되지 않음)
-    /// - 그 밖(승인 대기·배정 대기·모집 없음) → 배정 대기
+    /// 구역 배정 전. #56 모집 저장소와 같이 현재 공고에 신청했을 때(`alreadyApplied`)만 내 신청을 본다(지난 공고 신청으로 판단하지 않는다).
+    /// - 공고 없음, 또는 신청하지 않았고 모집 기간이 아님 → 모집 없음
+    /// - 신청하지 않았고 모집 중 → 모집
+    /// - 신청함: 승인 → 배정 대기, 반려 → 미선발, 그 밖(대기·알 수 없음) → 확정 대기
     static func unassignedStatus(
+        recruitment: HomeDTO.CurrentRecruitment?,
         application: HomeDTO.Application?,
-        recruitment: HomeDTO.CurrentRecruitment?
-    ) throws -> HomeStatus {
-        if let recruitment, recruitment.periodStatus == .open, !recruitment.alreadyApplied {
-            return .recruiting(try recruitment.toDomain())
+        now: Date
+    ) -> HomeStatus {
+        guard let recruitment else { return .notRecruiting }
+        guard recruitment.alreadyApplied else {
+            return recruitment.periodStatus == .open ? .recruiting(recruitment.toDomain(now: now)) : .notRecruiting
         }
-        if application?.status == .rejected {
-            return .excluded(reason: notSelectedReason)
+        switch application?.status {
+        case .approved: return .awaitingAssignment
+        case .rejected: return .notSelected
+        case .pending, .unknown, nil: return .applicationPending
         }
-        return .awaitingAssignment
     }
-
-    static let notSelectedReason = String(localized: "이번 모집에서 선발되지 않았어요.")
 
     /// Figma `Recent section` 3건.
     static let recentRecordLimit = 3
@@ -145,11 +146,12 @@ nonisolated extension WeeklyActivityResponseDTO {
 }
 
 nonisolated extension HomeDTO.CurrentRecruitment {
-    func toDomain() throws -> Recruitment {
-        // 서버 학기는 `2026-2`.
-        guard let semesterNumber = semester.split(separator: "-").last.flatMap({ Int($0) }) else { throw APIError.decoding }
+    /// 서버 학기는 `2026-2`. 읽을 수 없으면 홈을 실패로 두지 않고 `now`(KST)의 학기(3~8월 1학기, 그 밖 2학기)로 둔다.
+    func toDomain(now: Date) -> Recruitment {
+        let parsed = semester.split(separator: "-").last.flatMap { Int($0) }.flatMap { (1...2).contains($0) ? $0 : nil }
+        let month = HomeMapper.calendar.component(.month, from: now)
         return Recruitment(
-            semester: semesterNumber,
+            semester: parsed ?? ((3...8).contains(month) ? 1 : 2),
             capacityPerClass: maxCount,
             className: "\(grade)학년 \(classNo)반",
             appliedCount: currentApplicants

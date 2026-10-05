@@ -13,8 +13,14 @@ struct HomeSummary: Equatable {
 enum HomeStatus: Equatable {
     /// 모집 기간이고 아직 신청하지 않았다.
     case recruiting(Recruitment)
-    /// 신청은 끝났고 선생님이 구역을 배정하기 전이다.
+    /// 선발됐고 선생님이 구역을 배정하기 전이다.
     case awaitingAssignment
+    /// 이번 모집에 신청했고 선생님 확정을 기다린다.
+    case applicationPending
+    /// 이번 모집에서 선발되지 않았다.
+    case notSelected
+    /// 모집 기간이 아니고 이번 모집에 신청하지도 않았다.
+    case notRecruiting
     /// 담당 선생님이 활동에서 제외했다.
     case excluded(reason: String)
     /// 구역을 배정받아 활동 중이다.

@@ -76,7 +76,10 @@ struct CurrentUserRepositoryTests {
         #expect(store.load() == nil)
         store.save(SessionUser(userId: 7, name: "김학생"))
         #expect(UserDefaultsSessionUserStore(defaults: defaults).load() == SessionUser(userId: 7, name: "김학생"))
+        defaults.set(["7"], forKey: HomeRepositoryImpl.dismissedNoticeIDsKey)
         store.clear()
         #expect(store.load() == nil)
+        // 닫은 공지도 다음 사용자에게 남지 않는다.
+        #expect(defaults.stringArray(forKey: HomeRepositoryImpl.dismissedNoticeIDsKey) == nil)
     }
 }

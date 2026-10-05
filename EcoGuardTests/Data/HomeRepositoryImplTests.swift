@@ -170,7 +170,6 @@ struct HomeRepositoryImplTests {
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
             Path.weekly: (200, #"{"weekStart":"2026-09-28","weekEnd":"2026-10-02","completedDays":0,"requiredDays":5,"days":[]}"#),
             Path.verifications: (200, "[]"),
-            Path.application: (404, PathStub.error("NO_APPLICATION")),
             Path.recruitment: (200, Self.recruitmentJSON(status: "OPEN", alreadyApplied: false)),
             Path.notices: (200, "[]")
         ])
@@ -182,34 +181,32 @@ struct HomeRepositoryImplTests {
             notice: nil
         ))
         #expect(log.requests(path: Path.recruitment).first?.httpMethod == "GET")
+        // 현재 공고에 신청하지 않았으면 내 신청(지난 공고일 수 있다)은 보지 않는다.
+        #expect(log.requests(path: Path.application).isEmpty)
         #expect(log.requests(path: Path.notice).isEmpty)
     }
 
-    @Test(arguments: ["PENDING", "APPROVED"])
-    func awaitingAssignmentAfterApplying(status: String) async throws {
-        let repository = try makeRepository(responses: [
+    /// 현재 공고에 신청했을 때만 내 신청 상태를 본다. 승인만 배정 대기(기존 "환경지킴이가 됐어요")다.
+    @Test(arguments: [
+        ("APPROVED", HomeStatus.awaitingAssignment),
+        ("PENDING", .applicationPending),
+        ("REJECTED", .notSelected),
+        ("SOMETHING_NEW", .applicationPending)
+    ])
+    func appliedStatusFollowsCurrentApplication(status: String, expected: HomeStatus) async throws {
+        let log = RequestLog()
+        let repository = try makeRepository(log: log, responses: [
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
-            Path.application: (200, #"{"status":"\#(status)","order":3,"waitingForAssignment":true}"#),
-            Path.recruitment: (200, Self.recruitmentJSON(status: "OPEN", alreadyApplied: true))
+            Path.application: (200, #"{"status":"\#(status)","order":3,"waitingForAssignment":false}"#),
+            Path.recruitment: (200, Self.recruitmentJSON(status: "CLOSED", alreadyApplied: true))
         ])
 
-        #expect(try await repository.fetchHome().status == .awaitingAssignment)
+        #expect(try await repository.fetchHome().status == expected)
+        #expect(log.requests(path: Path.application).count == 1)
     }
 
-    /// 선발되지 않은 학생: 실패 화면 대신 가장 가까운 제외 안내.
-    @Test(arguments: [#"{"status":"REJECTED","order":9,"waitingForAssignment":false}"#])
-    func notSelectedShowsExcluded(applicationJSON: String) async throws {
-        let repository = try makeRepository(responses: [
-            Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
-            Path.application: (200, applicationJSON),
-            Path.recruitment: (404, PathStub.error("NO_ACTIVE_RECRUITMENT"))
-        ])
-
-        #expect(try await repository.fetchHome().status == .excluded(reason: HomeMapper.notSelectedReason))
-    }
-
-    /// 다음 모집이 열리면 선발되지 않았던 학생도 다시 신청할 수 있다.
-    @Test func notSelectedStudentSeesNewOpenRecruitment() async throws {
+    /// 지난 공고에서 선발되지 않았어도 새 모집이 열리면 모집을 보여 준다.
+    @Test func previousRejectionDoesNotHideNewRecruitment() async throws {
         let repository = try makeRepository(responses: [
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
             Path.application: (200, #"{"status":"REJECTED","order":9,"waitingForAssignment":false}"#),
@@ -222,20 +219,38 @@ struct HomeRepositoryImplTests {
         }
     }
 
-    /// 신청한 적도 없고 열린 모집도 없으면(예정·마감·없음) 실패 화면 대신 배정 대기 안내.
+    /// 공고가 없거나, 현재 공고에 신청하지 않았는데 모집 기간이 아니면 모집 없음(지난 신청 결과로 판단하지 않는다).
     @Test(arguments: [
         (404, PathStub.error("NO_ACTIVE_RECRUITMENT")),
         (200, HomeRepositoryImplTests.recruitmentJSON(status: "UPCOMING", alreadyApplied: false)),
         (200, HomeRepositoryImplTests.recruitmentJSON(status: "CLOSED", alreadyApplied: false))
     ])
-    func noApplicationAndNoOpenRecruitmentShowsAwaiting(statusCode: Int, recruitmentJSON: String) async throws {
-        let repository = try makeRepository(responses: [
+    func noCurrentApplicationOutsideRecruitmentIsNotRecruiting(statusCode: Int, recruitmentJSON: String) async throws {
+        let log = RequestLog()
+        let repository = try makeRepository(log: log, responses: [
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
-            Path.application: (404, PathStub.error("NO_APPLICATION")),
+            Path.application: (200, #"{"status":"REJECTED","order":9,"waitingForAssignment":false}"#),
             Path.recruitment: (statusCode, recruitmentJSON)
         ])
 
-        #expect(try await repository.fetchHome().status == .awaitingAssignment)
+        #expect(try await repository.fetchHome().status == .notRecruiting)
+        #expect(log.requests(path: Path.application).isEmpty)
+    }
+
+    /// 학기를 읽을 수 없어도 홈은 실패하지 않고 오늘(9월 → 2학기) 기준 학기로 둔다.
+    @Test(arguments: ["2학기", "2026-3", ""])
+    func malformedSemesterFallsBackToCurrentSemester(semester: String) async throws {
+        let json = Self.recruitmentJSON(status: "OPEN", alreadyApplied: false).replacingOccurrences(of: "2026-2", with: semester)
+        let repository = try makeRepository(responses: [
+            Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
+            Path.recruitment: (200, json)
+        ])
+
+        guard case .recruiting(let recruitment) = try await repository.fetchHome().status else {
+            Issue.record("모집이어야 한다")
+            return
+        }
+        #expect(recruitment.semester == 2)
     }
 
     /// 404라도 "아직 없음" 코드가 아니면 에러다.
