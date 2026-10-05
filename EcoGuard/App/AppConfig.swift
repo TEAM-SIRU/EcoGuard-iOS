@@ -42,6 +42,35 @@ enum AppConfig {
         configuredURL(from: rawValue, key: "EcoAPIBaseURL")
     }
 
+    /// dataGSM OAuth 설정. Info.plist `EcoOAuthAuthorizeURL` = `https://$(ECO_OAUTH_AUTHORIZE_HOST)`,
+    /// `EcoOAuthClientID` = `$(ECO_OAUTH_CLIENT_ID)`, `EcoOAuthRedirectURI` = `$(ECO_OAUTH_REDIRECT_SCHEME)://$(ECO_OAUTH_REDIRECT_HOST)`.
+    /// 클라이언트 ID·리다이렉트 URI가 정해지기 전까지 nil이며, 그동안 실제 모드(서버 주소 있음) 로그인은 실패한다.
+    static var gsmOAuthConfiguration: GsmOAuthConfiguration? {
+        gsmOAuthConfiguration(
+            authorizeURL: Bundle.main.object(forInfoDictionaryKey: "EcoOAuthAuthorizeURL") as? String,
+            clientID: Bundle.main.object(forInfoDictionaryKey: "EcoOAuthClientID") as? String,
+            redirectURI: Bundle.main.object(forInfoDictionaryKey: "EcoOAuthRedirectURI") as? String
+        )
+    }
+
+    static func gsmOAuthConfiguration(authorizeURL: String?, clientID: String?, redirectURI: String?) -> GsmOAuthConfiguration? {
+        let clientID = clientID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let redirectURI = redirectURI?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        // 스킴·호스트 빌드 설정이 비어 있으면 `://`만 남는다.
+        guard !clientID.isEmpty, !redirectURI.isEmpty, redirectURI != "://",
+              let authorizeURL = configuredURL(from: authorizeURL, key: "EcoOAuthAuthorizeURL")
+        else { return nil }
+        guard let url = URL(string: redirectURI),
+              let configuration = GsmOAuthConfiguration(authorizeURL: authorizeURL, clientID: clientID, redirectURI: url)
+        else {
+            #if DEBUG
+            logger.error("EcoOAuthRedirectURI 값이 올바른 리다이렉트 주소가 아니다: \(redirectURI, privacy: .public)")
+            #endif
+            return nil
+        }
+        return configuration
+    }
+
     private static func configuredURL(from rawValue: String?, key: String) -> URL? {
         guard isWebAdminHostConfigured(rawValue),
               let trimmed = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines)

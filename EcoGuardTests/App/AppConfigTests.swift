@@ -36,4 +36,44 @@ struct AppConfigTests {
     func bundledValueIsValidWhenConfigured() {
         #expect(AppConfig.webAdminURL != nil)
     }
+
+    // MARK: - dataGSM OAuth
+
+    private static let authorizeURL = "https://oauth.authorization.datagsm.kr/v1/oauth/authorize"
+
+    /// 클라이언트 ID나 리다이렉트 URI 빌드 설정이 비어 있으면(서버팀 값 수신 전) 설정이 없는 것으로 본다.
+    @Test(arguments: [
+        ("", "ecoguard://oauth/callback"),
+        ("  ", "ecoguard://oauth/callback"),
+        ("client-1", "://"),
+        ("client-1", ""),
+        ("client-1", "http://example.com/callback"),
+        ("client-1", "ecoguard:callback")
+    ])
+    func incompleteOAuthSettingsAreIgnored(clientID: String, redirectURI: String) {
+        #expect(AppConfig.gsmOAuthConfiguration(
+            authorizeURL: Self.authorizeURL,
+            clientID: clientID,
+            redirectURI: redirectURI
+        ) == nil)
+    }
+
+    @Test func emptyAuthorizeHostIsIgnored() {
+        #expect(AppConfig.gsmOAuthConfiguration(
+            authorizeURL: "https://",
+            clientID: "client-1",
+            redirectURI: "ecoguard://oauth/callback"
+        ) == nil)
+    }
+
+    @Test func filledOAuthSettingsMakeConfiguration() throws {
+        let configuration = try #require(AppConfig.gsmOAuthConfiguration(
+            authorizeURL: Self.authorizeURL,
+            clientID: " client-1 ",
+            redirectURI: "ecoguard://oauth/callback"
+        ))
+        #expect(configuration.clientID == "client-1")
+        #expect(configuration.redirectURI.absoluteString == "ecoguard://oauth/callback")
+        #expect(configuration.callback == .customScheme("ecoguard"))
+    }
 }
