@@ -5,7 +5,8 @@ import SwiftUI
 struct VerificationSheet: View {
     enum Kind: Equatable {
         case outsideWindow(CleaningWindow)
-        case alreadySubmitted(submittedAt: Date)
+        /// 서버가 제출 시각·검수 상태를 주지 않으면 nil이다.
+        case alreadySubmitted(submittedAt: Date?, status: VerificationResult.Status?)
         case permissionRequired
     }
 
@@ -83,10 +84,24 @@ struct VerificationSheet: View {
         switch kind {
         case .outsideWindow(let window):
             "청소 인증은 매일 \(HomeFormatter.window(window))에만 할 수 있어요"
-        case .alreadySubmitted(let submittedAt):
-            "하루 1번만 제출할 수 있어요.\n오늘 \(HomeFormatter.clockTime(submittedAt))에 보낸 사진을 AI가 확인하고 있어요"
+        case .alreadySubmitted(let submittedAt, let status):
+            "하루 1번만 제출할 수 있어요.\n\(Self.submittedPhotoStatus(submittedAt: submittedAt, status: status))"
         case .permissionRequired:
             "갤러리 사진은 쓸 수 없어서 카메라 접근이 필요해요. 설정에서 허용해 주세요"
+        }
+    }
+}
+
+extension VerificationSheet {
+    /// Figma 문구는 `오늘 08:04에 보낸 사진을 AI가 확인하고 있어요`(검수 중). 시각·상태를 모르면 그 부분을 뺀다.
+    static func submittedPhotoStatus(submittedAt: Date?, status: VerificationResult.Status?) -> String {
+        let photo = submittedAt.map { "오늘 \(HomeFormatter.clockTime($0))에 보낸 사진" } ?? "오늘 보낸 사진"
+        return switch status {
+        case .processing: "\(photo)을 AI가 확인하고 있어요"
+        case .manualReview: "\(photo)을 선생님이 확인하고 있어요"
+        case .approved: "\(photo)이 승인됐어요"
+        case .rejected: "\(photo)이 반려됐어요"
+        case nil: "\(photo)이 있어요"
         }
     }
 }

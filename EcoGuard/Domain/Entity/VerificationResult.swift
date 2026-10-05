@@ -28,4 +28,6 @@ struct VerificationResult: Equatable, Identifiable {
     let earnedMinutes: Int
     /// 제출한 사진 주소. 없으면 자리표시를 그린다.
     let photoURL: URL?
+    /// 서버가 날짜만 주면 false이고 `submittedAt`은 그날 00:00이다. 화면은 날짜만 보여 준다.
+    var isSubmittedTimeKnown = true
 }

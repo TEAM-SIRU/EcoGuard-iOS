@@ -30,6 +30,8 @@ struct Appeal: Equatable, Hashable, Identifiable {
     let teacherReply: TeacherReply?
     /// 제출한 사진 주소. 없으면 자리표시를 그린다.
     let photoURL: URL?
+    /// 서버가 대상 인증의 날짜만 주면 false이고 `verifiedAt`은 그날 00:00이다. 화면은 날짜만 보여 준다.
+    var isVerifiedTimeKnown = true
 
     /// 반려된 이의신청에서 `다시 이의신청하기`로 쓸 대상. 반려 사유는 가장 최근 판단인 선생님 답변이다.
     var retryTarget: AppealTarget {
@@ -63,6 +65,11 @@ struct AppealDraft: Equatable {
     let verificationID: String
     let message: String
     let photos: [AppealPhoto]
+}
+
+enum AppealError: Error, Equatable {
+    /// 같은 인증에 검토 중인 이의신청이 이미 있다. 그 이의신청을 들고 있다.
+    case alreadyPending(Appeal)
 }
 
 /// 이의신청 제출 결과.

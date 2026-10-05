@@ -9,6 +9,11 @@ nonisolated enum ServerDate {
         dateTime(string + "T00:00:00")
     }
 
+    /// KST 기준 그날 00:00. `date(_:)`로 읽은 날짜와 비교할 때 쓴다.
+    static func startOfDay(_ date: Date) -> Date {
+        calendar.startOfDay(for: date)
+    }
+
     /// `yyyy-MM-dd'T'HH:mm:ss`. 초 뒤 소수점(`.SSSSSS`)은 버린다.
     static func dateTime(_ string: String) -> Date? {
         let parts = string.split(separator: "T", omittingEmptySubsequences: false)
@@ -22,10 +27,14 @@ nonisolated enum ServerDate {
         else { return nil }
         let second = time.count == 3 ? time[2] : 0
         guard let second else { return nil }
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timeZone
         let components = DateComponents(year: year, month: month, day: dayOfMonth, hour: hour, minute: minute, second: second)
         guard components.isValidDate(in: calendar) else { return nil }
         return calendar.date(from: components)
+    }
+
+    private static var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        return calendar
     }
 }

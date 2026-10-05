@@ -113,8 +113,8 @@ struct CameraVerificationView: View {
         switch viewModel.sheet {
         case .outsideWindow:
             viewModel.session.map { .outsideWindow($0.window) }
-        case .alreadySubmitted(let submittedAt):
-            .alreadySubmitted(submittedAt: submittedAt)
+        case .alreadySubmitted(let submittedAt, let status):
+            .alreadySubmitted(submittedAt: submittedAt, status: status)
         case .permissionRequired:
             .permissionRequired
         case nil:
@@ -210,7 +210,11 @@ private extension CameraVerificationViewModel {
 #Preview("오늘 이미 제출") {
     let submittedAt = MockVerificationRepository.Fixture.submittedAt
     CameraVerificationView(
-        viewModel: .preview(.guide, sheet: .alreadySubmitted(submittedAt: submittedAt), availability: .alreadySubmitted(submittedAt: submittedAt))
+        viewModel: .preview(
+            .guide,
+            sheet: .alreadySubmitted(submittedAt: submittedAt, status: .processing),
+            availability: .alreadySubmitted(submittedAt: submittedAt, status: .processing)
+        )
     )
 }
 

@@ -57,7 +57,8 @@ struct VerificationResultRepositoryImplTests {
             status: .rejected,
             rejectionReason: .init(title: "구역이 보이지 않아요", guide: "쓰레기가 남아 있어요"),
             earnedMinutes: 0,
-            photoURL: URL(string: "https://api.example.com/files/verifications/a.jpg")
+            photoURL: URL(string: "https://api.example.com/files/verifications/a.jpg"),
+            isSubmittedTimeKnown: false
         ))
         #expect(log.requests(path: Self.reviewPath).map(\.httpMethod) == ["GET"])
         #expect(log.requests(path: Self.mePath).map(\.httpMethod) == ["GET"])

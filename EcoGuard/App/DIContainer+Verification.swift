@@ -7,7 +7,7 @@ extension DIContainer {
         repository: VerificationRepository? = nil
     ) -> CameraVerificationViewModel {
         let repository = repository ?? apiClient.map {
-            VerificationRepositoryImpl(apiClient: $0, sessionSource: MockVerificationRepository())
+            VerificationRepositoryImpl(apiClient: $0, sessionSource: MockVerificationRepository(delay: .zero))
         } ?? MockVerificationRepository()
         let (camera, permission) = makeCamera()
         return CameraVerificationViewModel(

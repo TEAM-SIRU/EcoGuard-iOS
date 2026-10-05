@@ -34,7 +34,8 @@ nonisolated extension MyAppealResponseDTO {
                 teacherReply: status == .rejected && replyTitle?.isEmpty == false
                     ? Appeal.TeacherReply(title: replyTitle ?? "", message: nil)
                     : nil,
-                photoURL: nil
+                photoURL: nil,
+                isVerifiedTimeKnown: false
             )
         }
     }

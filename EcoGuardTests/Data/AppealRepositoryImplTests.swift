@@ -68,7 +68,8 @@ struct AppealRepositoryImplTests {
             status: .reviewing,
             earnedMinutes: 0,
             teacherReply: nil,
-            photoURL: nil
+            photoURL: nil,
+            isVerifiedTimeKnown: false
         ))
         #expect(appeals[1].submittedAt == Self.kst(9, 22, 13, 2))
         #expect(appeals[1].teacherReply == .init(title: "표지판이 보이지 않아요", message: nil))
@@ -98,7 +99,50 @@ struct AppealRepositoryImplTests {
         #expect(body == ["content": "다시 봐 주세요"])
     }
 
-    @Test(arguments: [("APPEAL_ALREADY_PENDING", 409), ("APPEAL_NOT_ALLOWED", 409), ("VERIFICATION_NOT_FOUND", 404)])
+    /// 같은 인증에 검토 중인 이의신청이 이미 있으면 그 이의신청을 들고 `alreadyPending`, 제출 흐름은 `alreadyReceived`.
+    @Test func alreadyPendingMapsToAlreadyReceived() async throws {
+        let log = RequestLog()
+        let repository = Self.makeRepository { request in
+            log.append(request)
+            if request.url?.path() == Self.createPath {
+                return (409, Data(#"{"code":"APPEAL_ALREADY_PENDING","message":"m"}"#.utf8))
+            }
+            return (200, Self.list(
+                Self.appealJSON(id: 5, verificationID: 6, status: "PENDING"),
+                Self.appealJSON(id: 4, round: 2, status: "PENDING"),
+                Self.appealJSON(id: 2, status: "REJECTED")
+            ))
+        }
+
+        await #expect(throws: AppealError.self) {
+            try await repository.submitAppeal(Self.draft)
+        }
+        let result = try await SubmitAppealUseCase(appealRepository: repository).execute(Self.draft, unconfirmedAttempts: [])
+
+        guard case .alreadyReceived(let appeal) = result else {
+            Issue.record("\(result)")
+            return
+        }
+        #expect(appeal.id == "4")
+        #expect(appeal.round == 2)
+        #expect(log.requests(path: Self.createPath).count == 2)
+    }
+
+    /// 검토 중인 이의신청을 찾지 못하면(그새 처리됨) 서버 오류 그대로.
+    @Test func alreadyPendingWithoutPendingAppealPassesThrough() async throws {
+        let repository = Self.makeRepository { request in
+            if request.url?.path() == Self.createPath {
+                return (409, Data(#"{"code":"APPEAL_ALREADY_PENDING","message":"m"}"#.utf8))
+            }
+            return (200, Self.list(Self.appealJSON(id: 2, status: "REJECTED")))
+        }
+
+        await #expect(throws: APIError.server(statusCode: 409, code: "APPEAL_ALREADY_PENDING")) {
+            try await repository.submitAppeal(Self.draft)
+        }
+    }
+
+    @Test(arguments: [("APPEAL_NOT_ALLOWED", 409), ("VERIFICATION_NOT_FOUND", 404)])
     func submitServerErrorsPassThrough(code: String, statusCode: Int) async throws {
         let repository = Self.makeRepository { _ in
             (statusCode, Data(#"{"code":"\#(code)","message":"m"}"#.utf8))

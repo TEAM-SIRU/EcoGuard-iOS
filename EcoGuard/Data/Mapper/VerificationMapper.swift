@@ -37,7 +37,8 @@ nonisolated extension MyVerificationResponseDTO {
             status: status,
             rejectionReason: status == .rejected ? VerificationResult.RejectionReason(failReasons: review.failReasons) : nil,
             earnedMinutes: status == .approved ? approvedVerificationMinutes : 0,
-            photoURL: URL(string: photoUrl, relativeTo: baseURL)?.absoluteURL
+            photoURL: URL(string: photoUrl, relativeTo: baseURL)?.absoluteURL,
+            isSubmittedTimeKnown: false
         )
     }
 }

@@ -26,9 +26,17 @@ final class AppealRepositoryImpl: AppealRepository {
     /// 다시 받다가 실패하면 에러를 던지고, 다음 제출에서 `fetchAppeal(requestID:)`로 접수된 것을 찾는다.
     func submitAppeal(_ draft: AppealDraft) async throws -> Appeal {
         attemptedVerificationIDs[draft.requestID] = draft.verificationID
-        let created: CreateAppealResponseDTO = try await apiClient.send(
-            .createAppeal(verificationID: draft.verificationID, content: draft.message)
-        )
+        let created: CreateAppealResponseDTO
+        do {
+            created = try await apiClient.send(.createAppeal(verificationID: draft.verificationID, content: draft.message))
+        } catch let error as APIError where error == .server(statusCode: 409, code: "APPEAL_ALREADY_PENDING") {
+            // 검토 중인 이의신청을 찾지 못하면(그새 처리됨) 서버 오류 그대로 올린다.
+            let appeals = try? await fetchAppeals()
+            guard let pending = appeals?.first(where: { $0.verificationID == draft.verificationID && $0.status == .reviewing }) else {
+                throw error
+            }
+            throw AppealError.alreadyPending(pending)
+        }
         guard let appeal = try await fetchAppeals().first(where: { $0.id == String(created.appealId) }) else {
             throw APIError.invalidResponse
         }
