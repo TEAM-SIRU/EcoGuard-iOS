@@ -11,6 +11,9 @@ final class DIContainer {
     private let hadStoredSessionAtLaunch: Bool
     private let homeRepository: HomeRepository
     private let recruitmentRepository: RecruitmentRepository
+    /// 실제 서버 저장소가 같이 쓴다. 로그인 저장소와 같은 `AuthSession`이라 토큰 재발급이 한 번만 일어난다.
+    /// 서버 주소가 없으면(로그인이 Mock) nil이고 저장소는 Mock을 쓴다. 화면별 확장에서도 써서 `private`이 아니다.
+    lazy var apiClient: APIClient? = (authRepository as? AuthRepositoryImpl)?.apiClient
 
     init(
         authRepository: AuthRepository,

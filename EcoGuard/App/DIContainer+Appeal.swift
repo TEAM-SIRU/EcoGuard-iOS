@@ -2,15 +2,15 @@ import Foundation
 
 extension DIContainer {
     /// 이의신청 작성·제출 실패.
-    // TODO: 서버 연동 때 저장소를 DIContainer 프로퍼티로 옮기고 실제 구현으로 바꾼다. 작성·내역이 같은 저장소를 써야 한다.
+    /// 실제 저장소는 접수 여부를 서버 내역으로 확인하므로 작성·내역이 각자 저장소를 만들어도 된다.
     func makeAppealFormViewModel(
         target: AppealTarget,
-        repository: AppealRepository = MockAppealRepository(),
+        repository: AppealRepository? = nil,
         phase: AppealFormViewModel.Phase = .editing
     ) -> AppealFormViewModel {
         AppealFormViewModel(
             target: target,
-            submitAppealUseCase: SubmitAppealUseCase(appealRepository: repository),
+            submitAppealUseCase: SubmitAppealUseCase(appealRepository: repository ?? makeAppealRepository()),
             phase: phase
         )
     }
@@ -23,8 +23,12 @@ extension DIContainer {
 
     /// 이의신청 내역.
     func makeAppealHistoryViewModel(
-        repository: AppealRepository = MockAppealRepository()
+        repository: AppealRepository? = nil
     ) -> AppealHistoryViewModel {
-        AppealHistoryViewModel(fetchAppealsUseCase: FetchAppealsUseCase(appealRepository: repository))
+        AppealHistoryViewModel(fetchAppealsUseCase: FetchAppealsUseCase(appealRepository: repository ?? makeAppealRepository()))
+    }
+
+    private func makeAppealRepository() -> AppealRepository {
+        apiClient.map { AppealRepositoryImpl(apiClient: $0) } ?? MockAppealRepository()
     }
 }
