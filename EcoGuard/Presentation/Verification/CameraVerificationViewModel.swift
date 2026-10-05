@@ -24,7 +24,8 @@ final class CameraVerificationViewModel {
     /// 화면 위에 띄우는 안내 시트.
     enum Sheet: Equatable {
         case outsideWindow
-        case alreadySubmitted(submittedAt: Date)
+        /// 서버가 제출 시각·검수 상태를 주지 않으면 nil이다.
+        case alreadySubmitted(submittedAt: Date?, status: VerificationResult.Status?)
         case permissionRequired
 
         /// 확인하면 인증 흐름을 닫는 시트. 권한 안내는 닫아도 촬영 안내에 머문다.
@@ -82,10 +83,15 @@ final class CameraVerificationViewModel {
         }
     }
 
-    /// 서버가 정한 마감 시각. 인증 가능할 때만 있다.
+    /// 서버가 정한 마감 시각. 인증 가능하고 서버가 마감 시각을 줬을 때만 있다.
     var deadline: Date? {
         guard case .open(let deadline) = session?.availability else { return nil }
         return deadline
+    }
+
+    private var isOpen: Bool {
+        guard case .open = session?.availability else { return false }
+        return true
     }
 
     /// 서버 기준 지금 시각.
@@ -125,8 +131,8 @@ final class CameraVerificationViewModel {
                 expireIfNeeded()
             case .outsideWindow:
                 sheet = .outsideWindow
-            case .alreadySubmitted(let submittedAt):
-                sheet = .alreadySubmitted(submittedAt: submittedAt)
+            case .alreadySubmitted(let submittedAt, let status):
+                sheet = .alreadySubmitted(submittedAt: submittedAt, status: status)
             }
         } catch {
             // 화면을 떠나 취소되면 이전 화면으로 돌린다. 처음 불러오던 중이었다면 .loading으로 남겨 다시 나타날 때 `.task`가 새로 불러온다.
@@ -141,7 +147,7 @@ final class CameraVerificationViewModel {
 
     /// 촬영 안내의 `촬영하기`. 권한이 없으면 묻고, 거부돼 있으면 설정 안내 시트를 띄운다.
     func startCapture() async {
-        guard state == .guide, deadline != nil else { return }
+        guard state == .guide, isOpen else { return }
         guard !expireIfNeeded() else { return }
         switch permission.status {
         case .authorized:
@@ -211,9 +217,9 @@ final class CameraVerificationViewModel {
             state = .submitted(captured, submittedAt: submission.submittedAt)
         } catch VerificationError.deadlinePassed {
             state = .timedOut
-        } catch VerificationError.alreadySubmitted(let submittedAt) {
+        } catch VerificationError.alreadySubmitted(let submittedAt, let status) {
             state = .uploadFailed(captured)
-            sheet = .alreadySubmitted(submittedAt: submittedAt)
+            sheet = .alreadySubmitted(submittedAt: submittedAt, status: status)
         } catch {
             guard !Task.isCancelled else {
                 state = previous
@@ -230,8 +236,8 @@ final class CameraVerificationViewModel {
         do {
             let session = try await fetchSessionUseCase.execute()
             apply(session)
-            if case .alreadySubmitted(let submittedAt) = session.availability {
-                sheet = .alreadySubmitted(submittedAt: submittedAt)
+            if case .alreadySubmitted(let submittedAt, let status) = session.availability {
+                sheet = .alreadySubmitted(submittedAt: submittedAt, status: status)
             }
         } catch {
             guard !Task.isCancelled else { return }

@@ -30,6 +30,29 @@ struct VerificationResultContentTests {
         ])
     }
 
+    /// 실제 서버는 제출 날짜만 준다. 시각 없이 날짜만 보여 준다.
+    @Test func unknownSubmittedTimeShowsDateOnly() {
+        var result = Fixture.result(status: .approved)
+        result.isSubmittedTimeKnown = false
+        var processing = Fixture.result(status: .processing)
+        processing.isSubmittedTimeKnown = false
+
+        #expect(VerificationResultContent(result: result, now: sameDay).rows[1].value == "오늘")
+        #expect(VerificationResultContent(result: result, now: nextDay).rows[1].value == "9월 29일(화)")
+        #expect(VerificationResultContent(result: processing, now: sameDay).rows.last?.value == "9월 29일(화)")
+    }
+
+    /// 오늘 이미 제출 시트 문구. 시각·상태를 모르면 그 부분을 뺀다.
+    @Test func alreadySubmittedSheetMessage() {
+        let submittedAt = Fixture.submittedAt
+        #expect(VerificationSheet.submittedPhotoStatus(submittedAt: submittedAt, status: .processing) == "오늘 08:04에 보낸 사진을 AI가 확인하고 있어요")
+        #expect(VerificationSheet.submittedPhotoStatus(submittedAt: nil, status: .processing) == "오늘 보낸 사진을 AI가 확인하고 있어요")
+        #expect(VerificationSheet.submittedPhotoStatus(submittedAt: nil, status: .manualReview) == "오늘 보낸 사진을 선생님이 확인하고 있어요")
+        #expect(VerificationSheet.submittedPhotoStatus(submittedAt: nil, status: .approved) == "오늘 보낸 사진이 승인됐어요")
+        #expect(VerificationSheet.submittedPhotoStatus(submittedAt: nil, status: .rejected) == "오늘 보낸 사진이 반려됐어요")
+        #expect(VerificationSheet.submittedPhotoStatus(submittedAt: nil, status: nil) == "오늘 보낸 사진이 있어요")
+    }
+
     @Test func manualReviewMatchesFigma() {
         let content = VerificationResultContent(result: Fixture.result(status: .manualReview), now: sameDay)
 

@@ -23,7 +23,10 @@ struct AppealSubmittedView: View {
                         )
                         .padding(.bottom, Spacing.xxxl)
                         VerificationInfoTable(rows: [
-                            .init(label: "대상 인증", value: HomeFormatter.recordDate(appeal.verifiedAt)),
+                            .init(
+                                label: "대상 인증",
+                                value: VerificationResultFormatter.dateTime(appeal.verifiedAt, includesTime: appeal.isVerifiedTimeKnown)
+                            ),
                             .init(label: "보낸 시각", value: HomeFormatter.recordDate(appeal.submittedAt))
                         ])
                         Spacer(minLength: 0)

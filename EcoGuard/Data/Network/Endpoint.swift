@@ -15,12 +15,21 @@ nonisolated struct Endpoint: Sendable {
     /// 쿼리 파라미터. `with(queryItems:)`로 붙인다.
     var queryItems: [URLQueryItem] = []
     let body: Data?
+    /// `body`의 Content-Type. 바디가 없으면 보내지 않는다.
+    let contentType: String
     let requiresAuthorization: Bool
 
-    init(method: Method, path: String, body: Data? = nil, requiresAuthorization: Bool = true) {
+    init(
+        method: Method,
+        path: String,
+        body: Data? = nil,
+        contentType: String = "application/json",
+        requiresAuthorization: Bool = true
+    ) {
         self.method = method
         self.path = path
         self.body = body
+        self.contentType = contentType
         self.requiresAuthorization = requiresAuthorization
     }
 
@@ -29,6 +38,17 @@ nonisolated struct Endpoint: Sendable {
             method: method,
             path: path,
             body: try JSONEncoder().encode(json),
+            requiresAuthorization: requiresAuthorization
+        )
+    }
+
+    /// 바디를 완성된 `Data`로 들고 있어 401 재발급 뒤 다시 보낼 때도 같은 바디를 그대로 쓴다.
+    init(method: Method, path: String, multipart: MultipartFormData, requiresAuthorization: Bool = true) {
+        self.init(
+            method: method,
+            path: path,
+            body: multipart.encoded(),
+            contentType: multipart.contentType,
             requiresAuthorization: requiresAuthorization
         )
     }
