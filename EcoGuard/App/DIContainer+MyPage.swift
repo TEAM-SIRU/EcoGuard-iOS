@@ -9,7 +9,7 @@ extension DIContainer {
         notificationSettingRepository: NotificationSettingRepository = NotificationSettingRepositoryImpl(),
         onLoggedOut: @escaping () -> Void
     ) -> MyPageViewModel {
-        let repository: MyPageRepository = repository ?? apiClient.map { MyPageRepositoryImpl(apiClient: $0) } ?? MockMyPageRepository()
+        let repository: MyPageRepository = repository ?? apiClient.map { MyPageRepositoryImpl(apiClient: $0, currentUserRepository: currentUserRepository) } ?? MockMyPageRepository()
         return MyPageViewModel(
             fetchMyPageUseCase: FetchMyPageUseCase(myPageRepository: repository),
             logoutUseCase: LogoutUseCase(authRepository: authRepository),

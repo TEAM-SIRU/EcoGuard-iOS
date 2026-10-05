@@ -12,14 +12,14 @@ nonisolated struct Endpoint: Sendable {
 
     let method: Method
     let path: String
-    let queryItems: [URLQueryItem]
+    /// 쿼리 파라미터. `with(queryItems:)`로 붙인다.
+    var queryItems: [URLQueryItem] = []
     let body: Data?
     let requiresAuthorization: Bool
 
-    init(method: Method, path: String, queryItems: [URLQueryItem] = [], body: Data? = nil, requiresAuthorization: Bool = true) {
+    init(method: Method, path: String, body: Data? = nil, requiresAuthorization: Bool = true) {
         self.method = method
         self.path = path
-        self.queryItems = queryItems
         self.body = body
         self.requiresAuthorization = requiresAuthorization
     }

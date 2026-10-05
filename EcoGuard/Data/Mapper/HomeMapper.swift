@@ -5,7 +5,12 @@ nonisolated enum HomeMapper {
     /// 서버 `CleaningTimeWindow`의 기본 시간(07:20~08:10). 구역에 청소 시간이 없거나 형식이 틀리면 쓴다.
     static let defaultWindow = CleaningWindow(startMinute: 7 * 60 + 20, endMinute: 8 * 60 + 10)
 
-    private static var calendar: Calendar { ServerDate.calendar }
+    /// 학교 시간대(KST) 달력. 오늘·요일·주말 판단에 쓴다.
+    static let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = ServerDate.timeZone
+        return calendar
+    }()
 
     static func activeCleaning(
         assignment: HomeDTO.Assignment,
@@ -18,7 +23,7 @@ nonisolated enum HomeMapper {
         var todaySubmission: HomeDTO.Verification?
         var recent: [CleaningRecord] = []
         for verification in verifications {
-            guard let day = ServerDate.day(verification.date) else { throw APIError.decoding }
+            guard let day = ServerDate.date(verification.date) else { throw APIError.decoding }
             if day == today {
                 todaySubmission = verification
             } else if day < today, recent.count < recentRecordLimit {
@@ -38,8 +43,10 @@ nonisolated enum HomeMapper {
         )
     }
 
-    /// 구역 배정 전. 모집 중이고 아직 신청하지 않았으면 모집, 신청이 승인 대기·배정 대기면 배정 대기.
-    /// 그 밖(모집이 없거나 선발되지 않음)은 홈 도메인에 맞는 상태가 없어 `UnsupportedStatusError`를 던진다.
+    /// 구역 배정 전. 홈 도메인에 모집 없음·미선발 상태가 없어 가장 가까운 상태로 둔다(실패 화면을 띄우지 않는다).
+    /// - 모집 중이고 아직 신청하지 않음 → 모집
+    /// - 이번 모집에서 선발되지 않음 → 제외(사유: 선발되지 않음)
+    /// - 그 밖(승인 대기·배정 대기·모집 없음) → 배정 대기
     static func unassignedStatus(
         application: HomeDTO.Application?,
         recruitment: HomeDTO.CurrentRecruitment?
@@ -47,16 +54,13 @@ nonisolated enum HomeMapper {
         if let recruitment, recruitment.periodStatus == .open, !recruitment.alreadyApplied {
             return .recruiting(try recruitment.toDomain())
         }
-        switch application?.status {
-        case .pending, .approved:
-            return .awaitingAssignment
-        case .rejected, .unknown, nil:
-            throw UnsupportedStatusError()
+        if application?.status == .rejected {
+            return .excluded(reason: notSelectedReason)
         }
+        return .awaitingAssignment
     }
 
-    /// 홈에 그릴 수 없는 가입 상태(모집 없음·미선발).
-    struct UnsupportedStatusError: Error {}
+    static let notSelectedReason = String(localized: "이번 모집에서 선발되지 않았어요.")
 
     /// Figma `Recent section` 3건.
     static let recentRecordLimit = 3
@@ -121,11 +125,11 @@ nonisolated extension HomeDTO.Verification {
 nonisolated extension WeeklyActivityResponseDTO {
     /// 월~금 다섯 칸. 서버는 배정 전 요일을 빼고 주므로 없는 요일은 미완료로 채운다.
     func toDomain(now: Date) throws -> WeeklyCleaning {
-        let calendar = ServerDate.calendar
-        guard let monday = ServerDate.day(weekStart) else { throw APIError.decoding }
+        let calendar = HomeMapper.calendar
+        guard let monday = ServerDate.date(weekStart) else { throw APIError.decoding }
         var results: [Date: ActivityResultDTO] = [:]
         for day in days {
-            guard let date = ServerDate.day(day.date) else { throw APIError.decoding }
+            guard let date = ServerDate.date(day.date) else { throw APIError.decoding }
             results[date] = day.result
         }
         let today = calendar.startOfDay(for: now)

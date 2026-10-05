@@ -15,9 +15,17 @@ struct MyPageRepositoryImplTests {
      "summary":{"completedDays":7,"requiredDays":22,"approvedCount":7,"rejectedCount":1,"notSubmittedCount":0},"records":[]}
     """
 
-    private func makeRepository(log: RequestLog = RequestLog(), responses: [String: (Int, String)]) -> MyPageRepositoryImpl {
+    private func makeRepository(
+        log: RequestLog = RequestLog(),
+        user: CurrentUser? = CurrentUser(id: "1", name: "김학생"),
+        responses: [String: (Int, String)]
+    ) -> MyPageRepositoryImpl {
         // 2026-10-01 00:30 KST(UTC로는 9월 30일). 이번 달은 학교 시간대로 정한다.
-        MyPageRepositoryImpl(apiClient: PathStub.makeClient(log: log, responses: responses), now: { PathStub.date(2026, 10, 1, 0, 30) })
+        MyPageRepositoryImpl(
+            apiClient: PathStub.makeClient(log: log, responses: responses),
+            currentUserRepository: MockCurrentUserRepository(user: user),
+            now: { PathStub.date(2026, 10, 1, 0, 30) }
+        )
     }
 
     @Test func guardianSummaryCombinesActivityAssignmentAndApplication() async throws {
@@ -34,7 +42,7 @@ struct MyPageRepositoryImplTests {
         #expect(activity.httpMethod == "GET")
         #expect(activity.url?.query() == "year=2026&month=10")
         #expect(summary == MyPageSummary(
-            profile: UserProfile(name: nil, grade: nil, classNumber: nil, isGuardian: true),
+            profile: UserProfile(name: "김학생", grade: nil, classNumber: nil, isGuardian: true),
             monthlyApprovedCount: 7,
             monthlyActivityMinutes: 70,
             cleaningAreaName: "본관 계단 A",
@@ -68,6 +76,17 @@ struct MyPageRepositoryImplTests {
 
         #expect(summary.profile.isGuardian == false)
         #expect(summary.hasApplied)
+    }
+
+    /// 이 기능 전에 로그인해 둔 세션은 저장한 이름이 없다.
+    @Test func missingSessionUserLeavesNameEmpty() async throws {
+        let repository = makeRepository(user: nil, responses: [
+            Path.activity: (200, Self.activityJSON),
+            Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
+            Path.application: (404, PathStub.error("NO_APPLICATION"))
+        ])
+
+        #expect(try await repository.fetchMyPage().profile.name.isEmpty)
     }
 
     @Test func activityFailureFailsMyPage() async {

@@ -13,7 +13,7 @@ nonisolated extension ActivityRecordDTO {
     /// 아직 인증 시간이 지나지 않은 날과 알 수 없는 결과는 기록이 아니므로 nil.
     func toDomain() throws -> ActivityRecord? {
         guard let result = result.recordResult else { return nil }
-        guard let day = ServerDate.day(date) else { throw APIError.decoding }
+        guard let day = ServerDate.date(date) else { throw APIError.decoding }
         return ActivityRecord(
             // 하루 한 건이라 날짜가 곧 식별자다.
             id: date,

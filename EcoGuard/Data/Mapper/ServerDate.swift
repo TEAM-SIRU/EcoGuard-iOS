@@ -1,29 +1,31 @@
 import Foundation
 
-/// 서버 날짜 문자열. 서버는 시간대 없이 학교 시간대(KST) 기준 `LocalDate`(`2026-09-29`)·`LocalDateTime`(`2026-09-29T08:04:00`)을 내려준다.
+/// 서버(Spring `LocalDate`·`LocalDateTime`) 날짜 문자열. 시간대 표기가 없어 KST로 읽는다.
 nonisolated enum ServerDate {
-    static let calendar: Calendar = {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
-        return calendar
-    }()
+    static let timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
 
-    /// `2026-09-29` → 그날 0시(KST). 형식이 다르면 nil.
-    static func day(_ string: String) -> Date? {
-        let parts = string.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 3 else { return nil }
-        let components = DateComponents(year: parts[0], month: parts[1], day: parts[2])
-        guard components.isValidDate(in: calendar) else { return nil }
-        return calendar.date(from: components)
+    /// `yyyy-MM-dd`. 그날 00:00(KST).
+    static func date(_ string: String) -> Date? {
+        dateTime(string + "T00:00:00")
     }
 
-    /// `2026-09-29T08:04:00`(소수점 초가 붙어도 된다) → KST 시각. 형식이 다르면 nil.
+    /// `yyyy-MM-dd'T'HH:mm:ss`. 초 뒤 소수점(`.SSSSSS`)은 버린다.
     static func dateTime(_ string: String) -> Date? {
-        let parts = string.split(separator: "T", maxSplits: 1)
-        guard parts.count == 2, let day = day(String(parts[0])) else { return nil }
-        let time = parts[1].split(separator: ":")
-        guard time.count >= 2, let hour = Int(time[0]), let minute = Int(time[1]) else { return nil }
-        let second = time.count > 2 ? Double(time[2]) ?? 0 : 0
-        return day.addingTimeInterval(TimeInterval(hour * 3600 + minute * 60) + second)
+        let parts = string.split(separator: "T", omittingEmptySubsequences: false)
+        guard parts.count == 2 else { return nil }
+        let day = parts[0].split(separator: "-", omittingEmptySubsequences: false).map { Int($0) }
+        let wholeSeconds = parts[1].split(separator: ".", maxSplits: 1).first ?? ""
+        let time = wholeSeconds.split(separator: ":", omittingEmptySubsequences: false).map { Int($0) }
+        guard day.count == 3, (2...3).contains(time.count),
+              let year = day[0], let month = day[1], let dayOfMonth = day[2],
+              let hour = time[0], let minute = time[1]
+        else { return nil }
+        let second = time.count == 3 ? time[2] : 0
+        guard let second else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let components = DateComponents(year: year, month: month, day: dayOfMonth, hour: hour, minute: minute, second: second)
+        guard components.isValidDate(in: calendar) else { return nil }
+        return calendar.date(from: components)
     }
 }

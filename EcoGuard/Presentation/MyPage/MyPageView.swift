@@ -102,8 +102,8 @@ struct MyPageView: View {
         case .loaded(let summary):
             VStack(spacing: Spacing.xl) {
                 EcoProfileHeader(
-                    initials: MyPageFormatter.initials(of: summary.profile.name ?? ""),
-                    name: summary.profile.name ?? "",
+                    initials: MyPageFormatter.initials(of: summary.profile.name),
+                    name: summary.profile.name,
                     caption: MyPageFormatter.affiliation(of: summary.profile)
                 )
                 HStack(spacing: Spacing.sm) {

@@ -108,7 +108,8 @@ struct HomeRepositoryImplTests {
             id: "7",
             title: "10월 안내",
             body: "매일 **08:00**에 청소해요",
-            publishedAt: PathStub.date(2026, 9, 28, 17, 30).addingTimeInterval(0.123456),
+            // 소수점 초는 버린다.
+            publishedAt: PathStub.date(2026, 9, 28, 17, 30),
             isNew: true
         ))
     }
@@ -195,17 +196,46 @@ struct HomeRepositoryImplTests {
         #expect(try await repository.fetchHome().status == .awaitingAssignment)
     }
 
-    /// 모집이 없거나 선발되지 않은 학생은 홈 도메인에 맞는 상태가 없다(서버·기획 요청 목록).
-    @Test func unsupportedWhenNotSelectedAndNoOpenRecruitment() async throws {
+    /// 선발되지 않은 학생: 실패 화면 대신 가장 가까운 제외 안내.
+    @Test(arguments: [#"{"status":"REJECTED","order":9,"waitingForAssignment":false}"#])
+    func notSelectedShowsExcluded(applicationJSON: String) async throws {
         let repository = try makeRepository(responses: [
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
-            Path.application: (200, #"{"status":"REJECTED","order":9,"waitingForAssignment":false}"#),
+            Path.application: (200, applicationJSON),
             Path.recruitment: (404, PathStub.error("NO_ACTIVE_RECRUITMENT"))
         ])
 
-        await #expect(throws: HomeMapper.UnsupportedStatusError.self) {
-            try await repository.fetchHome()
+        #expect(try await repository.fetchHome().status == .excluded(reason: HomeMapper.notSelectedReason))
+    }
+
+    /// 다음 모집이 열리면 선발되지 않았던 학생도 다시 신청할 수 있다.
+    @Test func notSelectedStudentSeesNewOpenRecruitment() async throws {
+        let repository = try makeRepository(responses: [
+            Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
+            Path.application: (200, #"{"status":"REJECTED","order":9,"waitingForAssignment":false}"#),
+            Path.recruitment: (200, Self.recruitmentJSON(status: "OPEN", alreadyApplied: false))
+        ])
+
+        guard case .recruiting = try await repository.fetchHome().status else {
+            Issue.record("모집이어야 한다")
+            return
         }
+    }
+
+    /// 신청한 적도 없고 열린 모집도 없으면(예정·마감·없음) 실패 화면 대신 배정 대기 안내.
+    @Test(arguments: [
+        (404, PathStub.error("NO_ACTIVE_RECRUITMENT")),
+        (200, HomeRepositoryImplTests.recruitmentJSON(status: "UPCOMING", alreadyApplied: false)),
+        (200, HomeRepositoryImplTests.recruitmentJSON(status: "CLOSED", alreadyApplied: false))
+    ])
+    func noApplicationAndNoOpenRecruitmentShowsAwaiting(statusCode: Int, recruitmentJSON: String) async throws {
+        let repository = try makeRepository(responses: [
+            Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
+            Path.application: (404, PathStub.error("NO_APPLICATION")),
+            Path.recruitment: (statusCode, recruitmentJSON)
+        ])
+
+        #expect(try await repository.fetchHome().status == .awaitingAssignment)
     }
 
     /// 404라도 "아직 없음" 코드가 아니면 에러다.
@@ -260,7 +290,7 @@ struct HomeRepositoryImplTests {
         #expect(try await reopened.fetchHome().notice == nil)
     }
 
-    nonisolated private static func recruitmentJSON(status: String, alreadyApplied: Bool) -> String {
+    nonisolated static func recruitmentJSON(status: String, alreadyApplied: Bool) -> String {
         """
         {"recruitmentId":1,"semester":"2026-2","grade":2,"classNo":3,
          "period":{"start":"2026-09-01T00:00:00","end":"2026-09-10T23:59:59"},

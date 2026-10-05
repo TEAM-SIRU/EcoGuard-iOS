@@ -17,8 +17,8 @@ struct MyPageFormatterTests {
 
     /// 서버에 내 정보 API가 없어 학반을 모를 때.
     @Test func affiliationWithoutClass() {
-        #expect(MyPageFormatter.affiliation(of: UserProfile(name: nil, grade: nil, classNumber: nil, isGuardian: true)) == "환경지킴이")
-        #expect(MyPageFormatter.affiliation(of: UserProfile(name: nil, grade: nil, classNumber: nil, isGuardian: false)).isEmpty)
+        #expect(MyPageFormatter.affiliation(of: UserProfile(name: "최민준", grade: nil, classNumber: nil, isGuardian: true)) == "환경지킴이")
+        #expect(MyPageFormatter.affiliation(of: UserProfile(name: "최민준", grade: nil, classNumber: nil, isGuardian: false)).isEmpty)
     }
 
     @Test func statsKeepFigmaUnits() {
