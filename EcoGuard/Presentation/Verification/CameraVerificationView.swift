@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 /// Figma `06 청소 인증` 화면 9개. 촬영 안내 → 촬영 → 확인 → 제출과 인증 불가·권한·실패·시간 초과 상태.
-/// 진입점(탭 바 카메라 FAB, 홈 인증 버튼)은 앱 셸(#18)에서 연결한다.
+/// 진입점(탭 바 카메라 FAB, 홈 인증 버튼)은 앱 셸(`MainTabView`)이 연결한다.
 struct CameraVerificationView: View {
     struct Actions {
         /// 인증 흐름을 닫고 홈으로 돌아간다.

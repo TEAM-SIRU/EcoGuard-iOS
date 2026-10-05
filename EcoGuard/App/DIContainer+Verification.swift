@@ -6,18 +6,22 @@ extension DIContainer {
     func makeCameraVerificationViewModel(
         repository: VerificationRepository = MockVerificationRepository()
     ) -> CameraVerificationViewModel {
-        #if targetEnvironment(simulator)
-        let camera: CameraService = FakeCameraService()
-        let permission: CameraPermission = FakeCameraPermission()
-        #else
-        let camera: CameraService = AVCameraService()
-        let permission: CameraPermission = SystemCameraPermission()
-        #endif
+        let (camera, permission) = makeCamera()
         return CameraVerificationViewModel(
             fetchSessionUseCase: FetchVerificationSessionUseCase(verificationRepository: repository),
             submitPhotoUseCase: SubmitVerificationPhotoUseCase(verificationRepository: repository),
             camera: camera,
             permission: permission
         )
+    }
+
+    /// 카메라와 권한. 시뮬레이터에는 카메라가 없어 가짜 카메라(샘플 이미지)와 허용된 권한을 쓴다.
+    /// 청소 인증과 이의신청 사진 다시 찍기가 같이 쓴다.
+    func makeCamera() -> (CameraService, CameraPermission) {
+        #if targetEnvironment(simulator)
+        (FakeCameraService(), FakeCameraPermission())
+        #else
+        (AVCameraService(), SystemCameraPermission())
+        #endif
     }
 }

@@ -3,7 +3,7 @@ import SwiftUI
 /// Figma `02 홈` 상태별 화면 11개.
 /// 하단 탭 바·카메라 FAB는 앱 셸 이슈에서 붙인다. 탭 바는 `safeAreaInset(edge: .bottom)`으로 얹으면 스크롤 끝 여백이 맞춰진다.
 struct HomeView: View {
-    /// 아직 없는 화면으로 가는 동작. 연결 전까지 기본값은 아무것도 하지 않는다.
+    /// 다른 화면으로 가는 동작. 앱 셸(`MainTabView`)이 모두 연결하고, 기본값(아무것도 안 함)은 Preview용이다.
     struct Actions {
         var verify: () -> Void = {}
         var openNotices: () -> Void = {}
@@ -51,7 +51,7 @@ struct HomeView: View {
                     title: "환경지킴이 활동이 취소됐어요",
                     message: "담당 선생님이 활동에서 제외했어요.\n\n제외 사유\n\(reason)\n\n사유에 대해 궁금하면 담당 선생님께 문의해 주세요.",
                     primaryTitle: "홈으로",
-                    // TODO: 이동할 화면이 정해지면 연결. 그 전까지는 활동 상태를 다시 확인한다.
+                    // 이미 홈 탭 첫 화면이라 옮길 곳이 없다. 활동 상태를 다시 확인해 제외가 풀렸으면 홈을 보여 준다.
                     primaryAction: { await viewModel.load() },
                     secondaryAction: actions.openNotices
                 )

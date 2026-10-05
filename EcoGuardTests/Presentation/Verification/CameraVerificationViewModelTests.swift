@@ -48,9 +48,9 @@ struct CameraVerificationViewModelTests {
         FakeCameraService(sampleImage: FakeCameraService.makeSampleImage(size: CGSize(width: 30, height: 40)))
     }
 
-    /// 촬영 화면에서 카메라를 켜고 준비될 때까지 기다린다. 끝나면 `stopCamera()`로 멈춘다.
+    /// 촬영 화면에서 카메라를 켜고 준비될 때까지 기다린다. 끝나면 `capture.stop()`으로 멈춘다.
     private func startCamera(_ viewModel: CameraVerificationViewModel) async -> Task<Void, Never> {
-        let task = Task { await viewModel.runCamera() }
+        let task = Task { await viewModel.capture.run() }
         await waitUntil { viewModel.isCameraReady || viewModel.isCameraUnavailable }
         return task
     }
@@ -67,7 +67,7 @@ struct CameraVerificationViewModelTests {
         await viewModel.startCapture()
         let cameraTask = await startCamera(viewModel)
         await viewModel.takePhoto()
-        viewModel.stopCamera()
+        viewModel.capture.stop()
         await cameraTask.value
         guard case .confirming(let photo) = viewModel.state else { return nil }
         return photo
@@ -172,7 +172,7 @@ struct CameraVerificationViewModelTests {
         #expect(viewModel.canTakePhoto)
         #expect(viewModel.canSwitchCamera)
 
-        viewModel.stopCamera()
+        viewModel.capture.stop()
         await cameraTask.value
         #expect(viewModel.isCameraReady == false)
     }
@@ -188,7 +188,7 @@ struct CameraVerificationViewModelTests {
 
         #expect(viewModel.isCameraUnavailable)
         #expect(viewModel.canTakePhoto == false)
-        viewModel.stopCamera()
+        viewModel.capture.stop()
         await cameraTask.value
     }
 
@@ -209,7 +209,7 @@ struct CameraVerificationViewModelTests {
         #expect(viewModel.isCameraUnavailable == false)
         #expect(viewModel.canTakePhoto)
 
-        viewModel.stopCamera()
+        viewModel.capture.stop()
         await cameraTask.value
     }
 
@@ -227,7 +227,7 @@ struct CameraVerificationViewModelTests {
         #expect(camera.startCount == 2)
         #expect(viewModel.isCameraReady)
         #expect(viewModel.isCameraUnavailable == false)
-        viewModel.stopCamera()
+        viewModel.capture.stop()
         await cameraTask.value
     }
 
@@ -243,7 +243,7 @@ struct CameraVerificationViewModelTests {
 
         let cameraTask = await startCamera(viewModel)
         await viewModel.takePhoto()
-        viewModel.stopCamera()
+        viewModel.capture.stop()
         await cameraTask.value
         guard case .confirming(let second) = viewModel.state else {
             Issue.record("확인 화면이 아님: \(viewModel.state)")
@@ -285,6 +285,28 @@ struct CameraVerificationViewModelTests {
         #expect(viewModel.state == .capturing)
         #expect(viewModel.isTakingPhoto == false)
         #expect(viewModel.captureFailureCount == 1)
+    }
+
+    /// 실패 → 성공 → `다시 찍기`로 촬영 화면에 다시 들어오면 이전 실패를 안내하지 않는다.
+    @Test func reenteringCaptureAfterFailureStartsFailureCountOver() async {
+        let camera = Self.makeCamera()
+        camera.shouldFailCapture = true
+        let (viewModel, _) = makeViewModel(camera: camera)
+        #expect(await capturedPhoto(viewModel) == nil)
+        #expect(viewModel.captureFailureCount == 1)
+
+        camera.shouldFailCapture = false
+        var cameraTask = await startCamera(viewModel)
+        await viewModel.takePhoto()
+        viewModel.capture.stop()
+        await cameraTask.value
+        viewModel.retake()
+        cameraTask = await startCamera(viewModel)
+
+        #expect(viewModel.state == .capturing)
+        #expect(viewModel.captureFailureCount == 0)
+        viewModel.capture.stop()
+        await cameraTask.value
     }
 
     @Test func undecodablePhotoCountsFailure() async {
