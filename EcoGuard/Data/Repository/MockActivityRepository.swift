@@ -113,10 +113,30 @@ extension MockActivityRepository {
                     area: area,
                     result: result,
                     submittedAt: result == .notSubmitted ? nil : calendar.date(byAdding: .minute, value: 8 * 60 + day % 10, to: date),
+                    verificationID: result == .notSubmitted ? nil : verificationID(year: month.year, month: month.month, day: day),
                     earnedMinutes: result == .approved ? ActivityRecord.minutesPerApproval : 0,
                     isAppealApproved: day == 21
                 )
             }
+        }
+
+        /// 이 Mock이 내려 준 인증 ID의 결과 상태와 제출 시각. 인증 결과 Mock이 같은 상태의 결과를 돌려줄 때 쓴다.
+        /// 이 Mock이 만든 ID가 아니면 nil.
+        static func submittedRecord(verificationID: String, now: Date) -> (status: VerificationResult.Status, submittedAt: Date)? {
+            let candidates = records + recentMonths(now: now).flatMap { generatedRecords(in: $0, now: now) }
+            guard let record = candidates.first(where: { $0.verificationID == verificationID }), let submittedAt = record.submittedAt else { return nil }
+            let status: VerificationResult.Status? = switch record.result {
+            case .reviewing: .processing
+            case .approved: .approved
+            case .rejected: .rejected
+            case .notSubmitted: nil
+            }
+            return status.map { ($0, submittedAt) }
+        }
+
+        /// 홈·청소 인증과 같은 `verification-YYYYMMDD` 체계.
+        private static func verificationID(year: Int, month: Int, day: Int) -> String {
+            String(format: "verification-%04d%02d%02d", year, month, day)
         }
 
         private static func record(
@@ -131,6 +151,7 @@ extension MockActivityRepository {
                 area: area,
                 result: result,
                 submittedAt: time.map { date(day: day, hour: $0.hour, minute: $0.minute) },
+                verificationID: time.map { _ in verificationID(year: month.year, month: month.month, day: day) },
                 earnedMinutes: result == .approved ? ActivityRecord.minutesPerApproval : 0,
                 isAppealApproved: isAppealApproved
             )

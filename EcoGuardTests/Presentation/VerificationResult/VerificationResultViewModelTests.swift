@@ -151,4 +151,31 @@ struct VerificationResultViewModelTests {
 
         #expect(repository.fetchCallCount == 1)
     }
+
+    // MARK: - 앱 Mock 연결
+
+    @Test func homeAIReviewingSubmissionOpensProcessingResult() async {
+        let home = HomeViewModel(
+            fetchHomeUseCase: FetchHomeUseCase(homeRepository: MockHomeRepository(scenario: .aiReviewing, delay: .zero)),
+            dismissNoticeUseCase: DismissNoticeUseCase(homeRepository: MockHomeRepository(delay: .zero))
+        )
+        await home.load()
+        guard let submission = home.todaySubmission else {
+            Issue.record("AI 검수 중인 홈에 오늘 제출한 인증이 없다")
+            return
+        }
+        let viewModel = DIContainer.preview().makeVerificationResultViewModel(
+            resultID: submission.id,
+            repository: MockVerificationResultRepository.matchingOtherMocks(delay: .zero)
+        )
+
+        await viewModel.load()
+
+        guard case .loaded(let result) = viewModel.state else {
+            Issue.record("결과를 불러오지 못했다")
+            return
+        }
+        #expect(result.id == submission.id)
+        #expect(result.status == .processing)
+    }
 }

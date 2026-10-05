@@ -83,6 +83,21 @@ final class HomeViewModel {
         return true
     }
 
+    /// 오늘 제출한 인증. 홈 카드의 `제출한 사진 보기`, 인증 화면의 `제출한 인증 보기`에서 결과 화면을 열 때 쓴다.
+    var todaySubmission: TodaySubmission? {
+        guard case .loaded(let summary) = state, case .active(let cleaning) = summary.status else { return nil }
+        return cleaning.today.submission
+    }
+
+    /// 오늘 인증이 반려됐을 때 이의신청할 대상. 홈 카드의 `이의신청하기`에서 작성 화면을 열 때 쓴다.
+    var todayAppealTarget: AppealTarget? {
+        guard case .loaded(let summary) = state,
+              case .active(let cleaning) = summary.status,
+              case .rejected(let reason) = cleaning.today.verification,
+              let submission = cleaning.today.submission else { return nil }
+        return AppealTarget(verificationID: submission.id, verifiedAt: submission.submittedAt, rejectionReason: reason)
+    }
+
     /// 인증 버튼을 켤지. 마감이 지나면 다시 조회되기 전에도 끈다.
     func canVerify(at date: Date) -> Bool {
         guard case .loaded(let summary) = state, case .active(let cleaning) = summary.status else { return false }

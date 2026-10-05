@@ -7,7 +7,7 @@ struct CameraVerificationView: View {
     struct Actions {
         /// 인증 흐름을 닫고 홈으로 돌아간다.
         var close: () -> Void = {}
-        // TODO: 제출한 인증(기록 상세) 화면 이슈에서 연결
+        /// 이미 인증한 날 `제출한 인증 보기`. 오늘 제출한 인증 결과를 연다.
         var openSubmitted: () -> Void = {}
     }
 

@@ -122,11 +122,36 @@ extension MockHomeRepository {
                 .init(weekday: 6, isToday: false, isCompleted: false)
             ])
             let cleaning = ActiveCleaning(
-                today: TodayCleaning(area: area, window: window, verification: verification),
+                today: TodayCleaning(area: area, window: window, verification: verification, submission: submission(for: verification)),
                 week: week,
                 recentRecords: recentRecords
             )
             return HomeSummary(status: .active(cleaning), notice: notice)
+        }
+
+        /// 오늘 제출한 인증. 사진을 낸 상태에만 있고, 인증 결과 Mock이 ID로 같은 상태의 결과를 돌려주도록 상태마다 ID가 다르다.
+        static func submission(for verification: TodayVerification) -> TodaySubmission? {
+            resultStatus(for: verification).map { TodaySubmission(id: submissionID(for: $0), submittedAt: submittedAt) }
+        }
+
+        /// `submission(for:)`가 만든 ID의 인증 결과 상태. 이 Mock이 만든 ID가 아니면 nil.
+        static func resultStatus(forSubmissionID id: String) -> VerificationResult.Status? {
+            [VerificationResult.Status.processing, .approved, .rejected, .manualReview].first { submissionID(for: $0) == id }
+        }
+
+        /// 오늘 인증 상태에 맞는 인증 결과 상태. 제출 전이면 nil.
+        private static func resultStatus(for verification: TodayVerification) -> VerificationResult.Status? {
+            switch verification {
+            case .notOpenYet, .open: nil
+            case .aiReviewing: .processing
+            case .teacherReviewing: .manualReview
+            case .approved: .approved
+            case .rejected: .rejected
+            }
+        }
+
+        private static func submissionID(for status: VerificationResult.Status) -> String {
+            "verification-20260929-\(status.rawValue.lowercased())"
         }
 
         /// `now`가 속한 날(KST)의 인증 시작 시각.

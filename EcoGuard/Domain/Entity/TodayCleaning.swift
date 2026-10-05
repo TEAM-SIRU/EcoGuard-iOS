@@ -5,6 +5,14 @@ struct TodayCleaning: Equatable {
     let area: String
     let window: CleaningWindow
     let verification: TodayVerification
+    /// 오늘 제출한 인증. 인증 결과·이의신청 화면을 열 때 쓴다. 제출 전이면 nil.
+    let submission: TodaySubmission?
+}
+
+/// 오늘 제출한 인증 한 건.
+struct TodaySubmission: Equatable {
+    let id: String
+    let submittedAt: Date
 }
 
 /// 인증 가능 시간. 하루 기준 분(0시 = 0)으로 받는다. 예: 08:00 → 480.

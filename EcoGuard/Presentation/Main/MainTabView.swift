@@ -1,18 +1,29 @@
 import SwiftUI
 
 /// 학생 로그인 후 앱 셸. 하단 탭 바(Figma `Tab bar` 255:2)와 가운데 카메라 버튼.
+/// 화면 이동 상태(탭, 전체 탭 경로, 띄운 흐름)는 `MainTabViewModel`이 들고 있다.
 struct MainTabView: View {
     let container: DIContainer
     let homeViewModel: HomeViewModel
+    /// 마이페이지에서 로그아웃을 마쳤을 때. 앱 셸 밖(`RootView`)에서 로그인 화면으로 돌린다.
+    let onLoggedOut: () -> Void
     @State private var viewModel = MainTabViewModel()
-    /// 홈 위에 전체 화면으로 띄우는 흐름(청소 인증, 모집·신청).
-    @State private var presented: PresentedFlow?
     /// 탭을 오가도 도면을 다시 불러오지 않도록 셸이 들고 있는다.
     @State private var cleaningAreaViewModel: CleaningAreaViewModel?
     /// 탭을 오가도 고른 달과 기록을 유지하도록 셸이 들고 있는다.
     @State private var activityRecordsViewModel: ActivityRecordsViewModel?
+    /// 전체 탭을 처음 열 때 만든다. 로그인마다 셸이 새로 만들어져 이전 계정 정보가 남지 않는다.
+    @State private var myPageViewModel: MyPageViewModel?
+    /// 전체 탭에서 push한 화면의 ViewModel. 경로에서 빠지면 놓는다.
+    @State private var noticeViewModel: NoticeViewModel?
+    @State private var appealHistoryViewModel: AppealHistoryViewModel?
+
+    /// 오늘 제출한 인증을 찾지 못했다는 토스트.
+    @State private var isShowingSubmissionToast = false
 
     @Environment(\.scenePhase) private var scenePhase
+
+    private static let submissionUnavailableMessage: LocalizedStringResource = "제출한 인증을 불러오지 못했어요. 잠시 후 다시 확인해 주세요"
 
     var body: some View {
         content
@@ -44,6 +55,9 @@ struct MainTabView: View {
                 if let activityRecordsViewModel {
                     Task { await activityRecordsViewModel.refreshOnReturn() }
                 }
+                if let myPageViewModel {
+                    Task { await myPageViewModel.refresh() }
+                }
             }
             .onChange(of: viewModel.selectedTab) { _, tab in
                 // 구역 탭을 처음 열 때 한 번 만든다. 탭을 오가도 다시 불러오지 않는다.
@@ -58,30 +72,47 @@ struct MainTabView: View {
                         activityRecordsViewModel = container.makeActivityRecordsViewModel()
                     }
                 }
+                if tab == .myPage {
+                    // 처음 열 때 한 번 만들고, 이후 탭에 돌아올 때마다 이번 달 승인·신청 결과를 다시 조회한다.
+                    if let myPageViewModel {
+                        Task { await myPageViewModel.refresh() }
+                    } else {
+                        myPageViewModel = container.makeMyPageViewModel(onLoggedOut: onLoggedOut)
+                    }
+                }
                 guard tab == .home else { return }
                 Task { await homeViewModel.refreshIfNeeded(now: .now) }
             }
-            // 인증·신청 흐름을 닫으면 홈 상태(인증 결과, 가입 상태)와 활동 기록(오늘 제출분)이 바뀌었을 수 있어 다시 조회한다.
-            .fullScreenCover(item: $presented, onDismiss: refreshAfterFlow) { flow in
+            .onChange(of: viewModel.myPagePath) { _, path in
+                if !path.contains(.notices) {
+                    noticeViewModel = nil
+                }
+                if !path.contains(.appealHistory) {
+                    appealHistoryViewModel = nil
+                }
+            }
+            // Figma 정의가 없어 다른 실패 토스트와 같은 모양으로 위쪽에 띄운다.
+            .overlay(alignment: .top) {
+                if isShowingSubmissionToast {
+                    EcoToast(message: Self.submissionUnavailableMessage)
+                        .padding(.top, Spacing.sm)
+                        .padding(.horizontal, Spacing.screenHorizontal)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.default, value: isShowingSubmissionToast)
+            .task(id: viewModel.submissionUnavailableCount) {
+                guard viewModel.submissionUnavailableCount > 0 else { return }
+                AccessibilityNotification.Announcement(String(localized: Self.submissionUnavailableMessage)).post()
+                isShowingSubmissionToast = true
+                guard (try? await Task.sleep(for: EcoToast.displayDuration)) != nil else { return }
+                isShowingSubmissionToast = false
+            }
+            // 흐름을 닫으면 홈 상태(인증 결과, 가입 상태), 활동 기록(오늘 제출분), 마이페이지(이번 달 승인·신청 결과),
+            // 이의신청 내역(새로 보낸 이의신청)이 바뀌었을 수 있어 다시 조회한다.
+            .fullScreenCover(item: presentedFlowBinding, onDismiss: refreshAfterFlow) { flow in
                 flowView(flow)
             }
-    }
-
-    @ViewBuilder
-    private func flowView(_ flow: PresentedFlow) -> some View {
-        switch flow {
-        case .camera(let cameraViewModel):
-            CameraVerificationView(
-                viewModel: cameraViewModel,
-                actions: CameraVerificationView.Actions(close: dismissFlow)
-            )
-        case .recruitment:
-            RecruitmentFlowView(container: container, onExit: dismissFlow)
-        case .applicationResult(let resultViewModel):
-            NavigationStack {
-                ApplicationResultView(viewModel: resultViewModel, onExit: dismissFlow)
-            }
-        }
     }
 
     @ViewBuilder
@@ -93,8 +124,16 @@ struct MainTabView: View {
                 actions: HomeView.Actions(
                     verify: openCamera,
                     openRecords: { viewModel.select(.records) },
-                    openRecruitment: { presented = .recruitment },
-                    openApplicationResult: { presented = .applicationResult(container.makeApplicationResultViewModel()) }
+                    openSubmittedPhoto: {
+                        guard let submission = homeViewModel.todaySubmission else { return }
+                        viewModel.present(.verificationResult(id: submission.id, entry: .history))
+                    },
+                    appeal: {
+                        guard let target = homeViewModel.todayAppealTarget else { return }
+                        viewModel.present(.appealForm(target))
+                    },
+                    openRecruitment: { viewModel.present(.recruitment) },
+                    openApplicationResult: openApplicationResult
                 )
             )
         case .area:
@@ -105,13 +144,151 @@ struct MainTabView: View {
             if let activityRecordsViewModel {
                 ActivityRecordsView(
                     viewModel: activityRecordsViewModel,
-                    // 카메라 버튼과 같이 활동 중일 때만 빈 기록에서 인증으로 보낸다.
-                    actions: ActivityRecordsView.Actions(verify: homeViewModel.isCameraAvailable ? { openCamera() } : nil)
+                    actions: ActivityRecordsView.Actions(
+                        // 카메라 버튼과 같이 활동 중일 때만 빈 기록에서 인증으로 보낸다.
+                        verify: homeViewModel.isCameraAvailable ? { openCamera() } : nil,
+                        openRecord: { record in viewModel.openRecord(record) }
+                    )
                 )
             }
         case .myPage:
-            ComingSoonView(title: viewModel.selectedTab.title)
+            if let myPageViewModel {
+                myPageStack(myPageViewModel)
+            }
         }
+    }
+
+    /// 전체 탭. 공지·이의신청 내역은 탭 바를 둔 채 이 안에서 push한다.
+    private func myPageStack(_ myPageViewModel: MyPageViewModel) -> some View {
+        NavigationStack(path: $viewModel.myPagePath) {
+            MyPageView(
+                viewModel: myPageViewModel,
+                actions: MyPageView.Actions(
+                    openCleaningArea: { viewModel.select(.area) },
+                    openApplicationResult: openApplicationResult,
+                    openAppeals: {
+                        appealHistoryViewModel = container.makeAppealHistoryViewModel()
+                        viewModel.push(.appealHistory)
+                    },
+                    openNotices: {
+                        noticeViewModel = container.makeNoticeViewModel()
+                        viewModel.push(.notices)
+                    }
+                )
+            )
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(for: MainTabViewModel.MyPageRoute.self) { route in
+                myPageDestination(route)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func myPageDestination(_ route: MainTabViewModel.MyPageRoute) -> some View {
+        switch route {
+        case .notices:
+            if let noticeViewModel {
+                NoticeView(viewModel: noticeViewModel, onBack: { viewModel.popMyPage() })
+                    .toolbar(.hidden, for: .navigationBar)
+                    .navigationBarBackButtonHidden()
+            }
+        case .appealHistory:
+            if let appealHistoryViewModel {
+                AppealHistoryView(
+                    viewModel: appealHistoryViewModel,
+                    back: { viewModel.popMyPage() },
+                    openResult: { appeal in viewModel.present(.appealResult(appeal)) }
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func flowView(_ flow: MainTabViewModel.Flow) -> some View {
+        switch flow {
+        case .camera(let cameraViewModel):
+            CameraVerificationView(
+                viewModel: cameraViewModel,
+                actions: CameraVerificationView.Actions(
+                    close: { viewModel.dismissFlow() },
+                    openSubmitted: {
+                        // 홈이 오늘 제출분을 아직 받지 못했으면(다른 기기에서 제출 등) 다시 조회한 뒤 연다.
+                        Task {
+                            if homeViewModel.todaySubmission == nil {
+                                await homeViewModel.refresh()
+                            }
+                            viewModel.openTodaySubmission(homeViewModel.todaySubmission)
+                        }
+                    }
+                )
+            )
+        case .recruitment:
+            RecruitmentFlowView(container: container, onExit: { viewModel.dismissFlow() })
+        case .applicationResult(let resultViewModel):
+            NavigationStack {
+                ApplicationResultView(viewModel: resultViewModel, onExit: { viewModel.dismissFlow() })
+            }
+        case .verificationResult(let id, let entry):
+            flowStack {
+                VerificationResultView(
+                    viewModel: container.makeVerificationResultViewModel(resultID: id),
+                    entry: entry,
+                    close: { viewModel.dismissFlow() },
+                    goHome: { viewModel.dismissFlow(selecting: .home) },
+                    appeal: { result in viewModel.pushInFlow(.appealForm(AppealTarget(result: result))) }
+                )
+            }
+        case .appealForm(let target):
+            flowStack {
+                appealForm(target)
+            }
+        case .appealResult(let appeal):
+            flowStack {
+                AppealResultView(
+                    appeal: appeal,
+                    back: { viewModel.dismissFlow() },
+                    appealAgain: { target in viewModel.pushInFlow(.appealForm(target)) },
+                    showActivity: { viewModel.dismissFlow(selecting: .records) },
+                    goHome: { viewModel.dismissFlow(selecting: .home) }
+                )
+            }
+        }
+    }
+
+    /// 인증 결과·이의신청 흐름. 작성·완료 화면을 이 안에서 push한다.
+    private func flowStack(@ViewBuilder root: () -> some View) -> some View {
+        NavigationStack(path: $viewModel.flowPath) {
+            root()
+                .navigationDestination(for: MainTabViewModel.FlowRoute.self) { route in
+                    switch route {
+                    case .appealForm(let target):
+                        appealForm(target)
+                    case .appealSubmitted(let appeal):
+                        AppealSubmittedView(appeal: appeal, goHome: { viewModel.dismissFlow(selecting: .home) })
+                            .toolbar(.hidden, for: .navigationBar)
+                            .navigationBarBackButtonHidden()
+                    }
+                }
+        }
+    }
+
+    private func appealForm(_ target: AppealTarget) -> some View {
+        AppealFormView(
+            viewModel: container.makeAppealFormViewModel(target: target),
+            back: { viewModel.backInFlow() },
+            // TODO: 이의신청 `사진 다시 찍기` 카메라 연결(별도 이슈). 찍은 사진은 `AppealFormViewModel.addPhoto(_:)`로 넘긴다.
+            capturePhoto: {},
+            onSubmitted: { appeal in viewModel.appealSubmitted(appeal) }
+        )
+    }
+
+    private var presentedFlowBinding: Binding<MainTabViewModel.Flow?> {
+        Binding(
+            get: { viewModel.presentedFlow },
+            set: { flow in
+                if flow == nil { viewModel.dismissFlow() }
+            }
+        )
     }
 
     private func item(_ tab: MainTab) -> EcoTabItem {
@@ -121,58 +298,39 @@ struct MainTabView: View {
     }
 
     private func openCamera() {
-        presented = .camera(container.makeCameraVerificationViewModel())
+        viewModel.present(.camera(container.makeCameraVerificationViewModel()))
+    }
+
+    private func openApplicationResult() {
+        viewModel.present(.applicationResult(container.makeApplicationResultViewModel()))
     }
 
     private func refreshAfterFlow() {
         Task { await homeViewModel.refresh() }
-        guard let activityRecordsViewModel else { return }
-        Task { await activityRecordsViewModel.refresh() }
-    }
-
-    private func dismissFlow() {
-        presented = nil
-    }
-}
-
-/// 아직 만들지 않은 탭의 임시 화면.
-private struct ComingSoonView: View {
-    let title: LocalizedStringKey
-
-    var body: some View {
-        VStack(spacing: Spacing.sm) {
-            Text(title)
-                .ecoFont(.title2)
-                .foregroundStyle(Color.ecoTextPrimary)
-                .accessibilityAddTraits(.isHeader)
-            Text("준비 중이에요")
-                .ecoFont(.body2)
-                .foregroundStyle(Color.ecoTextSub)
+        if let activityRecordsViewModel {
+            Task { await activityRecordsViewModel.refresh() }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.ecoSurface)
+        if let myPageViewModel {
+            Task { await myPageViewModel.refresh() }
+        }
+        if let appealHistoryViewModel {
+            Task { await appealHistoryViewModel.refresh() }
+        }
     }
 }
 
 #Preview("활동 중") {
-    MainTabView(container: .preview(), homeViewModel: DIContainer.preview(homeScenario: .notSubmitted).makeHomeViewModel())
+    MainTabView(
+        container: .preview(),
+        homeViewModel: DIContainer.preview(homeScenario: .notSubmitted).makeHomeViewModel(),
+        onLoggedOut: {}
+    )
 }
 
 #Preview("모집 기간") {
-    MainTabView(container: .preview(), homeViewModel: DIContainer.preview(homeScenario: .recruiting).makeHomeViewModel())
-}
-
-/// 셸에서 전체 화면으로 띄우는 흐름. 띄울 때마다 새 ViewModel로 시작한다.
-private enum PresentedFlow: Identifiable {
-    case camera(CameraVerificationViewModel)
-    case recruitment
-    case applicationResult(ApplicationResultViewModel)
-
-    var id: String {
-        switch self {
-        case .camera: "camera"
-        case .recruitment: "recruitment"
-        case .applicationResult: "applicationResult"
-        }
-    }
+    MainTabView(
+        container: .preview(),
+        homeViewModel: DIContainer.preview(homeScenario: .recruiting).makeHomeViewModel(),
+        onLoggedOut: {}
+    )
 }

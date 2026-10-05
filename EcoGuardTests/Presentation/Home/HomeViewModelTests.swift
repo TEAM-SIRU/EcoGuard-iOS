@@ -334,4 +334,50 @@ struct HomeViewModelTests {
 
         #expect(repository.dismissedNoticeIDHistory.isEmpty)
     }
+
+    // MARK: - 인증 결과·이의신청 진입
+
+    @Test(arguments: [MockHomeRepository.Scenario.aiReviewing, .teacherReviewing, .approved, .rejected])
+    func submittedTodayExposesSubmission(scenario: MockHomeRepository.Scenario) async {
+        let (viewModel, _) = makeViewModel(scenarios: [scenario])
+
+        await viewModel.load()
+
+        let submission = viewModel.todaySubmission
+        #expect(submission?.submittedAt == MockHomeRepository.Fixture.submittedAt)
+        #expect(submission.map { MockHomeRepository.Fixture.resultStatus(forSubmissionID: $0.id) } != nil)
+    }
+
+    @Test(arguments: [MockHomeRepository.Scenario.notSubmitted, .notOpenYet, .recruiting, .failure])
+    func notSubmittedTodayHasNoSubmission(scenario: MockHomeRepository.Scenario) async {
+        let (viewModel, _) = makeViewModel(scenarios: [scenario])
+
+        await viewModel.load()
+
+        #expect(viewModel.todaySubmission == nil)
+        #expect(viewModel.todayAppealTarget == nil)
+    }
+
+    @Test func rejectedTodayBuildsAppealTargetFromSubmission() async {
+        let (viewModel, _) = makeViewModel(scenarios: [.rejected])
+
+        await viewModel.load()
+
+        let submission = viewModel.todaySubmission
+        #expect(submission != nil)
+        #expect(viewModel.todayAppealTarget == AppealTarget(
+            verificationID: submission?.id ?? "",
+            verifiedAt: MockHomeRepository.Fixture.submittedAt,
+            rejectionReason: "사진에 청소 구역이 잘 보이지 않아요"
+        ))
+    }
+
+    @Test(arguments: [MockHomeRepository.Scenario.aiReviewing, .teacherReviewing, .approved])
+    func notRejectedTodayHasNoAppealTarget(scenario: MockHomeRepository.Scenario) async {
+        let (viewModel, _) = makeViewModel(scenarios: [scenario])
+
+        await viewModel.load()
+
+        #expect(viewModel.todayAppealTarget == nil)
+    }
 }
