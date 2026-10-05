@@ -20,8 +20,7 @@ struct CleaningAreaRepositoryImplTests {
             httpClient: httpClient
         )
         return CleaningAreaRepositoryImpl(
-            apiClient: APIClient(httpClient: httpClient, authSession: authSession),
-            myName: "이도윤"
+            apiClient: APIClient(httpClient: httpClient, authSession: authSession)
         )
     }
 
@@ -53,7 +52,7 @@ struct CleaningAreaRepositoryImplTests {
             startMinute: 7 * 60 + 20,
             endMinute: 8 * 60 + 10,
             memberNames: ["김서연", "이도윤"],
-            myName: "이도윤"
+            myName: nil
         ))
         // 서버에 도면이 없어 앱 도면을 쓰고, 어느 칸이 내 구역인지 몰라 `.mine` 칸을 두지 않는다.
         #expect(floors.map(\.id) == MockCleaningAreaRepository.Fixture.floors.map(\.id))
@@ -67,11 +66,17 @@ struct CleaningAreaRepositoryImplTests {
         #expect(try await repository.fetchCleaningArea() == .unassigned)
     }
 
+    /// 청소 시간이 없거나 읽을 수 없으면 서버 시드 기본값(07:20~08:10)을 쓴다.
     @Test(arguments: ["null", #""아침""#])
-    func unreadableCleanTimeIsDecodingError(cleanTime: String) async throws {
+    func unreadableCleanTimeFallsBackToDefault(cleanTime: String) async throws {
         let repository = makeRepository(statusCode: 200, json: Self.assignmentJSON(cleanTime: cleanTime))
 
-        await #expect(throws: APIError.decoding) { try await repository.fetchCleaningArea() }
+        guard case .assigned(_, _, let area) = try await repository.fetchCleaningArea() else {
+            Issue.record("배정 상태여야 한다")
+            return
+        }
+        #expect(area.startMinute == CleaningWindow.serverDefault.startMinute)
+        #expect(area.endMinute == CleaningWindow.serverDefault.endMinute)
     }
 
     @Test func serverErrorIsThrown() async throws {

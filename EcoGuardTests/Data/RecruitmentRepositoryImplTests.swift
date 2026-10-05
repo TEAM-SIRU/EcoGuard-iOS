@@ -1,12 +1,13 @@
 import Foundation
+import os
 import Testing
 @testable import EcoGuard
 
 @MainActor
 struct RecruitmentRepositoryImplTests {
-    private static let currentPath = "/api/v1/recruitments/current"
-    private static let myApplicationPath = "/api/v1/applications/me"
-    private static let applyPath = "/api/v1/recruitments/7/applications"
+    private nonisolated static let currentPath = "/api/v1/recruitments/current"
+    private nonisolated static let myApplicationPath = "/api/v1/applications/me"
+    private nonisolated static let applyPath = "/api/v1/recruitments/7/applications"
     private static let now = Date(timeIntervalSince1970: 1_800_000_000)
 
     /// 경로별 고정 응답. 등록하지 않은 경로는 404.
@@ -28,9 +29,14 @@ struct RecruitmentRepositoryImplTests {
         )
     }
 
-    private nonisolated static func currentJSON(periodStatus: String = "OPEN", alreadyApplied: Bool = false) -> Data {
+    private nonisolated static func currentJSON(
+        id: Int = 7,
+        semester: String = "2026-2",
+        periodStatus: String = "OPEN",
+        alreadyApplied: Bool = false
+    ) -> Data {
         Data("""
-        {"recruitmentId":7,"semester":"2026-2","grade":2,"classNo":3,
+        {"recruitmentId":\(id),"semester":"\(semester)","grade":2,"classNo":3,
          "period":{"start":"2026-09-01T00:00:00","end":"2026-09-04T23:59:00"},
          "periodStatus":"\(periodStatus)","maxCount":6,"currentApplicants":4,"isFull":false,"alreadyApplied":\(alreadyApplied)}
         """.utf8)
@@ -64,7 +70,7 @@ struct RecruitmentRepositoryImplTests {
         #expect(detail.startDate == Self.kst(month: 9, day: 1))
         #expect(detail.endDate == Self.kst(month: 9, day: 4, hour: 23, minute: 59))
         #expect(detail.phase == .open)
-        #expect(detail.activityWindow == RecruitmentRepositoryImpl.defaultActivityWindow)
+        #expect(detail.activityWindow == CleaningWindow.serverDefault)
         #expect(detail.myApplication == nil)
         // 신청하지 않았으면 내 신청을 조회하지 않는다.
         #expect(log.requests(path: Self.myApplicationPath).isEmpty)
@@ -139,7 +145,8 @@ struct RecruitmentRepositoryImplTests {
         (409, "RECRUITMENT_FULL", RecruitmentError.full),
     ])
     func applyErrorMapsToRecruitmentError(statusCode: Int, code: String, expected: RecruitmentError) async throws {
-        let repository = makeRepository(responses: [
+        let log = RequestLog()
+        let repository = makeRepository(log: log, responses: [
             Self.currentPath: (200, Self.currentJSON()),
             Self.applyPath: (statusCode, Self.errorJSON(code)),
         ])
@@ -153,6 +160,23 @@ struct RecruitmentRepositoryImplTests {
             default: Issue.record("\(error) != \(expected)")
             }
         }
+        // 방금 조회한 공고면 다시 조회·재전송하지 않는다.
+        #expect(log.requests(path: Self.applyPath).count == 1)
+        #expect(log.requests(path: Self.currentPath).count == 1)
+    }
+
+    /// 들고 있던 공고를 다시 조회했는데 같은 공고면 다시 보내지 않고 에러를 알린다.
+    @Test func sameRecruitmentAfterRefetchIsNotResent() async throws {
+        let log = RequestLog()
+        let repository = makeRepository(log: log, responses: [
+            Self.currentPath: (200, Self.currentJSON()),
+            Self.applyPath: (409, Self.errorJSON("RECRUITMENT_FULL")),
+        ])
+        _ = try await repository.fetchRecruitment()
+
+        await #expect(throws: RecruitmentError.self) { try await repository.apply(motivation: "동기") }
+        #expect(log.requests(path: Self.currentPath).count == 2)
+        #expect(log.requests(path: Self.applyPath).count == 1)
     }
 
     @Test func alreadyAppliedErrorCarriesMyApplication() async throws {
@@ -183,7 +207,10 @@ struct RecruitmentRepositoryImplTests {
     }
 
     @Test func noApplicationIsNil() async throws {
-        let repository = makeRepository(responses: [Self.myApplicationPath: (404, Self.errorJSON("NO_APPLICATION"))])
+        let repository = makeRepository(responses: [
+            Self.currentPath: (200, Self.currentJSON(alreadyApplied: true)),
+            Self.myApplicationPath: (404, Self.errorJSON("NO_APPLICATION")),
+        ])
 
         #expect(try await repository.fetchMyApplication() == nil)
     }
@@ -196,6 +223,7 @@ struct RecruitmentRepositoryImplTests {
     ])
     func myApplicationAreaAssignment(status: String, waitingForAssignment: Bool, isAreaAssigned: Bool) async throws {
         let repository = makeRepository(responses: [
+            Self.currentPath: (200, Self.currentJSON(alreadyApplied: true)),
             Self.myApplicationPath: (200, Self.myApplicationJSON(status: status, waitingForAssignment: waitingForAssignment)),
         ])
 
@@ -203,7 +231,10 @@ struct RecruitmentRepositoryImplTests {
     }
 
     @Test func rejectedApplicationIsNil() async throws {
-        let repository = makeRepository(responses: [Self.myApplicationPath: (200, Self.myApplicationJSON(status: "REJECTED"))])
+        let repository = makeRepository(responses: [
+            Self.currentPath: (200, Self.currentJSON(alreadyApplied: true)),
+            Self.myApplicationPath: (200, Self.myApplicationJSON(status: "REJECTED")),
+        ])
 
         #expect(try await repository.fetchMyApplication() == nil)
     }
@@ -211,9 +242,124 @@ struct RecruitmentRepositoryImplTests {
     /// 서버가 신청 시각을 내려주면 대체값 대신 쓴다.
     @Test func myApplicationUsesServerAppliedAtWhenPresent() async throws {
         let json = Data(#"{"status":"APPROVED","order":4,"waitingForAssignment":true,"appliedAt":"2026-09-01T12:34:00"}"#.utf8)
-        let repository = makeRepository(responses: [Self.myApplicationPath: (200, json)])
+        let repository = makeRepository(responses: [
+            Self.currentPath: (200, Self.currentJSON(alreadyApplied: true)),
+            Self.myApplicationPath: (200, json),
+        ])
 
         #expect(try await repository.fetchMyApplication()?.appliedAt == Self.kst(month: 9, day: 1, hour: 12, minute: 34))
+    }
+}
+
+extension RecruitmentRepositoryImplTests {
+    /// 반려 등으로 보여 줄 신청이 없는데 이미 신청했으면 다시 신청할 수 없으니 마감으로 보여 준다.
+    @Test func appliedWithoutShowableApplicationIsEnded() async throws {
+        let repository = makeRepository(responses: [
+            Self.currentPath: (200, Self.currentJSON(alreadyApplied: true)),
+            Self.myApplicationPath: (200, Self.myApplicationJSON(status: "REJECTED")),
+        ])
+
+        let detail = try #require(try await repository.fetchRecruitment())
+
+        #expect(detail.myApplication == nil)
+        #expect(detail.status == .ended)
+    }
+
+    /// 409 이미 신청인데 보여 줄 신청이 없으면 마감으로 알려 같은 실패를 되풀이하지 않는다.
+    @Test(arguments: [
+        (200, Data(#"{"status":"REJECTED","order":7,"waitingForAssignment":false}"#.utf8)),
+        (404, Data(#"{"code":"NO_APPLICATION","message":"메시지"}"#.utf8)),
+    ])
+    func alreadyAppliedWithoutApplicationIsFull(statusCode: Int, json: Data) async throws {
+        let log = RequestLog()
+        let repository = makeRepository(log: log, responses: [
+            Self.currentPath: (200, Self.currentJSON()),
+            Self.applyPath: (409, Self.errorJSON("ALREADY_APPLIED")),
+            Self.myApplicationPath: (statusCode, json),
+        ])
+
+        do {
+            _ = try await repository.apply(motivation: "동기")
+            Issue.record("에러가 나야 한다")
+        } catch RecruitmentError.full {
+        }
+        #expect(log.requests(path: Self.applyPath).count == 1)
+    }
+
+    /// `applications/me`는 지난 모집의 신청일 수 있어 현재 공고에 신청하지 않았으면 쓰지 않는다.
+    @Test func pastApplicationIsNotMyApplication() async throws {
+        let log = RequestLog()
+        let repository = makeRepository(log: log, responses: [
+            Self.currentPath: (200, Self.currentJSON(alreadyApplied: false)),
+            Self.myApplicationPath: (200, Self.myApplicationJSON()),
+        ])
+
+        #expect(try await repository.fetchMyApplication() == nil)
+        #expect(try await repository.fetchRecruitment()?.myApplication == nil)
+        #expect(log.requests(path: Self.myApplicationPath).isEmpty)
+    }
+
+    @Test func noCurrentRecruitmentHasNoMyApplication() async throws {
+        let repository = makeRepository(responses: [
+            Self.currentPath: (404, Self.errorJSON("NO_ACTIVE_RECRUITMENT")),
+            Self.myApplicationPath: (200, Self.myApplicationJSON()),
+        ])
+
+        #expect(try await repository.fetchMyApplication() == nil)
+    }
+
+    @Test(arguments: [("1", 1), ("2학기", 2), ("2026-1", 1)])
+    func semesterAcceptsFirstAndSecond(semester: String, expected: Int) async throws {
+        let repository = makeRepository(responses: [Self.currentPath: (200, Self.currentJSON(semester: semester))])
+
+        #expect(try await repository.fetchRecruitment()?.recruitment.semester == expected)
+    }
+
+    @Test(arguments: ["3", "2026", "0", "여름"])
+    func otherSemesterIsDecodingError(semester: String) async throws {
+        let repository = makeRepository(responses: [Self.currentPath: (200, Self.currentJSON(semester: semester))])
+
+        await #expect(throws: APIError.decoding) { try await repository.fetchRecruitment() }
+    }
+
+    /// 들고 있던 공고가 그새 바뀌었으면(새 모집) 다시 조회한 공고로 한 번만 다시 보낸다.
+    @Test(arguments: [(400, "OUT_OF_PERIOD"), (409, "RECRUITMENT_FULL"), (409, "ALREADY_APPLIED"), (404, "RECRUITMENT_NOT_FOUND")])
+    func staleRecruitmentIsRefetchedAndRetriedOnce(statusCode: Int, code: String) async throws {
+        let log = RequestLog()
+        let currentCalls = OSAllocatedUnfairLock(initialState: 0)
+        let first = Self.currentJSON(id: 7)
+        let second = Self.currentJSON(id: 8)
+        let error = Self.errorJSON(code)
+        let applied = Data(#"{"applicationId":12,"status":"PENDING","order":2,"studentNumber":"2310","name":"최민준"}"#.utf8)
+        let httpClient = HTTPClient(
+            baseURL: URL(string: "https://api.example.com")!,
+            session: StubURLProtocol.makeSession { request in
+                log.append(request)
+                switch request.url?.path() {
+                case Self.currentPath:
+                    let call = currentCalls.withLock { $0 += 1; return $0 }
+                    return (200, call == 1 ? first : second)
+                case Self.applyPath: return (statusCode, error)
+                case "/api/v1/recruitments/8/applications": return (201, applied)
+                default: return (404, Data())
+                }
+            }
+        )
+        let repository = RecruitmentRepositoryImpl(
+            apiClient: APIClient(
+                httpClient: httpClient,
+                authSession: AuthSession(tokenStore: InMemoryTokenStore(AuthTokens(accessToken: "a", refreshToken: "r")), httpClient: httpClient)
+            ),
+            now: { Self.now }
+        )
+        _ = try await repository.fetchRecruitment()
+
+        let application = try await repository.apply(motivation: "동기")
+
+        #expect(application.order == 2)
+        #expect(log.requests.compactMap { $0.url?.path() } == [
+            Self.currentPath, Self.applyPath, Self.currentPath, "/api/v1/recruitments/8/applications",
+        ])
     }
 }
 

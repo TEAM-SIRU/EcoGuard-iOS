@@ -37,7 +37,8 @@ struct MyCleaningArea: Hashable {
     let endMinute: Int
     /// 함께 배정된 학생 이름(나 포함).
     let memberNames: [String]
-    let myName: String
+    /// 내 이름. 모르면 nil이고 멤버 목록에서 나를 따로 표시하지 않는다.
+    let myName: String?
 }
 
 /// 청소 구역 화면 데이터.
