@@ -62,6 +62,14 @@ struct GsmOAuthTests {
         #expect(Self.makeConfiguration(redirectURI: "ecoguard:callback") == nil)
     }
 
+    /// 경로 없는 https 리다이렉트(`https://host`)는 `/` 경로로 맞춘다.
+    @Test func emptyHttpsPathIsNormalizedToSlash() throws {
+        let bare = try #require(Self.makeConfiguration(redirectURI: "https://eco.example.com"))
+        let slash = try #require(Self.makeConfiguration(redirectURI: "https://eco.example.com/"))
+        #expect(bare.callback == .https(host: "eco.example.com", path: "/"))
+        #expect(bare.callback == slash.callback)
+    }
+
     // MARK: - 콜백 파싱
 
     @Test func callbackWithMatchingStateReturnsCode() throws {

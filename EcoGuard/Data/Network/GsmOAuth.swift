@@ -11,11 +11,13 @@ struct GsmOAuthConfiguration: Equatable {
     let callback: WebAuthenticationCallback
 
     /// `redirectURI`의 스킴이 https면 https 콜백, 그 밖이면 커스텀 스킴 콜백으로 받는다.
+    /// https 콜백은 Associated Domains(`webcredentials:`) 엔타이틀먼트와 서버의 apple-app-site-association이 있어야 한다.
+    /// 둘 중 하나라도 없으면 인가 후 콜백이 앱으로 오지 않는다(도메인이 정해진 뒤 추가).
     init?(authorizeURL: URL, clientID: String, redirectURI: URL) {
         guard let scheme = redirectURI.scheme?.lowercased(), let host = redirectURI.host(), !host.isEmpty else { return nil }
         switch scheme {
         case "https":
-            callback = .https(host: host, path: redirectURI.path())
+            callback = .https(host: host, path: WebAuthenticationCallback.normalizedPath(redirectURI.path()))
         case "http":
             return nil
         default:
