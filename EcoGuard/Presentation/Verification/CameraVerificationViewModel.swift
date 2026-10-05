@@ -48,16 +48,9 @@ final class CameraVerificationViewModel {
     private(set) var state: State
     private(set) var sheet: Sheet?
     private(set) var session: VerificationSession?
-    private(set) var isTakingPhoto = false
-    private(set) var isSwitchingCamera = false
-    /// 카메라 세션이 돌고 있어 찍을 수 있는지. 시작 성공 후 true, 중단·오류 시 false.
-    private(set) var isCameraReady = false
-    /// 세션 중단·시작 실패로 카메라를 쓸 수 없다. 화면에 안내를 겹친다.
-    private(set) var isCameraUnavailable = false
-    /// 촬영·변환에 실패한 횟수. 바뀔 때마다 화면이 토스트와 VoiceOver 안내를 띄운다.
-    private(set) var captureFailureCount = 0
 
-    let camera: CameraService
+    /// 카메라 세션·셔터. 촬영 화면이 그대로 쓴다.
+    let capture: CameraCapture
 
     private let fetchSessionUseCase: FetchVerificationSessionUseCase
     private let submitPhotoUseCase: SubmitVerificationPhotoUseCase
@@ -79,7 +72,7 @@ final class CameraVerificationViewModel {
     ) {
         self.fetchSessionUseCase = fetchSessionUseCase
         self.submitPhotoUseCase = submitPhotoUseCase
-        self.camera = camera
+        capture = CameraCapture(camera: camera)
         self.permission = permission
         self.now = now
         self.state = state
@@ -105,13 +98,18 @@ final class CameraVerificationViewModel {
         date.addingTimeInterval(clockOffset)
     }
 
+    var isTakingPhoto: Bool { capture.isTakingPhoto }
+    var isCameraReady: Bool { capture.isCameraReady }
+    var isCameraUnavailable: Bool { capture.isCameraUnavailable }
+    var captureFailureCount: Int { capture.captureFailureCount }
+
     /// 셔터를 누를 수 있는지.
     var canTakePhoto: Bool {
-        state == .capturing && isCameraReady && !isTakingPhoto && !isSwitchingCamera
+        state == .capturing && capture.canTakePhoto
     }
 
     var canSwitchCamera: Bool {
-        state == .capturing && isCameraReady && !isTakingPhoto && !isSwitchingCamera
+        state == .capturing && capture.canSwitchCamera
     }
 
     func load() async {
@@ -162,64 +160,25 @@ final class CameraVerificationViewModel {
         state = .guide
     }
 
-    /// 촬영 화면이 보이는 동안 카메라를 켜 두고 세션 중단·오류에 맞춰 셔터를 막거나 다시 연다.
-    /// 화면이 사라져 작업이 취소되면 끝난다.
+    /// 촬영 화면이 보이는 동안 카메라를 켜 둔다. 화면이 사라져 작업이 취소되면 끝난다.
     func runCamera() async {
-        let events = camera.events()
-        await startCameraSession()
-        for await event in events {
-            switch event {
-            case .interrupted:
-                isCameraReady = false
-                isCameraUnavailable = true
-            case .interruptionEnded:
-                isCameraReady = true
-                isCameraUnavailable = false
-            case .runtimeError:
-                // 미디어 서비스 재설정 등으로 세션이 멈췄다. 다시 시작해 본다.
-                isCameraReady = false
-                isCameraUnavailable = true
-                await startCameraSession()
-            }
-        }
+        await capture.run()
     }
 
     func stopCamera() {
-        camera.stop()
-        isCameraReady = false
+        capture.stop()
     }
 
     func takePhoto() async {
-        guard canTakePhoto else { return }
-        isTakingPhoto = true
-        defer { isTakingPhoto = false }
-        do {
-            let data = try await camera.capturePhoto()
-            guard let output = await VerificationPhotoEncoder.encodeInBackground(data) else {
-                logger.error("인증 사진 변환 실패")
-                captureFailureCount += 1
-                return
-            }
-            guard state == .capturing else { return }
-            let photo = VerificationPhoto(id: UUID(), jpegData: output.jpegData, capturedAt: serverNow)
-            state = .confirming(CapturedPhoto(photo: photo, image: output.image))
-        } catch is CancellationError {
-            return
-        } catch {
-            logError("촬영 실패", error)
-            captureFailureCount += 1
-        }
+        guard canTakePhoto, let output = await capture.takePhoto() else { return }
+        guard state == .capturing else { return }
+        let photo = VerificationPhoto(id: UUID(), jpegData: output.jpegData, capturedAt: serverNow)
+        state = .confirming(CapturedPhoto(photo: photo, image: output.image))
     }
 
     func switchCamera() async {
         guard canSwitchCamera else { return }
-        isSwitchingCamera = true
-        defer { isSwitchingCamera = false }
-        do {
-            try await camera.switchPosition()
-        } catch {
-            logError("카메라 전환 실패", error)
-        }
+        await capture.switchCamera()
     }
 
     /// 확인 화면의 `다시 찍기`·뒤로가기. 새 사진이므로 마감이 지났으면 시간 초과로 보낸다.
@@ -315,18 +274,6 @@ final class CameraVerificationViewModel {
     private func apply(_ session: VerificationSession) {
         self.session = session
         clockOffset = session.serverNow.timeIntervalSince(now())
-    }
-
-    private func startCameraSession() async {
-        do {
-            try await camera.start()
-            isCameraReady = true
-            isCameraUnavailable = false
-        } catch {
-            logError("카메라 시작 실패", error)
-            isCameraReady = false
-            isCameraUnavailable = true
-        }
     }
 
     private func logError(_ message: String, _ error: Error) {
