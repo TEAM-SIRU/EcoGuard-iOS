@@ -23,7 +23,11 @@ nonisolated struct HTTPClient: Sendable {
     }
 
     func data(for endpoint: Endpoint, accessToken: String?) async throws -> (Data, HTTPURLResponse) {
-        var request = URLRequest(url: baseURL.appending(path: endpoint.path))
+        var url = baseURL.appending(path: endpoint.path)
+        if !endpoint.queryItems.isEmpty {
+            url.append(queryItems: endpoint.queryItems)
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let body = endpoint.body {

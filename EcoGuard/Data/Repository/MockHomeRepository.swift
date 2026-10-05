@@ -78,9 +78,9 @@ extension MockHomeRepository {
         )
 
         static let recentRecords = [
-            CleaningRecord(id: "record-0928", cleanedAt: date(month: 9, day: 28, hour: 8, minute: 5), area: area, result: .approved(earnedMinutes: 10)),
-            CleaningRecord(id: "record-0923", cleanedAt: date(month: 9, day: 23, hour: 8, minute: 9), area: area, result: .approved(earnedMinutes: 10)),
-            CleaningRecord(id: "record-0922", cleanedAt: date(month: 9, day: 22, hour: 8, minute: 4), area: area, result: .rejected)
+            CleaningRecord(id: "record-0928", date: date(month: 9, day: 28), cleanedAt: date(month: 9, day: 28, hour: 8, minute: 5), area: area, result: .approved(earnedMinutes: 10)),
+            CleaningRecord(id: "record-0923", date: date(month: 9, day: 23), cleanedAt: date(month: 9, day: 23, hour: 8, minute: 9), area: area, result: .approved(earnedMinutes: 10)),
+            CleaningRecord(id: "record-0922", date: date(month: 9, day: 22), cleanedAt: date(month: 9, day: 22, hour: 8, minute: 4), area: area, result: .rejected)
         ]
 
         static let submittedAt = date(month: 9, day: 29, hour: 8, minute: 4)

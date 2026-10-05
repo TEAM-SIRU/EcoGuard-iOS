@@ -37,7 +37,7 @@ private struct HomeRecordRow: View {
         EcoCard(.row) {
             HStack(spacing: Spacing.md) {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text(HomeFormatter.recordDate(record.cleanedAt))
+                    Text(record.cleanedAt.map { HomeFormatter.recordDate($0) } ?? ActivityRecordsFormatter.recordDate(record.date))
                         .ecoFont(.title5)
                         .foregroundStyle(Color.ecoTextPrimary)
                     Text(record.area)

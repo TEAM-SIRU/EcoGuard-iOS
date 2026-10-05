@@ -11,6 +11,9 @@ final class DIContainer {
     private let hadStoredSessionAtLaunch: Bool
     private let homeRepository: HomeRepository
     private let recruitmentRepository: RecruitmentRepository
+    /// 실제 저장소가 함께 쓰는 클라이언트. 로그인 저장소의 것을 써서 `AuthSession`(토큰 재발급)이 하나뿐이다.
+    /// 서버 주소가 없으면(Mock 로그인) nil이고 각 저장소는 Mock을 쓴다. 화면별 확장에서도 써서 private이 아니다.
+    private(set) lazy var apiClient: APIClient? = (authRepository as? AuthRepositoryImpl)?.apiClient
 
     init(
         authRepository: AuthRepository,
@@ -25,7 +28,7 @@ final class DIContainer {
         self.webAdminURL = webAdminURL
     }
 
-    /// 서버 주소(`ECO_API_HOST`)가 정해지기 전까지 Mock을 쓴다. 다른 저장소는 아직 모두 Mock이다.
+    /// 서버 주소(`ECO_API_HOST`)가 정해지기 전까지 Mock을 쓴다. 서버 주소가 있으면 `apiClient`가 있는 화면은 실제 저장소를 쓴다.
     static func live() -> DIContainer {
         DIContainer(
             authRepository: makeAuthRepository(apiBaseURL: AppConfig.apiBaseURL),
@@ -70,7 +73,8 @@ final class DIContainer {
     }
 
     func makeHomeViewModel(state: HomeViewModel.State = .loading) -> HomeViewModel {
-        HomeViewModel(
+        let homeRepository: HomeRepository = apiClient.map { HomeRepositoryImpl(apiClient: $0) } ?? self.homeRepository
+        return HomeViewModel(
             fetchHomeUseCase: FetchHomeUseCase(homeRepository: homeRepository),
             dismissNoticeUseCase: DismissNoticeUseCase(homeRepository: homeRepository),
             state: state

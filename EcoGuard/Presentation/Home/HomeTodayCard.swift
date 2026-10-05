@@ -53,8 +53,10 @@ struct HomeTodayCard: View {
             HomeInfoRow(label: "청소 시간", value: HomeFormatter.window(today.window))
             HomeInfoRow(label: "담당 구역", value: today.area)
             switch today.verification {
-            case .aiReviewing(let submittedAt), .teacherReviewing(let submittedAt):
+            case .aiReviewing(.some(let submittedAt)), .teacherReviewing(.some(let submittedAt)):
                 HomeInfoRow(label: "제출", value: String(localized: "오늘 \(HomeFormatter.clockTime(submittedAt))"))
+            case .aiReviewing(nil), .teacherReviewing(nil):
+                EmptyView()
             case .approved(let earnedMinutes):
                 HomeInfoRow(label: "적립", value: String(localized: "+\(earnedMinutes)분"), isHighlighted: true)
             case .notOpenYet, .open, .rejected:

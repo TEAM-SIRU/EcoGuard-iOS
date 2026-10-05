@@ -10,14 +10,15 @@ struct ActivityRecord: Equatable, Identifiable {
     }
 
     /// 승인 1회에 적립되는 활동 시간.
-    static let minutesPerApproval = 10
+    nonisolated static let minutesPerApproval = 10
 
     let id: String
     /// 청소한 날. 학교 시간대(KST) 기준 그날 0시.
     let date: Date
-    let area: String
+    /// 서버가 구역을 모르면(배정 기록이 없어진 경우) nil.
+    let area: String?
     let result: Result
-    /// 사진을 낸 시각. 미제출이면 nil.
+    /// 사진을 낸 시각. 미제출이거나 서버가 시각을 주지 않으면(현재 서버) nil.
     let submittedAt: Date?
     /// 그날 제출한 인증. 인증 상세(결과) 화면을 열 때 쓴다. 미제출이면 nil.
     let verificationID: String?
