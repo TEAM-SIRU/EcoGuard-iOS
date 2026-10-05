@@ -217,28 +217,15 @@ struct RecruitmentRepositoryImplTests {
     }
 }
 
-struct ServerDateTimeTests {
-    @Test(arguments: [
-        ("2026-09-01T12:34", 0.0),
-        ("2026-09-01T12:34:00", 0.0),
-        ("2026-09-01T12:34:56", 56.0),
-        ("2026-09-01T12:34:56.5", 56.5),
-        ("2026-09-01T12:34:56.250000", 56.25),
-    ])
-    func parsesLocalDateTimeAsKST(string: String, seconds: Double) throws {
-        // 2026-09-01 12:34 KST = 03:34 UTC
-        let expected = try #require(ISO8601DateFormatter().date(from: "2026-09-01T03:34:00Z")).addingTimeInterval(seconds)
-        #expect(try ServerDateTime.date(from: string) == expected)
-    }
-
-    @Test(arguments: ["2026-09-01", "2026-09-01T12:34:00Z", ""])
-    func rejectsOtherFormats(string: String) {
-        #expect(throws: APIError.decoding) { try ServerDateTime.date(from: string) }
+/// 서버 날짜 파싱 자체는 `ServerDateTests`(#57)가 본다. 여기서는 이 저장소들이 더한 것만 본다.
+struct ServerDateDecodingTests {
+    @Test func unreadableDateTimeIsDecodingError() {
+        #expect(throws: APIError.decoding) { try ServerDate.requiredDateTime("어제") }
     }
 
     @Test func parsesCleanTime() {
-        #expect(ServerDateTime.minuteRange(from: "07:20~08:10")! == (440, 490))
-        #expect(ServerDateTime.minuteRange(from: "8:00 - 8:10")! == (480, 490))
-        #expect(ServerDateTime.minuteRange(from: "아침") == nil)
+        #expect(ServerDate.minuteRange("07:20~08:10")! == (440, 490))
+        #expect(ServerDate.minuteRange("8:00 - 8:10")! == (480, 490))
+        #expect(ServerDate.minuteRange("아침") == nil)
     }
 }

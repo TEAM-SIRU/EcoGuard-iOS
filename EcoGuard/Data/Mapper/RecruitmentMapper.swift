@@ -17,8 +17,8 @@ extension CurrentRecruitmentResponseDTO {
                 className: "\(grade)학년 \(classNo)반",
                 appliedCount: currentApplicants
             ),
-            startDate: try ServerDateTime.date(from: period.start),
-            endDate: try ServerDateTime.date(from: period.end),
+            startDate: try ServerDate.requiredDateTime(period.start),
+            endDate: try ServerDate.requiredDateTime(period.end),
             activityWindow: activityWindow,
             phase: periodStatus.phase,
             myApplication: myApplication
@@ -50,7 +50,7 @@ extension ApplicationStatusResponseDTO {
         guard status != .rejected else { return nil }
         return RecruitmentApplication(
             order: order,
-            appliedAt: try appliedAt.map(ServerDateTime.date(from:)) ?? fallbackAppliedAt,
+            appliedAt: try appliedAt.map { try ServerDate.requiredDateTime($0) } ?? fallbackAppliedAt,
             // 승인 전(PENDING)에는 서버가 waitingForAssignment를 false로 주므로 승인됐을 때만 배정 여부로 본다.
             isAreaAssigned: status == .approved && !waitingForAssignment
         )

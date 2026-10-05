@@ -10,34 +10,33 @@ final class DIContainer {
     /// 컨테이너를 만들 때(앱 시작) 키체인을 한 번만 읽어 둔다. `RootView`가 다시 만들어져도 다시 읽지 않는다.
     private let hadStoredSessionAtLaunch: Bool
     private let homeRepository: HomeRepository
-    /// 실제 저장소들이 같이 쓰는 클라이언트. 토큰(`AuthSession`)은 로그인 저장소와 하나를 쓴다. 서버 주소가 없으면(Mock) nil.
-    /// 화면별 확장(`DIContainer+Notice` 등)에서 써서 읽기는 열어 둔다.
-    private(set) lazy var apiClient: APIClient? = (authRepository as? AuthRepositoryImpl)?.apiClient
-    /// 모집 공고·신청·결과 화면이 같은 저장소를 쓴다(신청할 공고 ID를 들고 있다).
-    private lazy var recruitmentRepository: RecruitmentRepository =
-        apiClient.map { RecruitmentRepositoryImpl(apiClient: $0) } ?? MockRecruitmentRepository()
+    private let recruitmentRepository: RecruitmentRepository
+    /// 실제 서버 저장소가 같이 쓴다. 로그인 저장소와 같은 `AuthSession`이라 토큰 재발급이 한 번만 일어난다.
+    /// 서버 주소가 없으면(로그인이 Mock) nil이고 저장소는 Mock을 쓴다. 화면별 확장에서도 써서 `private`이 아니다.
+    lazy var apiClient: APIClient? = (authRepository as? AuthRepositoryImpl)?.apiClient
 
-    /// `recruitmentRepository`를 주지 않으면 서버 주소에 따라 실제 구현이나 Mock을 쓴다.
     init(
         authRepository: AuthRepository,
         homeRepository: HomeRepository,
-        recruitmentRepository: RecruitmentRepository? = nil,
+        recruitmentRepository: RecruitmentRepository,
         webAdminURL: URL?
     ) {
         self.authRepository = authRepository
         self.hadStoredSessionAtLaunch = authRepository.hasStoredSession()
         self.homeRepository = homeRepository
+        self.recruitmentRepository = recruitmentRepository
         self.webAdminURL = webAdminURL
-        if let recruitmentRepository {
-            self.recruitmentRepository = recruitmentRepository
-        }
     }
 
     /// 서버 주소(`ECO_API_HOST`)가 정해지기 전까지 Mock을 쓴다. 저장소마다 실제 구현이 생기는 대로 바꾼다.
     static func live() -> DIContainer {
-        DIContainer(
-            authRepository: makeAuthRepository(apiBaseURL: AppConfig.apiBaseURL),
+        let authRepository = makeAuthRepository(apiBaseURL: AppConfig.apiBaseURL)
+        // 모집 공고·신청·결과 화면이 같은 저장소를 쓴다(신청할 공고 ID를 들고 있다). `AuthSession`은 로그인 저장소와 같다.
+        let apiClient = (authRepository as? AuthRepositoryImpl)?.apiClient
+        return DIContainer(
+            authRepository: authRepository,
             homeRepository: MockHomeRepository(),
+            recruitmentRepository: apiClient.map { RecruitmentRepositoryImpl(apiClient: $0) } ?? MockRecruitmentRepository(),
             webAdminURL: AppConfig.webAdminURL
         )
     }

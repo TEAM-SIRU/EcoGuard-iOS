@@ -2,7 +2,7 @@ import Foundation
 
 /// 서버 인증. 토큰은 `AuthSession`(키체인)에 둔다.
 final class AuthRepositoryImpl: AuthRepository {
-    /// 다른 실제 저장소도 같은 토큰(`AuthSession`)을 쓰도록 `DIContainer`가 꺼내 쓴다.
+    /// 다른 실제 저장소도 같은 `AuthSession`을 쓰도록 `DIContainer`가 꺼내 쓴다.
     let apiClient: APIClient
     private let authSession: AuthSession
     private let authorizationCode: () async throws -> String

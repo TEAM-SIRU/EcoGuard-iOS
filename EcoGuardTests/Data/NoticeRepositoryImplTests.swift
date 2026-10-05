@@ -37,7 +37,7 @@ struct NoticeRepositoryImplTests {
         #expect(request.httpMethod == "GET")
         #expect(request.bearerToken == "access")
         #expect(notices == [
-            Notice(id: "2", title: "9월 활동 안내", body: "", publishedAt: Self.kst(day: 2, hour: 9).addingTimeInterval(0.123), isNew: false),
+            Notice(id: "2", title: "9월 활동 안내", body: "", publishedAt: Self.kst(day: 2, hour: 9), isNew: false),
             Notice(id: "1", title: "모집 안내", body: "", publishedAt: Self.kst(day: 1, hour: 8), isNew: false),
         ])
     }
