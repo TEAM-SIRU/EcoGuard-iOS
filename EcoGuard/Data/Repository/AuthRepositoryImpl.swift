@@ -17,9 +17,12 @@ final class AuthRepositoryImpl: AuthRepository {
         let code = try await authorizationCode()
         let response: LoginResponseDTO = try await apiClient.send(.login(authCode: code))
         guard let role = response.userRole else { throw APIError.decoding }
-        // 교사는 앱을 쓰지 않으므로 토큰을 저장하지 않는다(CONVENTION 금지 사항).
-        if role == .student {
+        // 교사는 앱을 쓰지 않으므로 토큰을 저장하지 않고, 남아 있던 토큰도 지운다(CONVENTION 금지 사항).
+        switch role {
+        case .student:
             await authSession.save(response.tokens)
+        case .teacher:
+            await authSession.clear()
         }
         return role
     }

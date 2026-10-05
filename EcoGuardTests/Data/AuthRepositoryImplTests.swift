@@ -68,8 +68,9 @@ struct AuthRepositoryImplTests {
         #expect(body == ["authCode": "code"])
     }
 
+    /// 이전 세션 토큰이 남아 있어도 교사로 로그인하면 지운다.
     @Test func teacherLoginDoesNotStoreTokens() async throws {
-        let store = InMemoryTokenStore()
+        let store = InMemoryTokenStore(Self.tokens)
         let repository = makeRepository(store: store) { _ in (200, Self.loginJSON(role: "TEACHER")) }
 
         #expect(try await repository.login() == .teacher)
@@ -77,10 +78,12 @@ struct AuthRepositoryImplTests {
     }
 
     /// 앱 시작 훅: 저장된 토큰이 있으면 로그인 유지, 없으면 로그인 화면. 서버 주소가 없으면(Mock) 기존대로 로그인 화면.
-    @Test func initialLoginStateFollowsStoredSession() {
+    @Test func initialLoginStateFollowsStoredSession() throws {
+        let defaults = try Self.makeDefaults()
+        defaults.set(true, forKey: "auth.hasLaunchedBefore")
         func container(apiBaseURL: URL?, store: InMemoryTokenStore) -> DIContainer {
             DIContainer(
-                authRepository: DIContainer.makeAuthRepository(apiBaseURL: apiBaseURL, tokenStore: store),
+                authRepository: DIContainer.makeAuthRepository(apiBaseURL: apiBaseURL, tokenStore: store, defaults: defaults),
                 homeRepository: MockHomeRepository(delay: .zero),
                 recruitmentRepository: MockRecruitmentRepository(delay: .zero),
                 webAdminURL: nil
@@ -91,6 +94,31 @@ struct AuthRepositoryImplTests {
         #expect(container(apiBaseURL: baseURL, store: InMemoryTokenStore(Self.tokens)).makeLoginViewModel().state == .loggedIn)
         #expect(container(apiBaseURL: baseURL, store: InMemoryTokenStore()).makeLoginViewModel().state == .idle)
         #expect(container(apiBaseURL: nil, store: InMemoryTokenStore(Self.tokens)).makeLoginViewModel().state == .idle)
+    }
+
+    /// 재설치 후 첫 실행: 키체인에 남은 이전 설치의 토큰을 지운다. 두 번째 실행부터는 유지한다.
+    @Test func firstLaunchClearsLeftoverTokens() throws {
+        let defaults = try Self.makeDefaults()
+        let baseURL = URL(string: "https://api.example.com")
+        let leftover = InMemoryTokenStore(Self.tokens)
+
+        let first = DIContainer.makeAuthRepository(apiBaseURL: baseURL, tokenStore: leftover, defaults: defaults)
+
+        #expect(leftover.current == nil)
+        #expect(!first.hasStoredSession())
+
+        let stored = InMemoryTokenStore(Self.tokens)
+        let second = DIContainer.makeAuthRepository(apiBaseURL: baseURL, tokenStore: stored, defaults: defaults)
+
+        #expect(stored.current == Self.tokens)
+        #expect(second.hasStoredSession())
+    }
+
+    private static func makeDefaults() throws -> UserDefaults {
+        let suiteName = "AuthRepositoryImplTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        return defaults
     }
 
     nonisolated private static func loginJSON(role: String) -> Data {

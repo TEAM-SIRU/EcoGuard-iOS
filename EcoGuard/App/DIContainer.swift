@@ -7,6 +7,8 @@ final class DIContainer {
 
     /// 로그인·로그아웃이 같은 저장소를 써야 해서 화면별 확장(`DIContainer+MyPage`)에서도 쓴다.
     let authRepository: AuthRepository
+    /// 컨테이너를 만들 때(앱 시작) 키체인을 한 번만 읽어 둔다. `RootView`가 다시 만들어져도 다시 읽지 않는다.
+    private let hadStoredSessionAtLaunch: Bool
     private let homeRepository: HomeRepository
     private let recruitmentRepository: RecruitmentRepository
 
@@ -17,6 +19,7 @@ final class DIContainer {
         webAdminURL: URL?
     ) {
         self.authRepository = authRepository
+        self.hadStoredSessionAtLaunch = authRepository.hasStoredSession()
         self.homeRepository = homeRepository
         self.recruitmentRepository = recruitmentRepository
         self.webAdminURL = webAdminURL
@@ -33,12 +36,18 @@ final class DIContainer {
     }
 
     /// 서버 주소가 없으면 Mock, 있으면 키체인에 토큰을 두는 실제 저장소.
+    /// 앱을 지웠다 다시 깔면 UserDefaults는 비지만 키체인은 남는다. 첫 실행이면 이전 설치의 토큰을 지운다.
     static func makeAuthRepository(
         apiBaseURL: URL?,
         session: URLSession = .shared,
-        tokenStore: TokenStore = KeychainTokenStore()
+        tokenStore: TokenStore = KeychainTokenStore(),
+        defaults: UserDefaults = .standard
     ) -> AuthRepository {
         guard let apiBaseURL else { return MockAuthRepository() }
+        if !defaults.bool(forKey: hasLaunchedKey) {
+            tokenStore.clear()
+            defaults.set(true, forKey: hasLaunchedKey)
+        }
         let httpClient = HTTPClient(baseURL: apiBaseURL, session: session)
         let apiClient = APIClient(
             httpClient: httpClient,
@@ -48,13 +57,15 @@ final class DIContainer {
         return AuthRepositoryImpl(apiClient: apiClient, authorizationCode: { throw AuthorizationCodeUnavailableError() })
     }
 
-    /// `state`를 주지 않으면 저장된 토큰이 있을 때 로그인 유지(`.loggedIn`)로 시작한다.
+    private static let hasLaunchedKey = "auth.hasLaunchedBefore"
+
+    /// `state`를 주지 않으면 앱 시작 때 저장된 토큰이 있었을 경우 로그인 유지(`.loggedIn`)로 시작한다.
     /// 교사는 토큰을 저장하지 않으므로 저장된 토큰은 학생 세션이다.
     func makeLoginViewModel(state: LoginViewModel.State? = nil) -> LoginViewModel {
         LoginViewModel(
             loginUseCase: LoginUseCase(authRepository: authRepository),
             logoutUseCase: LogoutUseCase(authRepository: authRepository),
-            state: state ?? (authRepository.hasStoredSession() ? .loggedIn : .idle)
+            state: state ?? (hadStoredSessionAtLaunch ? .loggedIn : .idle)
         )
     }
 

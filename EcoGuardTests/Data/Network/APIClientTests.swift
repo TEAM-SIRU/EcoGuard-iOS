@@ -147,6 +147,79 @@ struct APIClientTests {
         #expect(store.current == Self.oldTokens)
     }
 
+    /// 재발급 중에 로그아웃(clear)하면, 뒤늦게 끝난 재발급 결과를 저장하지 않는다.
+    @Test func refreshFinishedAfterLogoutIsNotSaved() async throws {
+        let started = CountGate(target: 1)
+        let release = CountGate(target: 1)
+        let store = InMemoryTokenStore(Self.oldTokens)
+        let client = makeClient(store: store) { request in
+            if request.url?.path() == Self.refreshPath {
+                await started.increment()
+                await release.wait()
+                return (200, Self.tokenJSON(Self.newTokens))
+            }
+            return (401, Data())
+        }
+
+        let request = Task { try await client.send(Endpoint(method: .get, path: "/api/v1/items")) }
+        await started.wait()
+        await client.authSession.clear()
+        await release.increment()
+
+        await #expect(throws: APIError.sessionExpired) { try await request.value }
+        #expect(store.current == nil)
+        #expect(await client.authSession.accessToken() == nil)
+    }
+
+    /// 다른 요청이 이미 재발급을 마친 뒤 도착한 401은 재발급 없이 바뀐 토큰을 쓴다.
+    @Test func lateUnauthorizedReusesRefreshedToken() async throws {
+        let log = RequestLog()
+        let store = InMemoryTokenStore(Self.newTokens)
+        let client = makeClient(store: store) { request in
+            log.append(request)
+            return (200, Self.tokenJSON(Self.newTokens))
+        }
+
+        let token = try await client.authSession.validAccessToken(replacing: Self.oldTokens.accessToken)
+
+        #expect(token == Self.newTokens.accessToken)
+        #expect(log.requests.isEmpty)
+    }
+
+    /// 토큰이 이미 비어 있으면 만료 이벤트 없이 에러만 던진다(로그아웃 뒤 도착한 401, 앞선 만료 뒤 요청).
+    @Test func emptySessionDoesNotRepeatExpiration() async throws {
+        let log = RequestLog()
+        let client = makeClient(store: InMemoryTokenStore()) { request in
+            log.append(request)
+            return (401, Data())
+        }
+        let expirations = client.authSession.expirations.stream()
+
+        await #expect(throws: APIError.sessionExpired) {
+            try await client.send(Endpoint(method: .get, path: "/api/v1/items"))
+        }
+        await #expect(throws: APIError.sessionExpired) {
+            try await client.authSession.validAccessToken(replacing: "access-old")
+        }
+
+        // 이벤트는 `throw` 전에 동기로 쌓이므로, 있었다면 바로 꺼내진다.
+        let received = await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                for await _ in expirations { return true }
+                return false
+            }
+            group.addTask {
+                try? await Task.sleep(for: .milliseconds(100))
+                return false
+            }
+            let first = await group.next() ?? false
+            group.cancelAll()
+            return first
+        }
+        #expect(!received)
+        #expect(log.requests.isEmpty)
+    }
+
     /// 에러 바디가 있으면 서버 코드를 담는다.
     @Test func serverErrorCarriesCode() async throws {
         let store = InMemoryTokenStore(Self.oldTokens)

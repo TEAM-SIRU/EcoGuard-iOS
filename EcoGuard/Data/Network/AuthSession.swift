@@ -54,7 +54,7 @@ actor AuthSession {
             return try await refreshTask.value.accessToken
         }
         guard let refreshToken = tokens?.refreshToken else {
-            expire()
+            // 이미 비어 있다(로그아웃했거나 앞선 만료로 지웠다). 만료 이벤트를 또 보내지 않는다.
             throw APIError.sessionExpired
         }
         let task = Task { try await requestRefresh(refreshToken: refreshToken, generation: generation) }
