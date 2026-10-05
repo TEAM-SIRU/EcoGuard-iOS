@@ -7,6 +7,8 @@ final class DIContainer {
 
     /// 로그인·로그아웃이 같은 저장소를 써야 해서 화면별 확장(`DIContainer+MyPage`)에서도 쓴다.
     let authRepository: AuthRepository
+    /// 컨테이너를 만들 때(앱 시작) 키체인을 한 번만 읽어 둔다. `RootView`가 다시 만들어져도 다시 읽지 않는다.
+    private let hadStoredSessionAtLaunch: Bool
     private let homeRepository: HomeRepository
     private let recruitmentRepository: RecruitmentRepository
 
@@ -17,26 +19,53 @@ final class DIContainer {
         webAdminURL: URL?
     ) {
         self.authRepository = authRepository
+        self.hadStoredSessionAtLaunch = authRepository.hasStoredSession()
         self.homeRepository = homeRepository
         self.recruitmentRepository = recruitmentRepository
         self.webAdminURL = webAdminURL
     }
 
-    /// 실제 OAuth·서버 구현 전까지 Mock을 쓴다.
+    /// 서버 주소(`ECO_API_HOST`)가 정해지기 전까지 Mock을 쓴다. 다른 저장소는 아직 모두 Mock이다.
     static func live() -> DIContainer {
         DIContainer(
-            authRepository: MockAuthRepository(),
+            authRepository: makeAuthRepository(apiBaseURL: AppConfig.apiBaseURL),
             homeRepository: MockHomeRepository(),
             recruitmentRepository: MockRecruitmentRepository(),
             webAdminURL: AppConfig.webAdminURL
         )
     }
 
-    func makeLoginViewModel(state: LoginViewModel.State = .idle) -> LoginViewModel {
+    /// 서버 주소가 없으면 Mock, 있으면 키체인에 토큰을 두는 실제 저장소.
+    /// 앱을 지웠다 다시 깔면 UserDefaults는 비지만 키체인은 남는다. 첫 실행이면 이전 설치의 토큰을 지운다.
+    static func makeAuthRepository(
+        apiBaseURL: URL?,
+        session: URLSession = .shared,
+        tokenStore: TokenStore = KeychainTokenStore(),
+        defaults: UserDefaults = .standard
+    ) -> AuthRepository {
+        guard let apiBaseURL else { return MockAuthRepository() }
+        if !defaults.bool(forKey: hasLaunchedKey) {
+            tokenStore.clear()
+            defaults.set(true, forKey: hasLaunchedKey)
+        }
+        let httpClient = HTTPClient(baseURL: apiBaseURL, session: session)
+        let apiClient = APIClient(
+            httpClient: httpClient,
+            authSession: AuthSession(tokenStore: tokenStore, httpClient: httpClient)
+        )
+        // TODO: dataGSM OAuth 연동 때 인가 코드를 받아 오는 구현으로 바꾼다. 그 전까지 실제 모드 로그인은 실패한다.
+        return AuthRepositoryImpl(apiClient: apiClient, authorizationCode: { throw AuthorizationCodeUnavailableError() })
+    }
+
+    private static let hasLaunchedKey = "auth.hasLaunchedBefore"
+
+    /// `state`를 주지 않으면 앱 시작 때 저장된 토큰이 있었을 경우 로그인 유지(`.loggedIn`)로 시작한다.
+    /// 교사는 토큰을 저장하지 않으므로 저장된 토큰은 학생 세션이다.
+    func makeLoginViewModel(state: LoginViewModel.State? = nil) -> LoginViewModel {
         LoginViewModel(
             loginUseCase: LoginUseCase(authRepository: authRepository),
             logoutUseCase: LogoutUseCase(authRepository: authRepository),
-            state: state
+            state: state ?? (hadStoredSessionAtLaunch ? .loggedIn : .idle)
         )
     }
 
@@ -71,6 +100,9 @@ final class DIContainer {
         )
     }
 }
+
+/// dataGSM OAuth가 아직 없어 인가 코드를 받을 수 없다.
+struct AuthorizationCodeUnavailableError: Error {}
 
 extension DIContainer {
     /// Preview용. 지연 없이 정해진 결과를 돌려주는 Mock을 쓴다.

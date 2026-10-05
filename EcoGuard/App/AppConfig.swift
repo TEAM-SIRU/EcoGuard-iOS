@@ -29,12 +29,26 @@ enum AppConfig {
 
     /// 호스트가 비어 있으면 nil. 값이 있는데 올바른 https 주소가 아니면 DEBUG 빌드에서 로그를 남기고 nil.
     static func webAdminURL(from rawValue: String?) -> URL? {
+        configuredURL(from: rawValue, key: "EcoWebAdminURL")
+    }
+
+    /// Info.plist `EcoAPIBaseURL` = `https://$(ECO_API_HOST)`. 서버 주소가 정해지기 전까지 빈 값(자리표시)이며,
+    /// 그동안 `DIContainer.live()`는 Mock 저장소를 쓴다.
+    static var apiBaseURL: URL? {
+        apiBaseURL(from: Bundle.main.object(forInfoDictionaryKey: "EcoAPIBaseURL") as? String)
+    }
+
+    static func apiBaseURL(from rawValue: String?) -> URL? {
+        configuredURL(from: rawValue, key: "EcoAPIBaseURL")
+    }
+
+    private static func configuredURL(from rawValue: String?, key: String) -> URL? {
         guard isWebAdminHostConfigured(rawValue),
               let trimmed = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines)
         else { return nil }
         guard let url = validatedURL(trimmed) else {
             #if DEBUG
-            logger.error("EcoWebAdminURL 값이 올바른 https 주소가 아니다: \(trimmed, privacy: .public)")
+            logger.error("\(key, privacy: .public) 값이 올바른 https 주소가 아니다: \(trimmed, privacy: .public)")
             #endif
             return nil
         }

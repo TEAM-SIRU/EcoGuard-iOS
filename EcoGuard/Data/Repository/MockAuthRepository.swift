@@ -52,4 +52,14 @@ final class MockAuthRepository: AuthRepository {
             throw LogoutFailedError()
         }
     }
+
+    /// 기존 동작대로 항상 로그인 화면에서 시작한다.
+    func hasStoredSession() -> Bool {
+        false
+    }
+
+    /// Mock은 세션이 만료되지 않는다.
+    func sessionExpirations() -> AsyncStream<Void> {
+        AsyncStream { _ in }
+    }
 }
