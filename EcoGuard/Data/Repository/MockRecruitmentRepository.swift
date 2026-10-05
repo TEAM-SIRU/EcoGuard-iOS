@@ -29,6 +29,7 @@ final class MockRecruitmentRepository: RecruitmentRepository {
     private let delay: Duration
     private(set) var fetchCallCount = 0
     private(set) var applyCallCount = 0
+    private(set) var fetchMyApplicationCallCount = 0
     private(set) var appliedMotivations: [String] = []
 
     /// 공고 조회마다 `scenarios`를, 신청마다 `applyOutcomes`를 앞에서부터 하나씩 쓰고, 마지막 값은 이후 호출에도 계속 쓴다.
@@ -89,6 +90,7 @@ final class MockRecruitmentRepository: RecruitmentRepository {
     }
 
     func fetchMyApplication() async throws -> RecruitmentApplication? {
+        fetchMyApplicationCallCount += 1
         try await Task.sleep(for: delay)
         switch currentScenario {
         case .failure: throw RequestFailedError()

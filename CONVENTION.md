@@ -234,12 +234,15 @@ final class NoticeListViewModel {
     }
 
     func load() async {
+        let previous = state
         state = .loading
         do {
             state = .loaded(try await fetchNoticesUseCase.execute())
-        } catch is CancellationError {
-            return
         } catch {
+            guard !Task.isCancelled else {
+                state = previous
+                return
+            }
             state = .failed(error)
         }
     }
@@ -253,6 +256,12 @@ final class NoticeListViewModel {
 - Swift Concurrency(`async/await`, `Task`)를 쓴다. completion handler, Combine은 새로 도입하지 않는다.
 - UI 상태 변경은 `@MainActor` 에서만 한다.
 - View의 비동기 작업은 `.task { }` 로 시작한다. (`onAppear` + `Task { }` 지양 — 화면 이탈 시 자동 취소되지 않는다.)
+- 취소는 `catch` 안에서 `Task.isCancelled` 로 판단한다. 오류 타입(`CancellationError`, `URLError.cancelled`)으로 판단하지 않는다.
+  - 취소되면 실패 상태로 바꾸지 않고, 오류 안내·오류 로그도 남기지 않는다. 작업 전 상태로 되돌린다.
+  - 처음 불러오던 중이었다면 `.loading` 에 남긴다. 다시 나타날 때 `.task` 가 새로 불러온다.
+  - 화면을 둔 채 다시 조회(`refresh`)하다 취소되면 지금 화면을 그대로 둔다.
+  - 작업이 살아 있는데 온 `URLError.cancelled` 는 요청이 끊긴 것이므로 실패로 처리한다.
+  - 서버가 답한 도메인 오류(마감, 이미 제출 등)는 취소 확인보다 먼저 `catch` 한다.
 - 토큰 갱신처럼 공유 상태를 다루는 곳은 `actor` 로 감싼다.
   - actor는 재진입 가능하다. `await` 중에 다른 호출이 들어오므로 actor만으로는 중복 갱신이 막히지 않는다.
   - 진행 중인 갱신을 `Task<Token, Error>?` 로 저장하고, 뒤에 온 호출은 새로 요청하지 않고 그 Task를 `await` 한다. 끝나면 `nil` 로 비운다.

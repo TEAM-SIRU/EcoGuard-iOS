@@ -43,6 +43,7 @@ final class ApplicationResultViewModel {
         guard !isFetching else { return }
         isFetching = true
         defer { isFetching = false }
+        let previous = state
         state = .loading
         do {
             if let application = try await fetchMyApplicationUseCase.execute() {
@@ -50,9 +51,12 @@ final class ApplicationResultViewModel {
             } else {
                 state = .notApplied
             }
-        } catch is CancellationError {
-            state = .failed
         } catch {
+            // 화면을 떠나 취소되면 이전 화면으로 돌린다. 처음 불러오던 중이었다면 .loading으로 남겨 돌아왔을 때 다시 불러온다.
+            guard !Task.isCancelled else {
+                state = previous
+                return
+            }
             logger.error("신청 결과 조회 실패: \(String(describing: type(of: error)), privacy: .public) \(String(describing: error), privacy: .private)")
             state = .failed
         }

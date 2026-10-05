@@ -74,9 +74,8 @@ final class CameraCapture {
                 return nil
             }
             return output
-        } catch is CancellationError {
-            return nil
         } catch {
+            guard !Task.isCancelled else { return nil }
             logError("촬영 실패", error)
             captureFailureCount += 1
             return nil

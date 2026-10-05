@@ -70,12 +70,13 @@ final class ActivityRecordsViewModel {
             let result = try await fetchActivityMonthUseCase.execute(month)
             guard id == requestID else { return }
             state = .loaded(result)
-        } catch where error.isCancellation {
-            // 탭을 떠나 취소되면 이전 화면으로 돌린다. 처음 불러오던 중이었다면 .loading으로 남겨 돌아왔을 때 다시 불러온다.
-            guard id == requestID else { return }
-            state = previous
         } catch {
             guard id == requestID else { return }
+            // 탭을 떠나 취소되면 이전 화면으로 돌린다. 처음 불러오던 중이었다면 .loading으로 남겨 돌아왔을 때 다시 불러온다.
+            guard !Task.isCancelled else {
+                state = previous
+                return
+            }
             logError(error)
             state = .failed
         }
@@ -105,9 +106,8 @@ final class ActivityRecordsViewModel {
                 // 달을 바꿨거나 처음부터 다시 불렀으면 이 응답과 남은 요청은 버린다.
                 guard id == requestID else { return }
                 state = .loaded(result)
-            } catch where error.isCancellation {
-                return
             } catch {
+                guard !Task.isCancelled else { return }
                 logError(error)
             }
         } while hasPendingRefresh
@@ -146,12 +146,5 @@ final class ActivityRecordsViewModel {
     private static func month(containing date: Date) -> YearMonth {
         let components = ActivityRecordsFormatter.calendar.dateComponents([.year, .month], from: date)
         return YearMonth(year: components.year ?? 0, month: components.month ?? 0)
-    }
-}
-
-private extension Error {
-    /// Swift 동시성 취소와 URLSession 취소(`URLError.cancelled`)를 모두 취소로 본다.
-    var isCancellation: Bool {
-        self is CancellationError || (self as? URLError)?.code == .cancelled
     }
 }
