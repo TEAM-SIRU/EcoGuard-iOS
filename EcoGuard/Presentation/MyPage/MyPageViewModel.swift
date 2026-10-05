@@ -62,6 +62,24 @@ final class MyPageViewModel {
         }
     }
 
+    /// 화면을 그대로 둔 채 다시 조회한다. 신청·이의신청 흐름을 닫았을 때, 앱으로 돌아왔을 때 쓴다(이번 달 승인·신청 결과가 바뀔 수 있다).
+    /// 불러온 화면이 없으면 `load()`와 같다. 실패하면 지금 화면을 유지한다.
+    func refresh() async {
+        guard case .loaded = state else {
+            await load()
+            return
+        }
+        guard !isFetching else { return }
+        isFetching = true
+        defer { isFetching = false }
+        do {
+            state = .loaded(try await fetchMyPageUseCase.execute())
+        } catch {
+            guard !Task.isCancelled else { return }
+            logger.error("마이페이지 조회 실패: \(String(describing: type(of: error)), privacy: .public) \(String(describing: error), privacy: .private)")
+        }
+    }
+
     func setCleaningReminder(_ isOn: Bool) {
         isCleaningReminderOn = isOn
         updateCleaningReminderUseCase.execute(isOn: isOn)

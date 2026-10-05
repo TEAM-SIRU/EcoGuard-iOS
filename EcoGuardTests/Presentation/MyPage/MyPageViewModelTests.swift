@@ -172,4 +172,34 @@ struct MyPageViewModelTests {
 
         #expect(!viewModel.isLogoutConfirmPresented)
     }
+
+    // MARK: - 돌아왔을 때 새로고침
+
+    @Test func refreshReplacesLoadedSummaryWithoutLoading() async {
+        let (viewModel, _, repository, _) = makeViewModel(scenarios: [.notApplied, .guardian])
+        await viewModel.load()
+
+        await viewModel.refresh()
+
+        #expect(repository.fetchCallCount == 2)
+        #expect(viewModel.state == .loaded(MockMyPageRepository.Fixture.guardian))
+    }
+
+    @Test func failedRefreshKeepsLoadedSummary() async {
+        let (viewModel, _, _, _) = makeViewModel(scenarios: [.guardian, .failure])
+        await viewModel.load()
+
+        await viewModel.refresh()
+
+        #expect(viewModel.state == .loaded(MockMyPageRepository.Fixture.guardian))
+    }
+
+    @Test func refreshBeforeLoadLoads() async {
+        let (viewModel, _, repository, _) = makeViewModel()
+
+        await viewModel.refresh()
+
+        #expect(repository.fetchCallCount == 1)
+        #expect(viewModel.state == .loaded(MockMyPageRepository.Fixture.guardian))
+    }
 }

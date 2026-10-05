@@ -84,6 +84,8 @@ extension MockHomeRepository {
         ]
 
         static let submittedAt = date(month: 9, day: 29, hour: 8, minute: 4)
+        /// 오늘 제출한 인증. 인증 결과 Mock(`MockVerificationResultRepository.Fixture.id`)과 같은 값을 쓴다.
+        static let submission = TodaySubmission(id: "verification-20260929", submittedAt: submittedAt)
 
         static func summary(for scenario: Scenario, now: Date) -> HomeSummary? {
             switch scenario {
@@ -122,11 +124,19 @@ extension MockHomeRepository {
                 .init(weekday: 6, isToday: false, isCompleted: false)
             ])
             let cleaning = ActiveCleaning(
-                today: TodayCleaning(area: area, window: window, verification: verification),
+                today: TodayCleaning(area: area, window: window, verification: verification, submission: submission(for: verification)),
                 week: week,
                 recentRecords: recentRecords
             )
             return HomeSummary(status: .active(cleaning), notice: notice)
+        }
+
+        /// 사진을 낸 상태에만 제출 정보가 있다.
+        private static func submission(for verification: TodayVerification) -> TodaySubmission? {
+            switch verification {
+            case .notOpenYet, .open: nil
+            case .aiReviewing, .teacherReviewing, .approved, .rejected: submission
+            }
         }
 
         /// `now`가 속한 날(KST)의 인증 시작 시각.
