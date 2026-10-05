@@ -114,4 +114,21 @@ struct RecruitmentApplyViewModelTests {
 
         #expect(await viewModel.submit() == .applied(Fixture.application()))
     }
+
+    /// 신청 중 취소되면 실패 안내 없이 입력 화면으로 돌아가고, 다시 신청할 수 있다.
+    @Test func cancelledSubmitReturnsToIdleWithoutFailure() async {
+        let (viewModel, repository) = makeViewModel(applyOutcomes: [.approved], delay: .milliseconds(300))
+        viewModel.motivation = "열심히 할게요"
+
+        let submit = Task { await viewModel.submit() }
+        while repository.applyCallCount == 0 {
+            await Task.yield()
+        }
+        submit.cancel()
+        #expect(await submit.value == nil)
+        #expect(viewModel.submitState == .idle)
+
+        #expect(await viewModel.submit() == .applied(Fixture.application()))
+        #expect(repository.applyCallCount == 2)
+    }
 }

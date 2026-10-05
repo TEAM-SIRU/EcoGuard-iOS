@@ -39,10 +39,12 @@ final class HomeViewModel {
         state = .loading
         do {
             state = .loaded(try await fetchHomeUseCase.execute())
-        } catch is CancellationError {
-            // 화면을 떠나 취소되면 .loading에 남지 않게 이전 화면으로 돌린다. 처음 불러오던 중이었다면 다시 시도할 수 있게 실패로 둔다.
-            state = previous == .loading ? .failed : previous
         } catch {
+            // 화면을 떠나 취소되면 이전 화면으로 돌린다. 처음 불러오던 중이었다면 .loading으로 남겨 돌아왔을 때 다시 불러온다.
+            guard !Task.isCancelled else {
+                state = previous
+                return
+            }
             logError(error)
             state = .failed
         }
@@ -60,9 +62,8 @@ final class HomeViewModel {
         defer { isFetching = false }
         do {
             state = .loaded(try await fetchHomeUseCase.execute())
-        } catch is CancellationError {
-            return
         } catch {
+            guard !Task.isCancelled else { return }
             logError(error)
         }
     }

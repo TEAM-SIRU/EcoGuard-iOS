@@ -278,8 +278,9 @@ struct HomeViewModelTests {
 
     // MARK: - 취소
 
-    @Test func cancelledFirstLoadDoesNotStayLoading() async {
-        let (viewModel, repository) = makeViewModel(scenarios: [.notSubmitted], delay: .seconds(10))
+    /// 탭을 떠나 취소돼도 실패 화면을 띄우지 않고 .loading으로 남아, 돌아왔을 때 화면의 `.task`가 다시 불러온다.
+    @Test func cancelledFirstLoadStaysLoadingAndReloads() async {
+        let (viewModel, repository) = makeViewModel(scenarios: [.notSubmitted], delay: .milliseconds(300))
 
         let load = Task { await viewModel.load() }
         while repository.fetchCallCount == 0 {
@@ -287,8 +288,11 @@ struct HomeViewModelTests {
         }
         load.cancel()
         await load.value
+        #expect(viewModel.state == .loading)
 
-        #expect(viewModel.state == .failed)
+        await viewModel.load()
+        #expect(repository.fetchCallCount == 2)
+        #expect(todayVerification(viewModel) == .open(deadline: Date(timeIntervalSinceReferenceDate: 332)))
     }
 
     @Test func cancelledReloadReturnsToPreviousContent() async {

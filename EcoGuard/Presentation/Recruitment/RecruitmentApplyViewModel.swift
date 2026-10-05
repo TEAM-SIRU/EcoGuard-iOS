@@ -56,10 +56,12 @@ final class RecruitmentApplyViewModel {
         } catch RecruitmentError.alreadyApplied(let application) {
             submitState = .idle
             return .applied(application)
-        } catch is CancellationError {
-            submitState = .idle
-            return nil
         } catch {
+            // 취소되면 실패 안내 없이 신청 전 화면으로 돌린다.
+            guard !Task.isCancelled else {
+                submitState = .idle
+                return nil
+            }
             logger.error("신청 실패: \(String(describing: type(of: error)), privacy: .public) \(String(describing: error), privacy: .private)")
             submitState = .failed
             return nil
