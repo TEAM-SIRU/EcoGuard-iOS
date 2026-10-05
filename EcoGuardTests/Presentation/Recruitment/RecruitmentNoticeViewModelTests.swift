@@ -4,8 +4,11 @@ import Testing
 
 @MainActor
 struct RecruitmentNoticeViewModelTests {
-    private func makeViewModel(scenarios: [MockRecruitmentRepository.Scenario]) -> (RecruitmentNoticeViewModel, MockRecruitmentRepository) {
-        let repository = MockRecruitmentRepository(scenarios: scenarios, delay: .zero)
+    private func makeViewModel(
+        scenarios: [MockRecruitmentRepository.Scenario],
+        delay: Duration = .zero
+    ) -> (RecruitmentNoticeViewModel, MockRecruitmentRepository) {
+        let repository = MockRecruitmentRepository(scenarios: scenarios, delay: delay)
         let viewModel = RecruitmentNoticeViewModel(fetchRecruitmentUseCase: FetchRecruitmentUseCase(recruitmentRepository: repository))
         return (viewModel, repository)
     }
@@ -137,5 +140,39 @@ struct RecruitmentNoticeViewModelTests {
 
         #expect(repository.fetchCallCount == 2)
         #expect(status(viewModel) == .open)
+    }
+
+    // MARK: - 취소
+
+    /// 화면을 떠나 취소돼도 실패 화면을 띄우지 않고 .loading으로 남아, 다시 나타날 때 `.task`가 다시 불러온다.
+    @Test func cancelledFirstLoadStaysLoadingAndReloads() async {
+        let (viewModel, repository) = makeViewModel(scenarios: [.open], delay: .milliseconds(300))
+
+        let load = Task { await viewModel.load() }
+        while repository.fetchCallCount == 0 {
+            await Task.yield()
+        }
+        load.cancel()
+        await load.value
+        #expect(viewModel.state == .loading)
+
+        await viewModel.load()
+        #expect(repository.fetchCallCount == 2)
+        #expect(status(viewModel) == .open)
+    }
+
+    @Test func cancelledRetryKeepsFailed() async {
+        let (viewModel, repository) = makeViewModel(scenarios: [.failure], delay: .milliseconds(300))
+        await viewModel.load()
+        #expect(viewModel.state == .failed)
+
+        let retry = Task { await viewModel.retry() }
+        while repository.fetchCallCount < 2 {
+            await Task.yield()
+        }
+        retry.cancel()
+        await retry.value
+
+        #expect(viewModel.state == .failed)
     }
 }

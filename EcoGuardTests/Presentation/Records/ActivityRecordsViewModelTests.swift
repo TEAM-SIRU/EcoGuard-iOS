@@ -224,23 +224,22 @@ struct ActivityRecordsViewModelTests {
         #expect(viewModel.state == loaded)
     }
 
-    @Test func cancelledURLDuringFirstLoadStaysLoading() async {
+    /// 작업이 살아 있는데 온 `URLError.cancelled`는 요청이 끊긴 것이라 실패로 둔다.
+    @Test func cancelledURLWhileTaskAliveIsFailure() async {
         let (viewModel, _) = makeViewModel(scenarios: [.cancelledURL])
 
         await viewModel.load()
 
-        #expect(viewModel.state == .loading)
+        #expect(viewModel.state == .failed)
     }
 
-    @Test func cancelledURLDuringReloadReturnsToPreviousContent() async {
+    @Test func cancelledURLDuringRefreshKeepsContent() async {
         let (viewModel, _) = makeViewModel(scenarios: [.records, .cancelledURL])
         await viewModel.load()
         let loaded = viewModel.state
 
-        await viewModel.load()
-        #expect(viewModel.state == loaded)
-
         await viewModel.refresh()
+
         #expect(viewModel.state == loaded)
     }
 

@@ -127,9 +127,9 @@ final class CameraVerificationViewModel {
             case .alreadySubmitted(let submittedAt):
                 sheet = .alreadySubmitted(submittedAt: submittedAt)
             }
-        } catch is CancellationError {
-            return
         } catch {
+            // 화면을 떠나 취소되면 .loading으로 남겨 다시 나타날 때 `.task`가 새로 불러온다.
+            guard !Task.isCancelled else { return }
             logError("인증 정보 조회 실패", error)
             state = .loadFailed
         }
@@ -204,14 +204,16 @@ final class CameraVerificationViewModel {
         do {
             let submission = try await submitPhotoUseCase.execute(captured.photo)
             state = .submitted(captured, submittedAt: submission.submittedAt)
-        } catch is CancellationError {
-            state = previous
         } catch VerificationError.deadlinePassed {
             state = .timedOut
         } catch VerificationError.alreadySubmitted(let submittedAt) {
             state = .uploadFailed(captured)
             sheet = .alreadySubmitted(submittedAt: submittedAt)
         } catch {
+            guard !Task.isCancelled else {
+                state = previous
+                return
+            }
             logError("인증 사진 업로드 실패", error)
             state = .uploadFailed(captured)
         }
@@ -226,9 +228,8 @@ final class CameraVerificationViewModel {
             if case .alreadySubmitted(let submittedAt) = session.availability {
                 sheet = .alreadySubmitted(submittedAt: submittedAt)
             }
-        } catch is CancellationError {
-            return
         } catch {
+            guard !Task.isCancelled else { return }
             logError("업로드 상태 조회 실패", error)
         }
     }

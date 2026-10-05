@@ -52,10 +52,12 @@ final class MyPageViewModel {
         state = .loading
         do {
             state = .loaded(try await fetchMyPageUseCase.execute())
-        } catch is CancellationError {
-            // 탭을 떠나 취소되면 이전 화면으로 돌린다. 처음 불러오던 중이었다면 .loading으로 남겨 돌아왔을 때 다시 불러온다.
-            state = previous
         } catch {
+            // 탭을 떠나 취소되면 이전 화면으로 돌린다. 처음 불러오던 중이었다면 .loading으로 남겨 돌아왔을 때 다시 불러온다.
+            guard !Task.isCancelled else {
+                state = previous
+                return
+            }
             // 에러 본문에는 서버 응답이 섞일 수 있어 타입만 공개한다.
             logger.error("마이페이지 조회 실패: \(String(describing: type(of: error)), privacy: .public) \(String(describing: error), privacy: .private)")
             state = .failed

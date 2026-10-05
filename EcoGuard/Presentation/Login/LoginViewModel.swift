@@ -34,11 +34,14 @@ final class LoginViewModel {
             case .teacher:
                 state = .teacher
             }
-        } catch is CancellationError {
-            state = .idle
         } catch AuthError.cancelled {
             state = .idle
         } catch {
+            // 작업이 취소되면 실패 안내 없이 로그인 전 화면으로 돌린다.
+            guard !Task.isCancelled else {
+                state = .idle
+                return
+            }
             // 에러 본문에는 서버 응답·토큰이 섞일 수 있어 타입만 공개한다.
             logger.error("로그인 실패: \(String(describing: type(of: error)), privacy: .public) \(String(describing: error), privacy: .private)")
             state = .failed
