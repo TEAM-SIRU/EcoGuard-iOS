@@ -233,14 +233,14 @@ struct ActivityRecordsViewModelTests {
         #expect(viewModel.state == .failed)
     }
 
-    @Test func cancelledURLDuringRefreshKeepsContent() async {
+    /// 취소였다면 이전 화면으로 돌아갔을 다시 불러오기가 실패 화면으로 간다.
+    @Test func cancelledURLDuringReloadIsFailure() async {
         let (viewModel, _) = makeViewModel(scenarios: [.records, .cancelledURL])
         await viewModel.load()
-        let loaded = viewModel.state
 
-        await viewModel.refresh()
+        await viewModel.load()
 
-        #expect(viewModel.state == loaded)
+        #expect(viewModel.state == .failed)
     }
 
     @Test func refreshRequestedWhileRefreshingFetchesOnceMore() async {

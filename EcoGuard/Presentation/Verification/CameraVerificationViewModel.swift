@@ -113,6 +113,7 @@ final class CameraVerificationViewModel {
     }
 
     func load() async {
+        let previous = state
         state = .loading
         do {
             let session = try await fetchSessionUseCase.execute()
@@ -128,8 +129,11 @@ final class CameraVerificationViewModel {
                 sheet = .alreadySubmitted(submittedAt: submittedAt)
             }
         } catch {
-            // 화면을 떠나 취소되면 .loading으로 남겨 다시 나타날 때 `.task`가 새로 불러온다.
-            guard !Task.isCancelled else { return }
+            // 화면을 떠나 취소되면 이전 화면으로 돌린다. 처음 불러오던 중이었다면 .loading으로 남겨 다시 나타날 때 `.task`가 새로 불러온다.
+            guard !Task.isCancelled else {
+                state = previous
+                return
+            }
             logError("인증 정보 조회 실패", error)
             state = .loadFailed
         }
@@ -198,8 +202,9 @@ final class CameraVerificationViewModel {
         default:
             return
         }
-        let previous = state
         captured.hasStartedUpload = true
+        // 취소되면 돌아갈 화면. 업로드를 시작한 사진으로 남겨 마감 후 다시 보내도 시간 초과로 보지 않게 한다.
+        let previous: State = if case .confirming = state { .confirming(captured) } else { .uploadFailed(captured) }
         state = .uploading(captured)
         do {
             let submission = try await submitPhotoUseCase.execute(captured.photo)

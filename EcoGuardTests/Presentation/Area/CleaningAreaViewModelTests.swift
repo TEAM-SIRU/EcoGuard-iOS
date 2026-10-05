@@ -131,10 +131,25 @@ struct CleaningAreaViewModelTests {
         #expect(CleaningAreaFormatter.members(Fixture.area) == "김서연 · 이도윤 · 나(최민준)")
         #expect(CleaningAreaFormatter.window(Fixture.area) == "08:00 – 08:10")
     }
+
+    /// 작업이 살아 있는데 온 `URLError.cancelled`는 요청이 끊긴 것이라 실패로 둔다.
+    @Test func urlCancelledWhileTaskAliveIsFailure() async {
+        let viewModel = CleaningAreaViewModel(fetchCleaningAreaUseCase: FetchCleaningAreaUseCase(cleaningAreaRepository: URLCancelledRepository()))
+
+        await viewModel.load()
+
+        #expect(viewModel.state == .failed)
+    }
 }
 
 private struct EmptyFloorsRepository: CleaningAreaRepository {
     func fetchCleaningArea() async throws -> CleaningAreaSummary {
         .assigned(floors: [], myFloorID: "2F", area: MockCleaningAreaRepository.Fixture.area)
+    }
+}
+
+private struct URLCancelledRepository: CleaningAreaRepository {
+    func fetchCleaningArea() async throws -> CleaningAreaSummary {
+        throw URLError(.cancelled)
     }
 }

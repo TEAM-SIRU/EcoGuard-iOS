@@ -161,8 +161,9 @@ struct RecruitmentNoticeViewModelTests {
         #expect(status(viewModel) == .open)
     }
 
+    /// 다시 시도가 끝까지 갔다면 성공했을 응답이라, .failed로 남은 것은 취소로 되돌린 결과다.
     @Test func cancelledRetryKeepsFailed() async {
-        let (viewModel, repository) = makeViewModel(scenarios: [.failure], delay: .milliseconds(300))
+        let (viewModel, repository) = makeViewModel(scenarios: [.failure, .open], delay: .milliseconds(300))
         await viewModel.load()
         #expect(viewModel.state == .failed)
 
@@ -172,7 +173,10 @@ struct RecruitmentNoticeViewModelTests {
         }
         retry.cancel()
         await retry.value
-
         #expect(viewModel.state == .failed)
+
+        await viewModel.retry()
+        #expect(repository.fetchCallCount == 3)
+        #expect(status(viewModel) == .open)
     }
 }
