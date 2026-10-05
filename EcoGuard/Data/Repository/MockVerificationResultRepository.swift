@@ -17,6 +17,8 @@ final class MockVerificationResultRepository: VerificationResultRepository {
     /// 테스트에서 첫 호출을 붙잡아 둔 뒤 다음 호출은 바로 끝내도록 바꿀 수 있다.
     var delay: Duration
     private let error: Error
+    /// 다른 Mock이 내려 준 ID면 그 상태의 결과를 돌려준다. nil이면 `scenario`를 쓴다.
+    private let lookup: (String) -> VerificationResult?
     private var remainingFailures: Int
     private(set) var fetchCallCount = 0
 
@@ -27,12 +29,32 @@ final class MockVerificationResultRepository: VerificationResultRepository {
         scenario: Scenario = .approved,
         delay: Duration = .seconds(1),
         failuresBeforeSuccess: Int = 0,
-        error: Error = FetchFailedError()
+        error: Error = FetchFailedError(),
+        lookup: @escaping (String) -> VerificationResult? = { _ in nil }
     ) {
         self.scenario = scenario
         self.delay = delay
         self.remainingFailures = failuresBeforeSuccess
         self.error = error
+        self.lookup = lookup
+    }
+
+    /// 서버 없이 앱을 돌릴 때 쓴다. 홈·활동 기록 Mock이 내려 준 ID면 그 상태(검수 중·승인·반려 등)의 결과를,
+    /// 모르는 ID면 `scenario` 결과를 돌려준다.
+    static func matchingOtherMocks(
+        scenario: Scenario = .approved,
+        delay: Duration = .seconds(1),
+        now: @escaping () -> Date = Date.init
+    ) -> MockVerificationResultRepository {
+        MockVerificationResultRepository(scenario: scenario, delay: delay) { id in
+            if let status = MockHomeRepository.Fixture.resultStatus(forSubmissionID: id) {
+                return Fixture.result(id: id, status: status, submittedAt: MockHomeRepository.Fixture.submittedAt)
+            }
+            if let record = MockActivityRepository.Fixture.submittedRecord(id: id, now: now()) {
+                return Fixture.result(id: id, status: record.status, submittedAt: record.submittedAt)
+            }
+            return nil
+        }
     }
 
     func fetchResult(id: String) async throws -> VerificationResult {
@@ -41,6 +63,9 @@ final class MockVerificationResultRepository: VerificationResultRepository {
         if remainingFailures > 0 {
             remainingFailures -= 1
             throw error
+        }
+        if scenario != .failure, let result = lookup(id) {
+            return result
         }
         switch scenario {
         case .processing: return Fixture.result(id: id, status: .processing)

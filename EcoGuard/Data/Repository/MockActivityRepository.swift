@@ -119,6 +119,20 @@ extension MockActivityRepository {
             }
         }
 
+        /// 이 Mock이 내려 준 기록 ID의 인증 결과 상태와 제출 시각. 인증 결과 Mock이 같은 상태의 결과를 돌려줄 때 쓴다.
+        /// 미제출이거나 이 Mock이 만든 ID가 아니면 nil.
+        static func submittedRecord(id: String, now: Date) -> (status: VerificationResult.Status, submittedAt: Date)? {
+            let candidates = records + recentMonths(now: now).flatMap { generatedRecords(in: $0, now: now) }
+            guard let record = candidates.first(where: { $0.id == id }), let submittedAt = record.submittedAt else { return nil }
+            let status: VerificationResult.Status? = switch record.result {
+            case .reviewing: .processing
+            case .approved: .approved
+            case .rejected: .rejected
+            case .notSubmitted: nil
+            }
+            return status.map { ($0, submittedAt) }
+        }
+
         private static func record(
             day: Int,
             _ result: ActivityRecord.Result,

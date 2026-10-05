@@ -343,7 +343,9 @@ struct HomeViewModelTests {
 
         await viewModel.load()
 
-        #expect(viewModel.todaySubmission == MockHomeRepository.Fixture.submission)
+        let submission = viewModel.todaySubmission
+        #expect(submission?.submittedAt == MockHomeRepository.Fixture.submittedAt)
+        #expect(submission.map { MockHomeRepository.Fixture.resultStatus(forSubmissionID: $0.id) } != nil)
     }
 
     @Test(arguments: [MockHomeRepository.Scenario.notSubmitted, .notOpenYet, .recruiting, .failure])
@@ -361,10 +363,11 @@ struct HomeViewModelTests {
 
         await viewModel.load()
 
-        let submission = MockHomeRepository.Fixture.submission
+        let submission = viewModel.todaySubmission
+        #expect(submission != nil)
         #expect(viewModel.todayAppealTarget == AppealTarget(
-            verificationID: submission.id,
-            verifiedAt: submission.submittedAt,
+            verificationID: submission?.id ?? "",
+            verifiedAt: MockHomeRepository.Fixture.submittedAt,
             rejectionReason: "사진에 청소 구역이 잘 보이지 않아요"
         ))
     }

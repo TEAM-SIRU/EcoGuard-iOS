@@ -84,8 +84,6 @@ extension MockHomeRepository {
         ]
 
         static let submittedAt = date(month: 9, day: 29, hour: 8, minute: 4)
-        /// 오늘 제출한 인증. 인증 결과 Mock(`MockVerificationResultRepository.Fixture.id`)과 같은 값을 쓴다.
-        static let submission = TodaySubmission(id: "verification-20260929", submittedAt: submittedAt)
 
         static func summary(for scenario: Scenario, now: Date) -> HomeSummary? {
             switch scenario {
@@ -131,12 +129,29 @@ extension MockHomeRepository {
             return HomeSummary(status: .active(cleaning), notice: notice)
         }
 
-        /// 사진을 낸 상태에만 제출 정보가 있다.
-        private static func submission(for verification: TodayVerification) -> TodaySubmission? {
+        /// 오늘 제출한 인증. 사진을 낸 상태에만 있고, 인증 결과 Mock이 ID로 같은 상태의 결과를 돌려주도록 상태마다 ID가 다르다.
+        static func submission(for verification: TodayVerification) -> TodaySubmission? {
+            resultStatus(for: verification).map { TodaySubmission(id: submissionID(for: $0), submittedAt: submittedAt) }
+        }
+
+        /// `submission(for:)`가 만든 ID의 인증 결과 상태. 이 Mock이 만든 ID가 아니면 nil.
+        static func resultStatus(forSubmissionID id: String) -> VerificationResult.Status? {
+            [VerificationResult.Status.processing, .approved, .rejected, .manualReview].first { submissionID(for: $0) == id }
+        }
+
+        /// 오늘 인증 상태에 맞는 인증 결과 상태. 제출 전이면 nil.
+        private static func resultStatus(for verification: TodayVerification) -> VerificationResult.Status? {
             switch verification {
             case .notOpenYet, .open: nil
-            case .aiReviewing, .teacherReviewing, .approved, .rejected: submission
+            case .aiReviewing: .processing
+            case .teacherReviewing: .manualReview
+            case .approved: .approved
+            case .rejected: .rejected
             }
+        }
+
+        private static func submissionID(for status: VerificationResult.Status) -> String {
+            "verification-20260929-\(status.rawValue.lowercased())"
         }
 
         /// `now`가 속한 날(KST)의 인증 시작 시각.
