@@ -5,7 +5,7 @@ struct ActivityRecordsView: View {
     struct Actions {
         /// 빈 상태의 "청소 인증하러 가기". nil이면 버튼을 숨긴다(활동 중이 아니라 인증할 수 없을 때).
         var verify: (() -> Void)?
-        // TODO: 인증 상세 화면 이슈에서 연결
+        /// 기록 행. 그날 인증 상세(결과)를 연다.
         var openRecord: (ActivityRecord) -> Void = { _ in }
     }
 

@@ -3,13 +3,13 @@ import SwiftUI
 /// Figma `12 전체` (240:221) · `12 전체 · 로그아웃 확인` (309:64). 하단 탭 바는 앱 셸(`MainTabView`)이 얹는다.
 /// 내 정보를 불러오지 못해도 메뉴와 로그아웃은 그대로 쓸 수 있다.
 struct MyPageView: View {
-    /// 아직 없는 화면으로 가는 동작. 연결 전까지 기본값은 아무것도 하지 않는다.
-    // TODO: 각 화면 이동은 별도 이슈에서 연결한다.
+    /// 화면 이동. 앱 셸(`MainTabView`)이 연결한다. 기본값은 아무것도 하지 않는다.
     struct Actions {
         var openCleaningArea: () -> Void = {}
         var openApplicationResult: () -> Void = {}
         var openAppeals: () -> Void = {}
         var openNotices: () -> Void = {}
+        // TODO: 도움말은 Figma 디자인이 없어 연결하지 않았다(디자인 대기).
         var openHelp: () -> Void = {}
     }
 

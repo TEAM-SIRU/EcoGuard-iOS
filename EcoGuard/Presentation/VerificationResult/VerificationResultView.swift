@@ -15,7 +15,6 @@ struct VerificationResultView: View {
     private let entry: Entry
     private let close: () -> Void
     private let goHome: () -> Void
-    // TODO: 이의신청 화면(별도 이슈)이 생기면 연결한다.
     private let appeal: (VerificationResult) -> Void
 
     init(
