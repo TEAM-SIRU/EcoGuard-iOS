@@ -1,9 +1,15 @@
 import Observation
 
-/// 앱 셸의 화면 이동 상태. 고른 탭, 전체 탭 안에서 쌓은 화면, 탭 위에 전체 화면으로 띄운 흐름을 들고 있는다.
+/// 앱 셸의 화면 이동 상태. 고른 탭, 홈·전체 탭 안에서 쌓은 화면, 탭 위에 전체 화면으로 띄운 흐름을 들고 있는다.
 @Observable
 @MainActor
 final class MainTabViewModel {
+    /// 홈 탭 안에서 push하는 화면. 탭 바를 그대로 두고, 뒤로 가면 홈으로 돌아온다.
+    enum HomeRoute: Hashable {
+        /// 공지. 홈 공지 카드에서 열면 그 공지가 보이게 스크롤한다.
+        case notices(focusedNoticeID: Notice.ID?)
+    }
+
     /// 전체 탭 안에서 push하는 화면. 하단 탭 바를 그대로 둔다(Figma 하단 86pt 프레임 317:1376이 탭 바 자리).
     enum MyPageRoute: Hashable {
         case notices
@@ -38,6 +44,8 @@ final class MainTabViewModel {
     }
 
     private(set) var selectedTab: MainTab
+    /// 홈 탭 `NavigationStack`의 경로.
+    var homePath: [HomeRoute] = []
     /// 전체 탭 `NavigationStack`의 경로.
     var myPagePath: [MyPageRoute] = []
     private(set) var presentedFlow: Flow?
@@ -50,12 +58,29 @@ final class MainTabViewModel {
         self.selectedTab = selectedTab
     }
 
-    /// 이미 고른 전체 탭을 다시 누르면 첫 화면으로 돌아간다.
+    /// 이미 고른 홈·전체 탭을 다시 누르면 첫 화면으로 돌아간다.
     func select(_ tab: MainTab) {
-        if tab == .myPage, selectedTab == .myPage {
-            myPagePath = []
+        if tab == selectedTab {
+            switch tab {
+            case .home: homePath = []
+            case .myPage: myPagePath = []
+            case .area, .records: break
+            }
         }
         selectedTab = tab
+    }
+
+    /// 홈의 종 아이콘·공지 카드·`공지 보기`. 전체 탭으로 옮기지 않고 홈 위에 쌓아 뒤로 가면 홈으로 돌아온다.
+    func openNotices(focusing notice: Notice? = nil) {
+        let route = HomeRoute.notices(focusedNoticeID: notice?.id)
+        // 같은 화면을 연달아 쌓지 않는다(빠른 연속 탭).
+        guard homePath.last != route else { return }
+        homePath.append(route)
+    }
+
+    func popHome() {
+        guard !homePath.isEmpty else { return }
+        homePath.removeLast()
     }
 
     func push(_ route: MyPageRoute) {
@@ -93,10 +118,14 @@ final class MainTabViewModel {
     }
 
     /// 흐름을 닫는다. `tab`을 넘기면 그 탭으로 옮긴다(`홈으로`, `활동 기록 보기`).
+    /// `홈으로`는 홈 첫 화면을 보여 주므로 홈에 쌓인 화면(공지)을 비운다.
     func dismissFlow(selecting tab: MainTab? = nil) {
         presentedFlow = nil
         flowPath = []
         if let tab {
+            if tab == .home {
+                homePath = []
+            }
             selectedTab = tab
         }
     }

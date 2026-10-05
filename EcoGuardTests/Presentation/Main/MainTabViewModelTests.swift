@@ -32,6 +32,89 @@ struct MainTabViewModelTests {
         #expect(viewModel.selectedTab == .home)
     }
 
+    // MARK: - 홈 → 공지
+
+    @Test func homeBellPushesNoticesInsideHomeTab() {
+        let viewModel = MainTabViewModel()
+
+        viewModel.openNotices()
+
+        #expect(viewModel.selectedTab == .home)
+        #expect(viewModel.homePath == [.notices(focusedNoticeID: nil)])
+        #expect(viewModel.myPagePath.isEmpty)
+        #expect(viewModel.presentedFlow == nil)
+    }
+
+    @Test func homeNoticeCardPushesNoticesFocusingThatNotice() {
+        let viewModel = MainTabViewModel()
+        let notice = MockHomeRepository.Fixture.notice
+
+        viewModel.openNotices(focusing: notice)
+
+        #expect(viewModel.homePath == [.notices(focusedNoticeID: notice.id)])
+    }
+
+    @Test func openingNoticesTwiceStacksOnce() {
+        let viewModel = MainTabViewModel()
+
+        viewModel.openNotices()
+        viewModel.openNotices()
+
+        #expect(viewModel.homePath.count == 1)
+    }
+
+    @Test func backFromNoticesReturnsToHome() {
+        let viewModel = MainTabViewModel()
+        viewModel.openNotices()
+
+        viewModel.popHome()
+        viewModel.popHome()
+
+        #expect(viewModel.homePath.isEmpty)
+        #expect(viewModel.selectedTab == .home)
+    }
+
+    @Test func homePathIsKeptWhileVisitingOtherTabs() {
+        let viewModel = MainTabViewModel()
+        viewModel.openNotices()
+
+        viewModel.select(.records)
+        viewModel.select(.home)
+
+        #expect(viewModel.homePath == [.notices(focusedNoticeID: nil)])
+    }
+
+    @Test func reselectingHomeTabPopsToRoot() {
+        let viewModel = MainTabViewModel()
+        viewModel.openNotices()
+
+        viewModel.select(.home)
+
+        #expect(viewModel.homePath.isEmpty)
+    }
+
+    @Test func goHomeFromFlowShowsHomeRoot() {
+        let viewModel = MainTabViewModel()
+        viewModel.openNotices()
+        viewModel.select(.records)
+        viewModel.present(.verificationResult(id: rejectedResultID, entry: .history))
+
+        viewModel.dismissFlow(selecting: .home)
+
+        #expect(viewModel.selectedTab == .home)
+        #expect(viewModel.homePath.isEmpty)
+    }
+
+    @Test func closingFlowWithoutTabKeepsHomePath() {
+        let viewModel = MainTabViewModel()
+        viewModel.openNotices()
+        viewModel.present(.recruitment)
+
+        viewModel.dismissFlow()
+
+        #expect(viewModel.homePath == [.notices(focusedNoticeID: nil)])
+    }
+
     // MARK: - 전체 탭
 
     @Test func myPageRowsPushInsideMyPageTab() {

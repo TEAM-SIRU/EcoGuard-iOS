@@ -15,6 +15,12 @@ extension DIContainer {
         )
     }
 
+    /// 이의신청 작성의 `사진 다시 찍기`.
+    func makeAppealPhotoCaptureViewModel() -> AppealPhotoCaptureViewModel {
+        let (camera, permission) = makeCamera()
+        return AppealPhotoCaptureViewModel(camera: camera, permission: permission)
+    }
+
     /// 이의신청 내역.
     func makeAppealHistoryViewModel(
         repository: AppealRepository = MockAppealRepository()

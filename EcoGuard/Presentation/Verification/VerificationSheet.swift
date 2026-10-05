@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Figma 인증 불가·권한 안내 바텀시트: `인증 시간 아님` (317:134) · `오늘 이미 제출` (317:279) · `카메라 권한 필요` (317:365).
-/// 홈(#18)에서도 같은 시트를 띄울 수 있도록 내용만 그린다. 띄우는 쪽에서 `.ecoBottomSheet()`를 붙인다.
+/// 이의신청 사진 다시 찍기에서도 같은 권한 시트를 띄울 수 있도록 내용만 그린다. 띄우는 쪽에서 `.ecoBottomSheet()`를 붙인다.
 struct VerificationSheet: View {
     enum Kind: Equatable {
         case outsideWindow(CleaningWindow)
@@ -11,7 +11,6 @@ struct VerificationSheet: View {
 
     struct Actions {
         var close: () -> Void = {}
-        // TODO: 제출한 인증(기록 상세) 화면 이슈에서 연결
         var openSubmitted: () -> Void = {}
         var openSettings: () -> Void = {}
         var later: () -> Void = {}

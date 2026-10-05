@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Figma `09 이의신청` (239:267) 작성 · `09 이의신청 · 제출 실패` (514:165).
 /// 하단 버튼은 키보드 위로 따라 올라가고, 스크롤하면 키보드가 내려간다.
@@ -9,21 +10,23 @@ struct AppealFormView: View {
 
     @State private var viewModel: AppealFormViewModel
     private let back: () -> Void
-    // TODO: 이의신청 진입 연결(별도 이슈)에서 카메라를 띄우고 찍은 사진을 `AppealFormViewModel.addPhoto(_:)`로 넘긴다.
-    private let capturePhoto: () -> Void
+    /// `사진 다시 찍기`를 처음 누를 때 만든다. 카메라 세션을 화면을 그릴 때마다 만들지 않도록 만드는 방법만 받는다.
+    private let makePhotoCapture: () -> AppealPhotoCaptureViewModel
     private let onSubmitted: (Appeal) -> Void
 
+    @State private var photoCapture: AppealPhotoCaptureViewModel?
     @FocusState private var focusedField: Field?
+    @Environment(\.openURL) private var openURL
 
     init(
         viewModel: AppealFormViewModel,
         back: @escaping () -> Void,
-        capturePhoto: @escaping () -> Void,
+        makePhotoCapture: @escaping () -> AppealPhotoCaptureViewModel,
         onSubmitted: @escaping (Appeal) -> Void
     ) {
         _viewModel = State(initialValue: viewModel)
         self.back = back
-        self.capturePhoto = capturePhoto
+        self.makePhotoCapture = makePhotoCapture
         self.onSubmitted = onSubmitted
     }
 
@@ -55,6 +58,62 @@ struct AppealFormView: View {
                     EcoButton("확인", action: viewModel.confirmAlreadyReceived)
                 }
             }
+            .fullScreenCover(isPresented: photoCaptureBinding(.camera)) {
+                if let photoCapture {
+                    camera(photoCapture)
+                }
+            }
+            // 청소 인증 촬영과 같은 `카메라 권한 필요` 시트(317:365).
+            .sheet(isPresented: photoCaptureBinding(.permissionRequired)) {
+                VerificationSheet(kind: .permissionRequired, actions: permissionSheetActions)
+                    .ecoBottomSheet()
+            }
+    }
+
+    /// 이의신청용 촬영. 청소 인증 촬영 화면과 같은 모양이고, 찍으면 확인 화면 없이 바로 첨부한다(작성 화면에서 지울 수 있다).
+    private func camera(_ photoCapture: AppealPhotoCaptureViewModel) -> some View {
+        CameraCaptureScreen(
+            capture: photoCapture.capture,
+            title: Text("사진 다시 찍기"),
+            subtitle: "이의신청",
+            canTakePhoto: photoCapture.canTakePhoto,
+            close: photoCapture.dismiss,
+            takePhoto: {
+                guard let jpegData = await photoCapture.takePhoto() else { return }
+                viewModel.addPhoto(jpegData)
+            }
+        )
+    }
+
+    private func photoCaptureBinding(_ presentation: AppealPhotoCaptureViewModel.Presentation) -> Binding<Bool> {
+        Binding(
+            get: { photoCapture?.presentation == presentation },
+            set: { isPresented in
+                if !isPresented, photoCapture?.presentation == presentation {
+                    photoCapture?.dismiss()
+                }
+            }
+        )
+    }
+
+    private var permissionSheetActions: VerificationSheet.Actions {
+        VerificationSheet.Actions(
+            openSettings: {
+                photoCapture?.dismiss()
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    openURL(url)
+                }
+            },
+            later: { photoCapture?.dismiss() }
+        )
+    }
+
+    /// `사진 다시 찍기` 타일.
+    private func openCamera() {
+        focusedField = nil
+        let photoCapture = self.photoCapture ?? makePhotoCapture()
+        self.photoCapture = photoCapture
+        Task { await photoCapture.open() }
     }
 
     private var alreadyReceivedBinding: Binding<Bool> {
@@ -171,10 +230,7 @@ struct AppealFormView: View {
                     }
                 }
                 if viewModel.photos.count < AppealMessage.maxPhotoCount {
-                    EcoAddPhotoTile(count: viewModel.photos.count, maxCount: AppealMessage.maxPhotoCount) {
-                        focusedField = nil
-                        capturePhoto()
-                    }
+                    EcoAddPhotoTile(count: viewModel.photos.count, maxCount: AppealMessage.maxPhotoCount, action: openCamera)
                 }
             }
             .disabled(viewModel.isSubmitting)
@@ -220,7 +276,12 @@ private struct AppealFormPreview: View {
 
     var body: some View {
         NavigationStack {
-            AppealFormView(viewModel: viewModel, back: {}, capturePhoto: {}, onSubmitted: { _ in })
+            AppealFormView(
+                viewModel: viewModel,
+                back: {},
+                makePhotoCapture: { DIContainer.preview().makeAppealPhotoCaptureViewModel() },
+                onSubmitted: { _ in }
+            )
         }
     }
 

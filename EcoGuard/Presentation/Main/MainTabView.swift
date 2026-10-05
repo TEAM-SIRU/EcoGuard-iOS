@@ -14,6 +14,8 @@ struct MainTabView: View {
     @State private var activityRecordsViewModel: ActivityRecordsViewModel?
     /// 전체 탭을 처음 열 때 만든다. 로그인마다 셸이 새로 만들어져 이전 계정 정보가 남지 않는다.
     @State private var myPageViewModel: MyPageViewModel?
+    /// 홈 탭에서 push한 공지 화면의 ViewModel. 경로에서 빠지면 놓는다.
+    @State private var homeNoticeViewModel: NoticeViewModel?
     /// 전체 탭에서 push한 화면의 ViewModel. 경로에서 빠지면 놓는다.
     @State private var noticeViewModel: NoticeViewModel?
     @State private var appealHistoryViewModel: AppealHistoryViewModel?
@@ -83,6 +85,11 @@ struct MainTabView: View {
                 guard tab == .home else { return }
                 Task { await homeViewModel.refreshIfNeeded(now: .now) }
             }
+            .onChange(of: viewModel.homePath) { _, path in
+                if path.isEmpty {
+                    homeNoticeViewModel = nil
+                }
+            }
             .onChange(of: viewModel.myPagePath) { _, path in
                 if !path.contains(.notices) {
                     noticeViewModel = nil
@@ -119,23 +126,7 @@ struct MainTabView: View {
     private var content: some View {
         switch viewModel.selectedTab {
         case .home:
-            HomeView(
-                viewModel: homeViewModel,
-                actions: HomeView.Actions(
-                    verify: openCamera,
-                    openRecords: { viewModel.select(.records) },
-                    openSubmittedPhoto: {
-                        guard let submission = homeViewModel.todaySubmission else { return }
-                        viewModel.present(.verificationResult(id: submission.id, entry: .history))
-                    },
-                    appeal: {
-                        guard let target = homeViewModel.todayAppealTarget else { return }
-                        viewModel.present(.appealForm(target))
-                    },
-                    openRecruitment: { viewModel.present(.recruitment) },
-                    openApplicationResult: openApplicationResult
-                )
-            )
+            homeStack
         case .area:
             if let cleaningAreaViewModel {
                 CleaningAreaView(viewModel: cleaningAreaViewModel)
@@ -154,6 +145,42 @@ struct MainTabView: View {
         case .myPage:
             if let myPageViewModel {
                 myPageStack(myPageViewModel)
+            }
+        }
+    }
+
+    /// 홈 탭. 공지는 탭 바를 둔 채 이 안에서 push해 뒤로 가면 홈으로 돌아온다.
+    private var homeStack: some View {
+        NavigationStack(path: $viewModel.homePath) {
+            HomeView(
+                viewModel: homeViewModel,
+                actions: HomeView.Actions(
+                    verify: openCamera,
+                    openNotices: { openHomeNotices(focusing: nil) },
+                    openNotice: { notice in openHomeNotices(focusing: notice) },
+                    openRecords: { viewModel.select(.records) },
+                    openSubmittedPhoto: {
+                        guard let submission = homeViewModel.todaySubmission else { return }
+                        viewModel.present(.verificationResult(id: submission.id, entry: .history))
+                    },
+                    appeal: {
+                        guard let target = homeViewModel.todayAppealTarget else { return }
+                        viewModel.present(.appealForm(target))
+                    },
+                    openRecruitment: { viewModel.present(.recruitment) },
+                    openApplicationResult: openApplicationResult
+                )
+            )
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(for: MainTabViewModel.HomeRoute.self) { route in
+                switch route {
+                case .notices(let focusedNoticeID):
+                    if let homeNoticeViewModel {
+                        NoticeView(viewModel: homeNoticeViewModel, focusedNoticeID: focusedNoticeID, onBack: { viewModel.popHome() })
+                            .toolbar(.hidden, for: .navigationBar)
+                            .navigationBarBackButtonHidden()
+                    }
+                }
             }
         }
     }
@@ -276,8 +303,7 @@ struct MainTabView: View {
         AppealFormView(
             viewModel: container.makeAppealFormViewModel(target: target),
             back: { viewModel.backInFlow() },
-            // TODO: 이의신청 `사진 다시 찍기` 카메라 연결(별도 이슈). 찍은 사진은 `AppealFormViewModel.addPhoto(_:)`로 넘긴다.
-            capturePhoto: {},
+            makePhotoCapture: { container.makeAppealPhotoCaptureViewModel() },
             onSubmitted: { appeal in viewModel.appealSubmitted(appeal) }
         )
     }
@@ -299,6 +325,13 @@ struct MainTabView: View {
 
     private func openCamera() {
         viewModel.present(.camera(container.makeCameraVerificationViewModel()))
+    }
+
+    private func openHomeNotices(focusing notice: Notice?) {
+        if viewModel.homePath.isEmpty {
+            homeNoticeViewModel = container.makeNoticeViewModel()
+        }
+        viewModel.openNotices(focusing: notice)
     }
 
     private func openApplicationResult() {
