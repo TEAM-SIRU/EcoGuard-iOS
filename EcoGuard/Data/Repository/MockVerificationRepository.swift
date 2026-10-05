@@ -50,7 +50,7 @@ final class MockVerificationRepository: VerificationRepository {
         try await Task.sleep(for: delay)
         let serverNow = now()
         if let acceptedSubmission {
-            return Fixture.session(.alreadySubmitted(submittedAt: acceptedSubmission.submission.submittedAt), serverNow: serverNow)
+            return Fixture.session(.alreadySubmitted(submittedAt: acceptedSubmission.submission.submittedAt, status: .processing), serverNow: serverNow)
         }
         switch scenario {
         case .open:
@@ -58,7 +58,7 @@ final class MockVerificationRepository: VerificationRepository {
         case .outsideWindow:
             return Fixture.session(.outsideWindow, serverNow: serverNow)
         case .alreadySubmitted:
-            return Fixture.session(.alreadySubmitted(submittedAt: Fixture.submittedAt), serverNow: serverNow)
+            return Fixture.session(.alreadySubmitted(submittedAt: Fixture.submittedAt, status: .processing), serverNow: serverNow)
         case .failure:
             throw FetchFailedError()
         }
@@ -69,12 +69,12 @@ final class MockVerificationRepository: VerificationRepository {
         if let acceptedSubmission {
             // 응답을 받지 못해 같은 사진을 다시 보낸 경우 처음 제출을 그대로 돌려준다.
             guard acceptedSubmission.photoID == photo.id else {
-                throw VerificationError.alreadySubmitted(submittedAt: acceptedSubmission.submission.submittedAt)
+                throw VerificationError.alreadySubmitted(submittedAt: acceptedSubmission.submission.submittedAt, status: .processing)
             }
             return acceptedSubmission.submission
         }
         if scenario == .alreadySubmitted {
-            throw VerificationError.alreadySubmitted(submittedAt: Fixture.submittedAt)
+            throw VerificationError.alreadySubmitted(submittedAt: Fixture.submittedAt, status: .processing)
         }
         guard now() < deadline || startedPhotoIDs.contains(photo.id) else {
             throw VerificationError.deadlinePassed

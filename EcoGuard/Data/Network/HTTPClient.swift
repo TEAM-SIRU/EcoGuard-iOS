@@ -28,7 +28,7 @@ nonisolated struct HTTPClient: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let body = endpoint.body {
             request.httpBody = body
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(endpoint.contentType, forHTTPHeaderField: "Content-Type")
         }
         if let accessToken {
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")

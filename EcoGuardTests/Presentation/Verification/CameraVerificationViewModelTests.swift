@@ -103,7 +103,7 @@ struct CameraVerificationViewModelTests {
         await viewModel.load()
         await viewModel.startCapture()
 
-        #expect(viewModel.sheet == .alreadySubmitted(submittedAt: MockVerificationRepository.Fixture.submittedAt))
+        #expect(viewModel.sheet == .alreadySubmitted(submittedAt: MockVerificationRepository.Fixture.submittedAt, status: .processing))
         #expect(viewModel.state == .guide)
     }
 
@@ -485,6 +485,32 @@ struct CameraVerificationViewModelTests {
         #expect(photo.photo.capturedAt == serverClock.now)
     }
 
+    /// 실제 서버 모드: 마감 시각이 없으면 남은 시간·시간 초과 판단 없이 촬영을 받고, 마감은 제출 응답(403)에 맡긴다.
+    @Test func openWithoutDeadlineNeverTimesOut() async {
+        let (_, repository) = makeViewModel()
+        let viewModel = CameraVerificationViewModel(
+            fetchSessionUseCase: FetchVerificationSessionUseCase(verificationRepository: repository),
+            submitPhotoUseCase: SubmitVerificationPhotoUseCase(verificationRepository: repository),
+            camera: Self.makeCamera(),
+            permission: FakeCameraPermission(),
+            now: { [serverClock] in serverClock.now },
+            state: .guide,
+            session: VerificationSession(
+                area: MockVerificationRepository.Fixture.area,
+                window: MockVerificationRepository.Fixture.window,
+                availability: .open(deadline: nil),
+                serverNow: serverClock.now
+            )
+        )
+        serverClock.now = serverClock.now.addingTimeInterval(24 * 60 * 60)
+
+        #expect(viewModel.deadline == nil)
+        #expect(viewModel.timeUntilDeadline() == nil)
+        #expect(!viewModel.expireIfNeeded())
+        await viewModel.startCapture()
+        #expect(viewModel.state == .capturing)
+    }
+
     @Test func checkUploadStatusShowsAlreadySubmittedWhenServerHasPhoto() async throws {
         let (viewModel, repository) = makeViewModel(uploadResults: [.success])
         _ = try #require(await capturedPhoto(viewModel))
@@ -500,7 +526,7 @@ struct CameraVerificationViewModelTests {
 
         await timedOut.checkUploadStatus()
 
-        #expect(timedOut.sheet == .alreadySubmitted(submittedAt: Date(timeIntervalSinceReferenceDate: 0)))
+        #expect(timedOut.sheet == .alreadySubmitted(submittedAt: Date(timeIntervalSinceReferenceDate: 0), status: .processing))
     }
 
     @Test func checkUploadStatusKeepsTimedOutWhenNothingSubmitted() async {
