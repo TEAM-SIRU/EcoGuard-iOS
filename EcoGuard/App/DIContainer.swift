@@ -56,8 +56,14 @@ final class DIContainer {
             httpClient: httpClient,
             authSession: AuthSession(tokenStore: tokenStore, httpClient: httpClient)
         )
-        // TODO: dataGSM OAuth 연동 때 인가 코드를 받아 오는 구현으로 바꾼다. 그 전까지 실제 모드 로그인은 실패한다.
-        return AuthRepositoryImpl(apiClient: apiClient, authorizationCode: { throw AuthorizationCodeUnavailableError() })
+        // dataGSM 클라이언트 ID·리다이렉트 URI가 정해지기 전까지 실제 모드 로그인은 실패한다.
+        let authorizer = AppConfig.gsmOAuthConfiguration.map {
+            GsmOAuthAuthorizer(configuration: $0, session: SystemWebAuthenticationSession())
+        }
+        return AuthRepositoryImpl(apiClient: apiClient, authorizationCode: {
+            guard let authorizer else { throw AuthorizationCodeUnavailableError() }
+            return try await authorizer.authorizationCode()
+        })
     }
 
     private static let hasLaunchedKey = "auth.hasLaunchedBefore"
@@ -104,7 +110,7 @@ final class DIContainer {
     }
 }
 
-/// dataGSM OAuth가 아직 없어 인가 코드를 받을 수 없다.
+/// dataGSM OAuth 설정(클라이언트 ID·리다이렉트 URI)이 비어 있어 인가 코드를 받을 수 없다.
 struct AuthorizationCodeUnavailableError: Error {}
 
 extension DIContainer {
