@@ -18,7 +18,12 @@ struct MainTabView: View {
     @State private var noticeViewModel: NoticeViewModel?
     @State private var appealHistoryViewModel: AppealHistoryViewModel?
 
+    /// 오늘 제출한 인증을 찾지 못했다는 토스트.
+    @State private var isShowingSubmissionToast = false
+
     @Environment(\.scenePhase) private var scenePhase
+
+    private static let submissionUnavailableMessage: LocalizedStringResource = "제출한 인증을 불러오지 못했어요. 잠시 후 다시 확인해 주세요"
 
     var body: some View {
         content
@@ -86,6 +91,23 @@ struct MainTabView: View {
                     appealHistoryViewModel = nil
                 }
             }
+            // Figma 정의가 없어 다른 실패 토스트와 같은 모양으로 위쪽에 띄운다.
+            .overlay(alignment: .top) {
+                if isShowingSubmissionToast {
+                    EcoToast(message: Self.submissionUnavailableMessage)
+                        .padding(.top, Spacing.sm)
+                        .padding(.horizontal, Spacing.screenHorizontal)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.default, value: isShowingSubmissionToast)
+            .task(id: viewModel.submissionUnavailableCount) {
+                guard viewModel.submissionUnavailableCount > 0 else { return }
+                AccessibilityNotification.Announcement(String(localized: Self.submissionUnavailableMessage)).post()
+                isShowingSubmissionToast = true
+                guard (try? await Task.sleep(for: EcoToast.displayDuration)) != nil else { return }
+                isShowingSubmissionToast = false
+            }
             // 흐름을 닫으면 홈 상태(인증 결과, 가입 상태), 활동 기록(오늘 제출분), 마이페이지(이번 달 승인·신청 결과),
             // 이의신청 내역(새로 보낸 이의신청)이 바뀌었을 수 있어 다시 조회한다.
             .fullScreenCover(item: presentedFlowBinding, onDismiss: refreshAfterFlow) { flow in
@@ -125,9 +147,7 @@ struct MainTabView: View {
                     actions: ActivityRecordsView.Actions(
                         // 카메라 버튼과 같이 활동 중일 때만 빈 기록에서 인증으로 보낸다.
                         verify: homeViewModel.isCameraAvailable ? { openCamera() } : nil,
-                        openRecord: { record in
-                            viewModel.present(.verificationResult(id: record.id, entry: .history))
-                        }
+                        openRecord: { record in viewModel.openRecord(record) }
                     )
                 )
             }
@@ -192,12 +212,13 @@ struct MainTabView: View {
                 actions: CameraVerificationView.Actions(
                     close: { viewModel.dismissFlow() },
                     openSubmitted: {
-                        // 오늘 제출한 인증을 홈에서 아직 받지 못했으면 인증 화면만 닫는다. 닫으면 홈을 다시 조회한다.
-                        guard let submission = homeViewModel.todaySubmission else {
-                            viewModel.dismissFlow()
-                            return
+                        // 홈이 오늘 제출분을 아직 받지 못했으면(다른 기기에서 제출 등) 다시 조회한 뒤 연다.
+                        Task {
+                            if homeViewModel.todaySubmission == nil {
+                                await homeViewModel.refresh()
+                            }
+                            viewModel.openTodaySubmission(homeViewModel.todaySubmission)
                         }
-                        viewModel.present(.verificationResult(id: submission.id, entry: .submission))
                     }
                 )
             )

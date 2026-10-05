@@ -18,6 +18,7 @@ struct ActivityRecordsFormatterTests {
             area: "본관 2층 복도 A",
             result: result,
             submittedAt: submittedAt,
+            verificationID: submittedAt == nil ? nil : "v",
             earnedMinutes: earnedMinutes,
             isAppealApproved: isAppealApproved
         )

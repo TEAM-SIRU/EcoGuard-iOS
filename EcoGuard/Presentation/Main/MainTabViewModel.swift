@@ -43,6 +43,8 @@ final class MainTabViewModel {
     private(set) var presentedFlow: Flow?
     /// 띄운 흐름 안 `NavigationStack`의 경로. 흐름을 닫거나 새로 띄우면 비운다.
     var flowPath: [FlowRoute] = []
+    /// 오늘 제출한 인증을 찾지 못해 안내한 횟수. 바뀔 때마다 화면이 토스트를 띄운다.
+    private(set) var submissionUnavailableCount = 0
 
     init(selectedTab: MainTab = .home) {
         self.selectedTab = selectedTab
@@ -71,6 +73,23 @@ final class MainTabViewModel {
     func present(_ flow: Flow) {
         flowPath = []
         presentedFlow = flow
+    }
+
+    /// 활동 기록 행. 그날 제출한 인증의 결과를 연다. 미제출이라 인증이 없으면 열지 않는다.
+    func openRecord(_ record: ActivityRecord) {
+        guard let verificationID = record.verificationID else { return }
+        present(.verificationResult(id: verificationID, entry: .history))
+    }
+
+    /// 이미 인증한 날 시트의 `제출한 인증 보기`. 오늘 제출한 인증 결과로 흐름을 바꾼다.
+    /// 홈을 다시 불러와도 찾지 못했으면 인증 화면을 닫고 홈에서 안내한다.
+    func openTodaySubmission(_ submission: TodaySubmission?) {
+        guard let submission else {
+            dismissFlow(selecting: .home)
+            submissionUnavailableCount += 1
+            return
+        }
+        present(.verificationResult(id: submission.id, entry: .submission))
     }
 
     /// 흐름을 닫는다. `tab`을 넘기면 그 탭으로 옮긴다(`홈으로`, `활동 기록 보기`).

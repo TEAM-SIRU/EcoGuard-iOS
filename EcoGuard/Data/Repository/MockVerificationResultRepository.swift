@@ -50,7 +50,7 @@ final class MockVerificationResultRepository: VerificationResultRepository {
             if let status = MockHomeRepository.Fixture.resultStatus(forSubmissionID: id) {
                 return Fixture.result(id: id, status: status, submittedAt: MockHomeRepository.Fixture.submittedAt)
             }
-            if let record = MockActivityRepository.Fixture.submittedRecord(id: id, now: now()) {
+            if let record = MockActivityRepository.Fixture.submittedRecord(verificationID: id, now: now()) {
                 return Fixture.result(id: id, status: record.status, submittedAt: record.submittedAt)
             }
             return nil

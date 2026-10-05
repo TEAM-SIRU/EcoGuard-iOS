@@ -19,6 +19,8 @@ struct ActivityRecord: Equatable, Identifiable {
     let result: Result
     /// 사진을 낸 시각. 미제출이면 nil.
     let submittedAt: Date?
+    /// 그날 제출한 인증. 인증 상세(결과) 화면을 열 때 쓴다. 미제출이면 nil.
+    let verificationID: String?
     /// 적립된 활동 시간(분). 승인일 때만 0보다 크다.
     let earnedMinutes: Int
     /// 반려 후 이의신청이 받아들여져 승인된 기록인지.

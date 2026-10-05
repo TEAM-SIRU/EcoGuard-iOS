@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import EcoGuard
 
@@ -211,5 +212,58 @@ struct MainTabViewModelTests {
         #expect(id == rejectedResultID)
         #expect(entry == .submission)
         #expect(viewModel.flowPath.isEmpty)
+    }
+
+    // MARK: - 기록 행 → 인증 결과
+
+    @Test func recordRowOpensResultWithVerificationID() {
+        let viewModel = MainTabViewModel(selectedTab: .records)
+        let record = MockActivityRepository.Fixture.records[0]
+
+        viewModel.openRecord(record)
+
+        guard case .verificationResult(let id, let entry) = viewModel.presentedFlow else {
+            Issue.record("인증 결과 흐름이 아니다")
+            return
+        }
+        #expect(id == record.verificationID)
+        #expect(id != record.id)
+        #expect(entry == .history)
+    }
+
+    @Test func recordWithoutVerificationOpensNothing() {
+        let viewModel = MainTabViewModel(selectedTab: .records)
+        let notSubmitted = MockActivityRepository.Fixture.records.first { $0.result == .notSubmitted }
+
+        if let notSubmitted {
+            viewModel.openRecord(notSubmitted)
+        }
+
+        #expect(notSubmitted?.verificationID == nil)
+        #expect(viewModel.presentedFlow == nil)
+    }
+
+    // MARK: - 이미 인증한 날 시트 → 제출한 인증
+
+    @Test func missingTodaySubmissionClosesCameraAndNotifies() {
+        let viewModel = MainTabViewModel(selectedTab: .records)
+        viewModel.present(.camera(DIContainer.preview().makeCameraVerificationViewModel()))
+
+        viewModel.openTodaySubmission(nil)
+
+        #expect(viewModel.presentedFlow == nil)
+        #expect(viewModel.selectedTab == .home)
+        #expect(viewModel.submissionUnavailableCount == 1)
+    }
+
+    @Test func todaySubmissionOpensResultFromSheet() {
+        let viewModel = MainTabViewModel()
+        viewModel.present(.camera(DIContainer.preview().makeCameraVerificationViewModel()))
+        let submission = TodaySubmission(id: "verification-20260929", submittedAt: .now)
+
+        viewModel.openTodaySubmission(submission)
+
+        #expect(viewModel.presentedFlow?.id == "verificationResult-verification-20260929")
+        #expect(viewModel.submissionUnavailableCount == 0)
     }
 }
