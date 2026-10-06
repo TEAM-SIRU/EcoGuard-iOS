@@ -12,6 +12,7 @@ struct HomeRepositoryImplTests {
         static let recruitment = "/api/v1/recruitments/current"
         static let notices = "/api/v1/notices"
         static let notice = "/api/v1/notices/7"
+        static let today = "/api/v1/verifications/today"
     }
 
     /// 2026-09-29(화) 09:00 KST.
@@ -105,7 +106,8 @@ struct HomeRepositoryImplTests {
         #expect(summary.notice == Notice(
             id: "7",
             title: "10월 안내",
-            body: "매일 **08:00**에 청소해요",
+            // 미리보기는 일반 텍스트라 마크다운 본문으로 넘기지 않는다.
+            body: "",
             preview: "매일 **08:00**에 청소해요",
             // 소수점 초는 버린다.
             publishedAt: PathStub.date(2026, 9, 28, 17, 30),
@@ -238,9 +240,9 @@ struct HomeRepositoryImplTests {
         #expect(log.requests(path: Path.application).isEmpty)
     }
 
-    /// 학기를 읽을 수 없어도 홈은 실패하지 않고 오늘(9월 → 2학기) 기준 학기로 둔다.
-    @Test(arguments: ["2학기", "2026-3", ""])
-    func malformedSemesterFallsBackToCurrentSemester(semester: String) async throws {
+    /// 학기는 "2026-2"를 먼저, 아니면 끝 숫자(1·2)를 읽는다. 그래도 읽을 수 없으면 홈은 실패하지 않고 학기를 비운다.
+    @Test(arguments: [("2학기", 2), ("1", 1), ("2026-3", nil), ("", nil)] as [(String, Int?)])
+    func semesterIsParsedLeniently(semester: String, expected: Int?) async throws {
         let json = Self.recruitmentJSON(status: "OPEN", alreadyApplied: false).replacingOccurrences(of: "2026-2", with: semester)
         let repository = try makeRepository(responses: [
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
@@ -251,7 +253,41 @@ struct HomeRepositoryImplTests {
             Issue.record("모집이어야 한다")
             return
         }
-        #expect(recruitment.semester == 2)
+        #expect(recruitment.semester == expected)
+    }
+
+    nonisolated static func todayJSON(serverTime: String, canSubmit: Bool, reason: String?) -> String {
+        """
+        {"serverTime":"\(serverTime)","areaId":3,"areaName":"본관 계단 A","startTime":"08:00:00","endTime":"08:10:00",
+         "canSubmit":\(canSubmit),"unavailableReason":\(reason.map { "\"\($0)\"" } ?? "null"),
+         "submitted":false,"verificationId":null,"status":null,"submittedAt":null}
+        """
+    }
+
+    /// 제출 전 상태는 오늘 인증 정보(서버 시각·인증 가능 여부·사유)로 정한다. 방학은 서버만 안다.
+    /// 오늘 인증 정보를 받지 못하면 홈은 기기 시각(09:00, 마감 뒤)으로 보여 준다.
+    @Test(arguments: [
+        (200, HomeRepositoryImplTests.todayJSON(serverTime: "2026-09-29T08:05:00", canSubmit: true, reason: nil),
+         TodayVerification.open(deadline: PathStub.date(2026, 9, 29, 8, 10))),
+        (200, HomeRepositoryImplTests.todayJSON(serverTime: "2026-09-29T09:00:00", canSubmit: false, reason: "VACATION"), .vacation),
+        (200, HomeRepositoryImplTests.todayJSON(serverTime: "2026-09-29T07:50:00", canSubmit: false, reason: "BEFORE_START"),
+         .notOpenYet(opensAt: PathStub.date(2026, 9, 29, 8))),
+        // 기기 시각으로는 인증 시간이어도 서버가 안 된다고 하면 다음 날을 기다린다.
+        (200, HomeRepositoryImplTests.todayJSON(serverTime: "2026-09-29T08:05:00", canSubmit: false, reason: "SOMETHING_NEW"),
+         .notOpenYet(opensAt: PathStub.date(2026, 9, 30, 8))),
+        (500, PathStub.error("INTERNAL_SERVER_ERROR"), .notOpenYet(opensAt: PathStub.date(2026, 9, 30, 8))),
+    ])
+    func todayInfoDecidesVerification(statusCode: Int, json: String, expected: TodayVerification) async throws {
+        var responses = Self.activeResponses
+        responses[Path.verifications] = (200, "[]")
+        responses[Path.today] = (statusCode, json)
+        let repository = try makeRepository(responses: responses)
+
+        guard case .active(let cleaning) = try await repository.fetchHome().status else {
+            Issue.record("활동 중이어야 한다")
+            return
+        }
+        #expect(cleaning.today.verification == expected)
     }
 
     /// 404라도 "아직 없음" 코드가 아니면 에러다.

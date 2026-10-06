@@ -16,6 +16,7 @@ nonisolated enum HomeMapper {
         assignment: HomeDTO.Assignment,
         weekly: WeeklyActivityResponseDTO,
         verifications: [HomeDTO.Verification],
+        todayInfo: TodayVerificationResponseDTO?,
         now: Date
     ) throws -> ActiveCleaning {
         let today = calendar.startOfDay(for: now)
@@ -34,7 +35,9 @@ nonisolated enum HomeMapper {
             today: TodayCleaning(
                 area: assignment.areaName,
                 window: window,
-                verification: todaySubmission.map(\.todayVerification) ?? verification(window: window, now: now),
+                verification: todaySubmission.map(\.todayVerification)
+                    ?? todayInfo.flatMap { verification(window: window, today: $0) }
+                    ?? verification(window: window, now: now),
                 // 서버가 제출 시각을 주지 않아 인증한 날 0시를 넣는다.
                 submission: todaySubmission.map { TodaySubmission(id: String($0.verificationId), submittedAt: today) }
             ),
@@ -55,7 +58,7 @@ nonisolated enum HomeMapper {
     ) -> HomeStatus {
         guard let recruitment else { return .notRecruiting }
         guard recruitment.alreadyApplied else {
-            return recruitment.periodStatus == .open ? .recruiting(recruitment.toDomain(now: now)) : .notRecruiting
+            return recruitment.periodStatus == .open ? .recruiting(recruitment.toDomain()) : .notRecruiting
         }
         return application?.status == .rejected ? .notSelected : .awaitingAssignment
     }
@@ -70,7 +73,23 @@ nonisolated enum HomeMapper {
         return CleaningWindow(startMinute: start, endMinute: end)
     }
 
-    /// 오늘 제출 전 상태. 서버가 인증 가능 여부를 주지 않아 청소 시간과 기기 시각으로 정한다.
+    /// 오늘 제출 전 상태를 오늘 인증 정보(`GET /verifications/today`)의 인증 가능 여부·사유·서버 시각으로 정한다.
+    /// 방학은 서버만 알아 이 값으로만 알 수 있다. 서버 시각을 읽을 수 없으면 nil(기기 시각으로 정한다).
+    static func verification(window: CleaningWindow, today info: TodayVerificationResponseDTO) -> TodayVerification? {
+        guard let serverNow = ServerDate.dateTime(info.serverTime) else { return nil }
+        if info.canSubmit {
+            let deadline = calendar.startOfDay(for: serverNow).addingTimeInterval(TimeInterval(window.endMinute * 60))
+            return .open(deadline: deadline)
+        }
+        if info.unavailableReason == "VACATION" { return .vacation }
+        // 주말·시작 전·마감 뒤(그리고 모르는 사유)는 다음 인증 시작 시각을 기다린다. 서버가 안 된다고 했으니 열린 상태로 두지 않는다.
+        let local = verification(window: window, now: serverNow)
+        guard case .open = local else { return local }
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: serverNow)) ?? serverNow
+        return .notOpenYet(opensAt: opening(onOrAfter: tomorrow, window: window))
+    }
+
+    /// 오늘 제출 전 상태를 청소 시간과 기기 시각으로 정한다. 오늘 인증 정보를 받지 못했을 때 쓴다(방학은 알 수 없다).
     /// 시간이 지났거나 주말이면 다음 평일 시작 시각까지 `notOpenYet`으로 둔다(홈 도메인에 미제출 상태가 없다).
     static func verification(window: CleaningWindow, now: Date) -> TodayVerification {
         let today = calendar.startOfDay(for: now)
@@ -143,10 +162,10 @@ nonisolated extension WeeklyActivityResponseDTO {
 }
 
 nonisolated extension HomeDTO.CurrentRecruitment {
-    /// 학기를 읽을 수 없으면 홈을 실패로 두지 않고 `now`(KST)의 학기로 둔다(`ServerSemester`).
-    func toDomain(now: Date) -> Recruitment {
+    /// 학기를 읽을 수 없으면 홈을 실패로 두지 않고 학기 없이 보여 준다(`ServerSemester`).
+    func toDomain() -> Recruitment {
         Recruitment(
-            semester: ServerSemester.number(semester, fallbackDate: now),
+            semester: ServerSemester.number(semester),
             capacityPerClass: maxCount,
             className: "\(grade)학년 \(classNo)반",
             appliedCount: currentApplicants
@@ -155,9 +174,10 @@ nonisolated extension HomeDTO.CurrentRecruitment {
 }
 
 nonisolated extension HomeDTO.NoticeListItem {
-    /// 홈 카드 본문은 목록의 미리보기다. 상세를 받으면 서버가 읽음으로 기록해 NEW가 사라지므로 홈에서는 상세를 받지 않는다.
+    /// 홈 카드는 목록의 미리보기(일반 텍스트)를 보여 준다. 본문(마크다운)은 비워 둔다.
+    /// 상세를 받으면 서버가 읽음으로 기록해 NEW가 사라지므로 홈에서는 상세를 받지 않는다.
     func toHomeNotice() throws -> Notice {
         guard let publishedAt = ServerDate.dateTime(createdAt) else { throw APIError.decoding }
-        return Notice(id: String(noticeId), title: title, body: preview, preview: preview, publishedAt: publishedAt, isRead: isRead)
+        return Notice(id: String(noticeId), title: title, body: "", preview: preview, publishedAt: publishedAt, isRead: isRead)
     }
 }

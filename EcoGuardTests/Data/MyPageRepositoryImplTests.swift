@@ -8,6 +8,7 @@ struct MyPageRepositoryImplTests {
         static let activity = "/api/v1/service-times/me"
         static let assignment = "/api/v1/assignments/me"
         static let application = "/api/v1/applications/me"
+        static let recruitment = "/api/v1/recruitments/current"
     }
 
     private static let activityJSON = """
@@ -22,7 +23,11 @@ struct MyPageRepositoryImplTests {
     ) -> MyPageRepositoryImpl {
         // 2026-10-01 00:30 KST(UTC로는 9월 30일). 이번 달은 학교 시간대로 정한다.
         MyPageRepositoryImpl(
-            apiClient: PathStub.makeClient(log: log, responses: responses),
+            // 공고를 주지 않은 테스트는 공고 없음(현재 공고에 신청하지 않음)으로 둔다.
+            apiClient: PathStub.makeClient(
+                log: log,
+                responses: responses.merging([Path.recruitment: (404, PathStub.error("NO_ACTIVE_RECRUITMENT"))]) { given, _ in given }
+            ),
             currentUserRepository: MockCurrentUserRepository(user: user),
             now: { PathStub.date(2026, 10, 1, 0, 30) }
         )
@@ -33,6 +38,7 @@ struct MyPageRepositoryImplTests {
         let repository = makeRepository(log: log, responses: [
             Path.activity: (200, Self.activityJSON),
             Path.assignment: (200, #"{"areaId":3,"areaName":"본관 계단 A","description":null,"cleanTime":null,"mapCoordinates":{"x":0,"y":0},"members":[]}"#),
+            Path.recruitment: (200, HomeRepositoryImplTests.recruitmentJSON(status: "CLOSED", alreadyApplied: true)),
             Path.application: (200, #"{"status":"APPROVED","order":2,"appliedAt":"2026-09-01T08:00:00","waitingForAssignment":false}"#)
         ])
 
@@ -64,12 +70,13 @@ struct MyPageRepositoryImplTests {
         #expect(summary.hasApplied == false)
     }
 
-    /// 신청하면 바로 승인된다(서버 #16). 이전 데이터의 `PENDING`도 받아들여진 신청이고, 미선발(`REJECTED`)만 환경지킴이가 아니다.
+    /// 현재 공고에 신청했으면 신청은 바로 승인된다(서버 #16). 이전 데이터의 `PENDING`도 받아들여진 신청이고, 미선발(`REJECTED`)만 환경지킴이가 아니다.
     @Test(arguments: [("APPROVED", true), ("PENDING", true), ("REJECTED", false)])
     func applicationStatusDecidesGuardian(status: String, isGuardian: Bool) async throws {
         let repository = makeRepository(responses: [
             Path.activity: (200, Self.activityJSON),
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
+            Path.recruitment: (200, HomeRepositoryImplTests.recruitmentJSON(status: "OPEN", alreadyApplied: true)),
             Path.application: (200, #"{"status":"\#(status)","order":2,"appliedAt":"2026-09-01T08:00:00","waitingForAssignment":false}"#)
         ])
 
@@ -79,17 +86,39 @@ struct MyPageRepositoryImplTests {
         #expect(summary.hasApplied)
     }
 
-    /// 내 정보를 받지 못하고 저장한 값도 없으면 이름 없이 보여 주지 않고 실패로 둔다.
-    @Test func missingUserFailsMyPage() async {
+    /// `applications/me`는 지난 모집의 신청일 수 있어, 현재 공고에 신청하지 않았거나 공고가 없으면 보지 않는다.
+    @Test(arguments: [
+        (200, HomeRepositoryImplTests.recruitmentJSON(status: "OPEN", alreadyApplied: false)),
+        (404, PathStub.error("NO_ACTIVE_RECRUITMENT"))
+    ])
+    func pastApplicationIsNotGuardian(statusCode: Int, recruitmentJSON: String) async throws {
+        let log = RequestLog()
+        let repository = makeRepository(log: log, responses: [
+            Path.activity: (200, Self.activityJSON),
+            Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
+            Path.recruitment: (statusCode, recruitmentJSON),
+            Path.application: (200, #"{"status":"PENDING","order":2,"appliedAt":"2026-03-02T08:00:00","waitingForAssignment":false}"#)
+        ])
+
+        let summary = try await repository.fetchMyPage()
+
+        #expect(summary.profile.isGuardian == false)
+        #expect(summary.hasApplied == false)
+        #expect(log.requests(path: Path.application).isEmpty)
+    }
+
+    /// 내 정보를 받지 못하고 저장한 값도 없으면 이름·학반을 비우고 나머지는 보여 준다.
+    @Test func missingUserLeavesNameEmpty() async throws {
         let repository = makeRepository(user: nil, responses: [
             Path.activity: (200, Self.activityJSON),
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
             Path.application: (404, PathStub.error("NO_APPLICATION"))
         ])
 
-        await #expect(throws: MockCurrentUserRepository.FetchFailedError.self) {
-            try await repository.fetchMyPage()
-        }
+        let summary = try await repository.fetchMyPage()
+
+        #expect(summary.profile == UserProfile(name: "", grade: nil, classNumber: nil, isGuardian: false))
+        #expect(summary.monthlyActivityMinutes == 70)
     }
 
     @Test func activityFailureFailsMyPage() async {

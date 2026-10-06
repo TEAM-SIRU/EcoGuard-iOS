@@ -186,6 +186,20 @@ struct CurrentUserRepositoryTests {
         #expect(fixture.userStore.load() == SessionUser(userId: 7, name: "김학생"))
     }
 
+    /// 앞선 탈퇴 요청이 서버에 닿고 응답만 잃었으면 토큰이 무효라 다시 보낸 요청이 401·재발급 401(세션 만료)이 된다. 탈퇴한 것으로 보고 정리한다.
+    @Test func sessionExpiredWithdrawIsTreatedAsDone() async throws {
+        let fixture = makeFixture(
+            tokens: PathStub.tokens,
+            user: SessionUser(userId: 7, name: "김학생"),
+            responses: ["DELETE \(Self.mePath)": (401, "")]
+        )
+
+        try await fixture.currentUser.withdraw()
+
+        #expect(!fixture.auth.hasStoredSession())
+        #expect(fixture.userStore.load() == nil)
+    }
+
     @Test func userDefaultsStoreRoundTrips() throws {
         let suiteName = "CurrentUserRepositoryTests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))

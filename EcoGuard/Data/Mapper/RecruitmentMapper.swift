@@ -9,7 +9,7 @@ extension CurrentRecruitmentResponseDTO {
         let phase = alreadyApplied && myApplication == nil ? .ended : periodStatus.phase
         return RecruitmentDetail(
             recruitment: Recruitment(
-                semester: ServerSemester.number(semester, fallbackDate: startDate),
+                semester: ServerSemester.number(semester),
                 capacityPerClass: maxCount,
                 className: "\(grade)학년 \(classNo)반",
                 appliedCount: currentApplicants

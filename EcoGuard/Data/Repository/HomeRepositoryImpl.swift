@@ -21,6 +21,8 @@ final class HomeRepositoryImpl: HomeRepository {
         // 배정된 학생이 대부분이라 배정 여부를 기다리지 않고 함께 보낸다. 배정 전이면 쓰지 않는다.
         async let weekly: WeeklyActivityResponseDTO = apiClient.send(.myWeeklyActivity)
         async let verifications: [HomeDTO.Verification] = apiClient.send(.Home.myVerifications)
+        // 인증 가능 여부(방학 등). 받지 못해도 홈은 기기 시각으로 보여 준다.
+        async let todayInfo: TodayVerificationResponseDTO? = try? apiClient.send(.todayVerification)
         async let notice = latestNotice(dismissedIDs: dismissedNoticeIDs, apiClient: apiClient)
 
         let status: HomeStatus
@@ -29,6 +31,7 @@ final class HomeRepositoryImpl: HomeRepository {
                 assignment: assignment,
                 weekly: try await weekly,
                 verifications: try await verifications,
+                todayInfo: await todayInfo,
                 now: now()
             ))
         } else {

@@ -331,9 +331,9 @@ extension RecruitmentRepositoryImplTests {
         #expect(try await repository.fetchMyApplication() == nil)
     }
 
-    /// 학기는 `"2026-2"`(연도-학기). 다른 형식이면 화면을 실패로 두지 않고 모집 시작일(9월)의 학기(2학기)로 보여 준다.
-    @Test(arguments: [("2026-1", 1), ("2026-2", 2), ("1", 2), ("2026-3", 2), ("여름", 2)])
-    func semesterParsesYearDashSemester(semester: String, expected: Int) async throws {
+    /// 학기는 `"2026-2"`(연도-학기)를 먼저, 아니면 끝 숫자(1·2)를 읽는다. 그래도 읽을 수 없으면 학기 없이 보여 준다.
+    @Test(arguments: [("2026-1", 1), ("2026-2", 2), ("1", 1), ("2학기", 2), ("2026-3", nil), ("여름", nil)] as [(String, Int?)])
+    func semesterParsesYearDashSemester(semester: String, expected: Int?) async throws {
         let repository = makeRepository(responses: [Self.currentPath: (200, Self.currentJSON(semester: semester))])
 
         #expect(try await repository.fetchRecruitment()?.recruitment.semester == expected)
@@ -424,10 +424,14 @@ extension RecruitmentRepositoryImplTests {
         #expect(try await repository.fetchApplicant() == Applicant(studentNumber: studentNumber, name: "김서연"))
     }
 
-    @Test func applicantFailsWithoutCurrentUser() async {
-        let repository = makeRepository(currentUser: nil, responses: [:])
+    /// 학번·이름을 받지 못해도 공고 화면은 뜬다. 신청자 줄은 비어 화면이 숨긴다.
+    @Test func applicantFailureStillLoadsRecruitment() async throws {
+        let repository = makeRepository(currentUser: nil, responses: [Self.currentPath: (200, Self.currentJSON())])
 
-        await #expect(throws: MockCurrentUserRepository.FetchFailedError.self) { try await repository.fetchApplicant() }
+        let result = try await FetchRecruitmentUseCase(recruitmentRepository: repository).execute()
+
+        #expect(result.detail != nil)
+        #expect(result.applicant == Applicant(studentNumber: nil, name: nil))
     }
 }
 
@@ -437,12 +441,13 @@ struct ServerDateDecodingTests {
         #expect(throws: APIError.decoding) { try ServerDate.requiredDateTime("어제") }
     }
 
-    /// 형식이 다르면 `fallbackDate`(KST)의 학기. 3~8월 1학기, 그 밖 2학기.
-    @Test func semesterFallsBackToDateSemester() {
-        #expect(ServerSemester.number("2026-2", fallbackDate: PathStub.date(2026, 3, 2)) == 2)
-        #expect(ServerSemester.number("1학기", fallbackDate: PathStub.date(2026, 3, 2)) == 1)
-        #expect(ServerSemester.number("1학기", fallbackDate: PathStub.date(2026, 2, 28)) == 2)
-        #expect(ServerSemester.number("1학기", fallbackDate: PathStub.date(2026, 9, 1)) == 2)
+    /// 어림한 학기를 단정하지 않는다. 읽을 수 없으면 nil.
+    @Test func semesterParsing() {
+        #expect(ServerSemester.number(" 2026-2 ") == 2)
+        #expect(ServerSemester.number("2026년 1학기") == 1)
+        #expect(ServerSemester.number("3") == nil)
+        #expect(ServerSemester.number("2026") == nil)
+        #expect(ServerSemester.number("") == nil)
     }
 
     @Test func parsesCleanTime() {

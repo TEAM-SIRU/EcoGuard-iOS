@@ -41,6 +41,7 @@ struct HomeTodayCard: View {
         switch today.verification {
         case .notOpenYet: "\(HomeFormatter.time(minuteOfDay: today.window.startMinute))부터 인증할 수 있어요"
         case .open: "아직 인증하지 않았어요"
+        case .vacation: "\(VerificationClosedCopy.vacationTitle)"
         case .aiReviewing: "AI가 사진을 확인하고 있어요"
         case .teacherReviewing: "선생님이 사진을 확인하고 있어요"
         case .approved: "오늘 청소를 마쳤어요"
@@ -59,7 +60,7 @@ struct HomeTodayCard: View {
                 EmptyView()
             case .approved(let earnedMinutes):
                 HomeInfoRow(label: "적립", value: String(localized: "+\(earnedMinutes)분"), isHighlighted: true)
-            case .notOpenYet, .open, .rejected:
+            case .notOpenYet, .open, .vacation, .rejected:
                 EmptyView()
             }
         }
@@ -74,7 +75,7 @@ struct HomeTodayCard: View {
         case .teacherReviewing:
             EcoInfoBox(style: .note, message: String(localized: "AI가 판단하기 어려운 사진이라 선생님께 넘겼어요"))
                 .padding(.top, Spacing.md)
-        case .notOpenYet, .open, .aiReviewing, .approved:
+        case .notOpenYet, .open, .vacation, .aiReviewing, .approved:
             EmptyView()
         }
     }
@@ -94,7 +95,7 @@ struct HomeTodayCard: View {
     @ViewBuilder
     private var button: some View {
         switch today.verification {
-        case .notOpenYet:
+        case .notOpenYet, .vacation:
             EcoButton("지금은 인증 시간이 아니에요", leadingIcon: .iconClockLarge) {}
                 .disabled(true)
         case .open:

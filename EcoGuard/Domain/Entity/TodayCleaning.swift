@@ -28,6 +28,8 @@ enum TodayVerification: Equatable {
     case notOpenYet(opensAt: Date)
     /// 인증 가능. `deadline`까지 남은 시간은 표시용이고, 지나면 다시 조회한다.
     case open(deadline: Date)
+    /// 방학이라 인증하지 않는다. 언제 끝나는지 서버가 주지 않아 다시 조회할 시각이 없다(앱 복귀·당겨서 새로고침으로 갱신).
+    case vacation
     /// `submittedAt`은 서버가 제출 시각을 주지 않으면(현재 서버) nil.
     case aiReviewing(submittedAt: Date?)
     /// AI가 판단하기 어려워 선생님이 확인 중이다.
@@ -40,7 +42,7 @@ enum TodayVerification: Equatable {
         switch self {
         case .notOpenYet(let opensAt): opensAt
         case .open(let deadline): deadline
-        case .aiReviewing, .teacherReviewing, .approved, .rejected: nil
+        case .vacation, .aiReviewing, .teacherReviewing, .approved, .rejected: nil
         }
     }
 

@@ -144,6 +144,10 @@ struct HomeView: View {
     HomeView(viewModel: DIContainer.preview(homeScenario: .notOpenYet).makeHomeViewModel())
 }
 
+#Preview("방학") {
+    HomeView(viewModel: DIContainer.preview(homeScenario: .vacation).makeHomeViewModel())
+}
+
 #Preview("모집 기간 (미가입)") {
     HomeView(viewModel: DIContainer.preview(homeScenario: .recruiting).makeHomeViewModel())
 }

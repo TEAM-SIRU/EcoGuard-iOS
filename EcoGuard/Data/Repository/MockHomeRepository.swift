@@ -9,6 +9,7 @@ final class MockHomeRepository: HomeRepository {
         case rejected
         case teacherReviewing
         case notOpenYet
+        case vacation
         case recruiting
         case awaitingAssignment
         case notSelected
@@ -102,6 +103,8 @@ extension MockHomeRepository {
                 active(.teacherReviewing(submittedAt: submittedAt))
             case .notOpenYet:
                 active(.notOpenYet(opensAt: opensAt(onDayOf: now)))
+            case .vacation:
+                active(.vacation)
             case .recruiting:
                 HomeSummary(
                     status: .recruiting(Recruitment(semester: 2, capacityPerClass: 6, className: "2학년 3반", appliedCount: 4)),
@@ -149,7 +152,7 @@ extension MockHomeRepository {
         /// 오늘 인증 상태에 맞는 인증 결과 상태. 제출 전이면 nil.
         private static func resultStatus(for verification: TodayVerification) -> VerificationResult.Status? {
             switch verification {
-            case .notOpenYet, .open: nil
+            case .notOpenYet, .open, .vacation: nil
             case .aiReviewing: .processing
             case .teacherReviewing: .manualReview
             case .approved: .approved

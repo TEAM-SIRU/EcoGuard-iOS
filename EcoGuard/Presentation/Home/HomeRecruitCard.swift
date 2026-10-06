@@ -51,7 +51,9 @@ struct HomeRecruitCard: View {
 
     private var title: LocalizedStringKey {
         switch content {
-        case .recruiting(let recruitment): "\(recruitment.semester)학기 환경지킴이를\n모집하고 있어요"
+        case .recruiting(let recruitment):
+            // 학기를 모르면 학기 없이(새 문구).
+            recruitment.semester.map { "\($0)학기 환경지킴이를\n모집하고 있어요" } ?? "환경지킴이를\n모집하고 있어요"
         case .awaitingAssignment: "환경지킴이가 됐어요"
         case .notSelected: HomeStatusCopy.NotSelected.title
         case .notRecruiting: HomeStatusCopy.NotRecruiting.title

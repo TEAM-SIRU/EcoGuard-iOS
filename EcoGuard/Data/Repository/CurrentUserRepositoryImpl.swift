@@ -23,7 +23,12 @@ final class CurrentUserRepositoryImpl: CurrentUserRepository {
     }
 
     func withdraw() async throws {
-        try await apiClient.send(.withdraw)
+        do {
+            try await apiClient.send(.withdraw)
+        } catch APIError.sessionExpired {
+            // 앞선 탈퇴 요청이 서버에 닿고 응답만 잃었으면, 서버가 토큰을 모두 무효로 만들어 다시 보낸 요청과 재발급이 401이 된다.
+            // 계정을 되살릴 방법이 없으므로 탈퇴한 것으로 보고 정리한다.
+        }
         // 서버가 토큰을 모두 무효로 만들었으므로 로그아웃처럼 기기 값을 지운다.
         await apiClient.authSession.clear()
     }
