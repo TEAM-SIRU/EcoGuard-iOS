@@ -2,22 +2,30 @@ import Foundation
 
 /// dataGSM OAuth 설정. 인가 코드는 앱이 받고, 토큰 교환은 서버가 `redirectURI`와 함께 한다.
 /// 서버가 `code_verifier`를 보내지 않으므로 PKCE(`code_challenge`)는 붙이지 않는다. 붙이면 서버의 토큰 교환이 실패한다.
+///
+/// 흐름: dataGSM 인가 → `redirectURI`(서버 `/api/v1/auth/callback`) → 서버가 `callbackURL`(`ecoguard://auth/callback?code&state`)로 302
+/// → 앱이 받아 state를 확인하고 `POST /api/v1/auth/login`.
 struct GsmOAuthConfiguration: Equatable {
     /// `GET /v1/oauth/authorize` 주소.
     let authorizeURL: URL
     let clientID: String
-    /// dataGSM 클라이언트와 서버(`GSM_OAUTH_REDIRECT_URI`)에 등록한 값과 글자까지 같아야 한다.
+    /// dataGSM에 보내는 `redirect_uri`. dataGSM 클라이언트와 서버(`GSM_OAUTH_REDIRECT_URI`)에 등록한 값과 글자까지 같아야 한다.
     let redirectURI: URL
+    /// 서버가 인가 코드를 붙여 돌려보내는 앱 주소. 스킴·호스트·경로가 모두 같은 콜백만 받는다.
+    let callbackURL: URL
     let callback: WebAuthenticationCallback
 
-    /// `redirectURI`의 스킴이 https면 https 콜백, 그 밖이면 커스텀 스킴 콜백으로 받는다.
+    /// `callbackURL`의 스킴이 https면 https 콜백, 그 밖이면 커스텀 스킴 콜백으로 받는다.
+    /// 커스텀 스킴은 `ASWebAuthenticationSession`에 스킴을 넘기면 받으므로 Info.plist `CFBundleURLTypes` 등록이 필요 없다.
     /// https 콜백은 Associated Domains(`webcredentials:`) 엔타이틀먼트와 서버의 apple-app-site-association이 있어야 한다.
-    /// 둘 중 하나라도 없으면 인가 후 콜백이 앱으로 오지 않는다(도메인이 정해진 뒤 추가).
-    init?(authorizeURL: URL, clientID: String, redirectURI: URL) {
-        guard let scheme = redirectURI.scheme?.lowercased(), let host = redirectURI.host(), !host.isEmpty else { return nil }
+    /// 둘 중 하나라도 없으면 인가 후 콜백이 앱으로 오지 않는다(아직 미설정).
+    init?(authorizeURL: URL, clientID: String, redirectURI: URL, callbackURL: URL) {
+        guard Self.hasHost(redirectURI), redirectURI.scheme?.lowercased() != "http",
+              Self.hasHost(callbackURL), let scheme = callbackURL.scheme?.lowercased(), let host = callbackURL.host()
+        else { return nil }
         switch scheme {
         case "https":
-            callback = .https(host: host, path: WebAuthenticationCallback.normalizedPath(redirectURI.path()))
+            callback = .https(host: host, path: WebAuthenticationCallback.normalizedPath(callbackURL.path()))
         case "http":
             return nil
         default:
@@ -26,6 +34,11 @@ struct GsmOAuthConfiguration: Equatable {
         self.authorizeURL = authorizeURL
         self.clientID = clientID
         self.redirectURI = redirectURI
+        self.callbackURL = callbackURL
+    }
+
+    private static func hasHost(_ url: URL) -> Bool {
+        url.scheme != nil && !(url.host() ?? "").isEmpty
     }
 
     /// dataGSM은 콜백 주소에 `state`를 인코딩 없이 붙이므로 URL에 안전한 값(UUID)만 넘긴다.
@@ -40,8 +53,9 @@ struct GsmOAuthConfiguration: Equatable {
         return components.url ?? authorizeURL
     }
 
-    /// 콜백 주소에서 인가 코드를 꺼낸다. `error`가 있거나 `state`가 다르거나 `code`가 없으면 실패다.
-    static func authorizationCode(from callbackURL: URL, expectedState: String) throws -> String {
+    /// 콜백 주소에서 인가 코드를 꺼낸다. 주소가 `callbackURL`과 다르거나 `error`가 있거나 `state`가 다르거나 `code`가 없으면 실패다.
+    func authorizationCode(from callbackURL: URL, expectedState: String) throws -> String {
+        guard matchesCallback(callbackURL) else { throw GsmOAuthError.unexpectedCallback }
         let items = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?.queryItems ?? []
         func value(_ name: String) -> String? {
             items.first { $0.name == name }?.value
@@ -53,6 +67,13 @@ struct GsmOAuthConfiguration: Equatable {
         guard let code = value("code"), !code.isEmpty else { throw GsmOAuthError.missingCode }
         return code
     }
+
+    /// 커스텀 스킴 콜백은 시스템이 스킴만 맞춰 돌려주므로 호스트·경로는 여기서 확인한다. 스킴·호스트는 대소문자를 가리지 않는다.
+    private func matchesCallback(_ url: URL) -> Bool {
+        url.scheme?.lowercased() == callbackURL.scheme?.lowercased()
+            && url.host()?.lowercased() == callbackURL.host()?.lowercased()
+            && WebAuthenticationCallback.normalizedPath(url.path()) == WebAuthenticationCallback.normalizedPath(callbackURL.path())
+    }
 }
 
 enum GsmOAuthError: Error, Equatable {
@@ -61,6 +82,8 @@ enum GsmOAuthError: Error, Equatable {
     /// 요청 때 만든 `state`와 콜백의 `state`가 다르다(CSRF).
     case stateMismatch
     case missingCode
+    /// 콜백 주소의 호스트·경로가 설정한 `callbackURL`과 다르다.
+    case unexpectedCallback
 }
 
 /// dataGSM 인가 화면을 띄워 인가 코드를 받는다. 사용자가 창을 닫으면 `AuthError.cancelled`를 던진다.
@@ -85,6 +108,6 @@ final class GsmOAuthAuthorizer {
             url: configuration.authorizationURL(state: state),
             callback: configuration.callback
         )
-        return try GsmOAuthConfiguration.authorizationCode(from: callbackURL, expectedState: state)
+        return try configuration.authorizationCode(from: callbackURL, expectedState: state)
     }
 }

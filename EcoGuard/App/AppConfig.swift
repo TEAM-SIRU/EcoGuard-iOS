@@ -32,8 +32,7 @@ enum AppConfig {
         configuredURL(from: rawValue, key: "EcoWebAdminURL")
     }
 
-    /// Info.plist `EcoAPIBaseURL` = `https://$(ECO_API_HOST)`. 서버 주소가 정해지기 전까지 빈 값(자리표시)이며,
-    /// 그동안 `DIContainer.live()`는 Mock 저장소를 쓴다.
+    /// Info.plist `EcoAPIBaseURL` = `https://$(ECO_API_HOST)`. 비어 있으면 `DIContainer.live()`는 Mock 저장소를 쓴다.
     static var apiBaseURL: URL? {
         apiBaseURL(from: Bundle.main.object(forInfoDictionaryKey: "EcoAPIBaseURL") as? String)
     }
@@ -42,29 +41,56 @@ enum AppConfig {
         configuredURL(from: rawValue, key: "EcoAPIBaseURL")
     }
 
+    /// 서버 주소가 있어도 Mock 저장소를 쓸지. DEBUG 빌드에서 환경 변수 `ECO_USE_MOCK=1`이면(스킴 Run › Environment Variables에서 켠다)
+    /// Mock을 쓴다. 테스트 호스트로 실행될 때도 실서버·키체인을 건드리지 않게 Mock을 쓴다.
+    static var usesMockRepositories: Bool {
+        usesMockRepositories(environment: ProcessInfo.processInfo.environment)
+    }
+
+    static func usesMockRepositories(environment: [String: String]) -> Bool {
+        if environment["XCTestConfigurationFilePath"] != nil { return true }
+        #if DEBUG
+        return environment["ECO_USE_MOCK"] == "1"
+        #else
+        return false
+        #endif
+    }
+
     /// dataGSM OAuth 설정. Info.plist `EcoOAuthAuthorizeURL` = `https://$(ECO_OAUTH_AUTHORIZE_HOST)`,
-    /// `EcoOAuthClientID` = `$(ECO_OAUTH_CLIENT_ID)`, `EcoOAuthRedirectURI` = `$(ECO_OAUTH_REDIRECT_SCHEME)://$(ECO_OAUTH_REDIRECT_HOST)`.
-    /// 클라이언트 ID·리다이렉트 URI가 정해지기 전까지 nil이며, 그동안 실제 모드(서버 주소 있음) 로그인은 실패한다.
+    /// `EcoOAuthClientID` = `$(ECO_OAUTH_CLIENT_ID)`, `EcoOAuthRedirectURI` = `$(ECO_OAUTH_REDIRECT_URI)`(dataGSM에 보내는 서버 콜백),
+    /// `EcoOAuthCallbackURL` = `$(ECO_OAUTH_CALLBACK_URL)`(서버가 돌려보내는 앱 주소).
+    /// 값이 하나라도 비어 있으면 nil이며, 그동안 실제 모드(서버 주소 있음) 로그인은 실패한다.
     static var gsmOAuthConfiguration: GsmOAuthConfiguration? {
         gsmOAuthConfiguration(
             authorizeURL: Bundle.main.object(forInfoDictionaryKey: "EcoOAuthAuthorizeURL") as? String,
             clientID: Bundle.main.object(forInfoDictionaryKey: "EcoOAuthClientID") as? String,
-            redirectURI: Bundle.main.object(forInfoDictionaryKey: "EcoOAuthRedirectURI") as? String
+            redirectURI: Bundle.main.object(forInfoDictionaryKey: "EcoOAuthRedirectURI") as? String,
+            callbackURL: Bundle.main.object(forInfoDictionaryKey: "EcoOAuthCallbackURL") as? String
         )
     }
 
-    static func gsmOAuthConfiguration(authorizeURL: String?, clientID: String?, redirectURI: String?) -> GsmOAuthConfiguration? {
+    static func gsmOAuthConfiguration(
+        authorizeURL: String?,
+        clientID: String?,
+        redirectURI: String?,
+        callbackURL: String?
+    ) -> GsmOAuthConfiguration? {
         let clientID = clientID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let redirectURI = redirectURI?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        // 스킴·호스트 빌드 설정이 비어 있으면 `://`만 남는다.
-        guard !clientID.isEmpty, !redirectURI.isEmpty, redirectURI != "://",
+        let callbackURL = callbackURL?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !clientID.isEmpty, !redirectURI.isEmpty, !callbackURL.isEmpty,
               let authorizeURL = configuredURL(from: authorizeURL, key: "EcoOAuthAuthorizeURL")
         else { return nil }
-        guard let url = URL(string: redirectURI),
-              let configuration = GsmOAuthConfiguration(authorizeURL: authorizeURL, clientID: clientID, redirectURI: url)
+        guard let redirect = URL(string: redirectURI), let callback = URL(string: callbackURL),
+              let configuration = GsmOAuthConfiguration(
+                  authorizeURL: authorizeURL,
+                  clientID: clientID,
+                  redirectURI: redirect,
+                  callbackURL: callback
+              )
         else {
             #if DEBUG
-            logger.error("EcoOAuthRedirectURI 값이 올바른 리다이렉트 주소가 아니다: \(redirectURI, privacy: .public)")
+            logger.error("EcoOAuthRedirectURI·EcoOAuthCallbackURL 값이 올바른 주소가 아니다: \(redirectURI, privacy: .public) / \(callbackURL, privacy: .public)")
             #endif
             return nil
         }
