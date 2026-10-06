@@ -73,7 +73,7 @@ final class SystemWebAuthenticationSession: NSObject, WebAuthenticationSession {
         } else {
             guard case let .customScheme(scheme) = callback else {
                 // 사용자에게는 일반 로그인 실패로 보이므로 원인은 로그로 남긴다.
-                logger.error("https 콜백은 iOS 17.4부터 쓸 수 있다. EcoOAuthRedirectURI를 커스텀 스킴으로 바꾸거나 최소 버전을 올려야 한다.")
+                logger.error("https 콜백은 iOS 17.4부터 쓸 수 있다. EcoOAuthCallbackURL을 커스텀 스킴으로 바꾸거나 최소 버전을 올려야 한다.")
                 continuation.resume(throwing: UnsupportedCallbackError())
                 return
             }

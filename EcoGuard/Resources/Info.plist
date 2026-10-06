@@ -12,9 +12,13 @@
 	<string>https://$(ECO_OAUTH_AUTHORIZE_HOST)</string>
 	<key>EcoOAuthClientID</key>
 	<string>$(ECO_OAUTH_CLIENT_ID)</string>
-	<!-- https 리다이렉트는 Associated Domains(webcredentials:) 엔타이틀먼트와 서버 apple-app-site-association이 있어야 콜백이 온다. 아직 미설정이므로 지금은 커스텀 스킴만 동작한다. -->
+	<!-- dataGSM에 보내는 redirect_uri(서버 콜백). dataGSM 클라이언트·서버 설정과 글자까지 같아야 한다. -->
 	<key>EcoOAuthRedirectURI</key>
-	<string>$(ECO_OAUTH_REDIRECT_SCHEME)://$(ECO_OAUTH_REDIRECT_HOST)</string>
+	<string>$(ECO_OAUTH_REDIRECT_URI)</string>
+	<!-- 서버가 인가 코드를 붙여 302로 돌려보내는 앱 주소. 커스텀 스킴은 ASWebAuthenticationSession에 스킴을 넘기므로 CFBundleURLTypes 등록이 필요 없다.
+	     https로 바꾸려면 Associated Domains(webcredentials:)와 서버 apple-app-site-association이 있어야 하고 iOS 17.4부터 동작한다. -->
+	<key>EcoOAuthCallbackURL</key>
+	<string>$(ECO_OAUTH_CALLBACK_URL)</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>NotoSansKR-Regular.otf</string>

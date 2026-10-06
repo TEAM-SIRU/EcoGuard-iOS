@@ -28,9 +28,9 @@ final class DIContainer {
         self.webAdminURL = webAdminURL
     }
 
-    /// 서버 주소(`ECO_API_HOST`)가 정해지기 전까지 Mock을 쓴다. 저장소마다 실제 구현이 생기는 대로 바꾼다.
+    /// 서버 주소(`ECO_API_HOST`)가 비어 있거나 Mock 전환(`AppConfig.usesMockRepositories`)이 켜져 있으면 Mock을 쓴다.
     static func live() -> DIContainer {
-        let authRepository = makeAuthRepository(apiBaseURL: AppConfig.apiBaseURL)
+        let authRepository = makeAuthRepository(apiBaseURL: AppConfig.usesMockRepositories ? nil : AppConfig.apiBaseURL)
         // 모집 공고·신청·결과 화면이 같은 저장소를 쓴다(신청할 공고 ID를 들고 있다). `AuthSession`은 로그인 저장소와 같다.
         let apiClient = (authRepository as? AuthRepositoryImpl)?.apiClient
         return DIContainer(
@@ -61,7 +61,7 @@ final class DIContainer {
             httpClient: httpClient,
             authSession: AuthSession(tokenStore: tokenStore, httpClient: httpClient)
         )
-        // dataGSM 클라이언트 ID·리다이렉트 URI가 정해지기 전까지 실제 모드 로그인은 실패한다.
+        // dataGSM OAuth 설정(클라이언트 ID·리다이렉트 URI·콜백 주소)이 비어 있으면 실제 모드 로그인은 실패한다.
         let authorizer = AppConfig.gsmOAuthConfiguration.map {
             GsmOAuthAuthorizer(configuration: $0, session: SystemWebAuthenticationSession())
         }
@@ -116,7 +116,7 @@ final class DIContainer {
     }
 }
 
-/// dataGSM OAuth 설정(클라이언트 ID·리다이렉트 URI)이 비어 있어 인가 코드를 받을 수 없다.
+/// dataGSM OAuth 설정(클라이언트 ID·리다이렉트 URI·콜백 주소)이 비어 있어 인가 코드를 받을 수 없다.
 struct AuthorizationCodeUnavailableError: Error {}
 
 extension DIContainer {
