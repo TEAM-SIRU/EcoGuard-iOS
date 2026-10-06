@@ -49,6 +49,8 @@ final class CameraVerificationViewModel {
     private(set) var state: State
     private(set) var sheet: Sheet?
     private(set) var session: VerificationSession?
+    /// 이번에 낸 인증. 앱 셸이 홈 갱신 전에 `제출한 인증 보기`를 열 때 쓴다.
+    private(set) var submission: VerificationSubmission?
 
     /// 카메라 세션·셔터. 촬영 화면이 그대로 쓴다.
     let capture: CameraCapture
@@ -214,6 +216,7 @@ final class CameraVerificationViewModel {
         state = .uploading(captured)
         do {
             let submission = try await submitPhotoUseCase.execute(captured.photo)
+            self.submission = submission
             state = .submitted(captured, submittedAt: submission.submittedAt)
         } catch VerificationError.deadlinePassed {
             state = .timedOut
