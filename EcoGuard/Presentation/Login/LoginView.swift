@@ -27,6 +27,8 @@ struct LoginView: View {
                     }
             }
         }
+        // 입력란이 없는 화면이다. dataGSM 로그인 창에서 올린 키보드에 밀려 올라갔다가 창이 닫힐 때 내려오지 않게 한다(#69).
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .onChange(of: viewModel.state) { _, state in
             guard state == .failed else { return }
             AccessibilityNotification.Announcement(String(localized: "로그인하지 못했어요. 다시 시도해 주세요")).post()

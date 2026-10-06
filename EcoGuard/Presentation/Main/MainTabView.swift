@@ -46,6 +46,9 @@ struct MainTabView: View {
                     .accessibilityHint(homeViewModel.isCameraAvailable ? Text(verbatim: "") : Text("환경지킴이로 활동 중일 때 쓸 수 있어요"))
             }
         }
+            // 탭 화면에는 글 입력이 없다(입력은 fullScreenCover 흐름 안). dataGSM 로그인 창에서 올린 키보드가 내려가는 중에
+            // 셸이 나타나면 탭 바가 키보드 높이를 따라 미끄러져 내려온다(#69). 셸은 키보드 영역을 피하지 않는다.
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             // 홈 재조회는 다른 탭에 있어도 돌아야 해서 셸에 둔다. 시각이 이미 지났으면 바로 다시 조회한다.
             .task(id: homeViewModel.nextRefreshDate) {
                 guard let date = homeViewModel.nextRefreshDate else { return }
