@@ -23,16 +23,14 @@ struct CameraVerificationView: View {
                 guard viewModel.state == .loading else { return }
                 await viewModel.load()
             }
-            // 마감 시각이 되면 아직 보내기 시작하지 않은 촬영을, 재시도 유예가 끝나면 보내다 실패한 사진도 시간 초과로 바꾼다.
+            // 마감 시각이 되면 아직 보내기 시작하지 않은 촬영을 시간 초과로 바꾼다.
             .task(id: viewModel.deadline) {
-                for date in viewModel.expiryCheckDates {
-                    let interval = date.timeIntervalSince(viewModel.serverNow)
-                    if interval > 0 {
-                        try? await Task.sleep(for: .seconds(interval))
-                    }
-                    guard !Task.isCancelled else { return }
-                    viewModel.expireIfNeeded()
+                guard let interval = viewModel.timeUntilDeadline() else { return }
+                if interval > 0 {
+                    try? await Task.sleep(for: .seconds(interval))
                 }
+                guard !Task.isCancelled else { return }
+                viewModel.expireIfNeeded()
             }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
@@ -63,6 +61,15 @@ struct CameraVerificationView: View {
                 back: actions.close,
                 secondaryAction: actions.close
             )
+        case .notAssigned:
+            VerificationMessageView(
+                title: "아직 배정된 구역이 없어요",
+                message: "청소 구역이 배정되면 알려드려요.",
+                primaryTitle: "다시 시도",
+                primaryAction: { await viewModel.load() },
+                back: actions.close,
+                secondaryAction: actions.close
+            )
         case .guide:
             VerificationGuideView(area: viewModel.session?.area ?? "", back: actions.close) {
                 await viewModel.startCapture()
@@ -80,7 +87,7 @@ struct CameraVerificationView: View {
         case .uploadFailed:
             VerificationMessageView(
                 title: "사진을 보내지 못했어요",
-                message: "네트워크 연결을 확인하고 다시 시도해 주세요.\n08:10 전에 업로드를 시작한 사진은 마감 후에도 같은 사진으로 재시도할 수 있어요.\n새 사진으로 바꾸면 마감 후 제출할 수 없어요.",
+                message: "네트워크 연결을 확인하고 다시 시도해 주세요.\n\(deadlineText) 전에 업로드를 시작한 사진은 마감 후에도 같은 사진으로 재시도할 수 있어요.\n새 사진으로 바꾸면 마감 후 제출할 수 없어요.",
                 primaryTitle: "같은 사진 다시 보내기",
                 primaryAction: viewModel.submit,
                 back: viewModel.returnToConfirm,
@@ -91,13 +98,18 @@ struct CameraVerificationView: View {
         case .timedOut:
             VerificationMessageView(
                 title: "오늘 인증 시간이 끝났어요",
-                message: "08:10이 지나 새 인증은 제출할 수 없어요.\n마감 전에 업로드를 시작했다면 기존 사진의 업로드를 이어갈 수 있어요.\n이의신청용 촬영은 별도로 가능해요.",
+                message: "\(deadlineText)이 지나 새 인증은 제출할 수 없어요.\n마감 전에 업로드를 시작했다면 기존 사진의 업로드를 이어갈 수 있어요.\n이의신청용 촬영은 별도로 가능해요.",
                 primaryTitle: "업로드 상태 확인",
                 primaryAction: viewModel.checkUploadStatus,
                 back: actions.close,
                 secondaryAction: actions.close
             )
         }
+    }
+
+    /// 안내 문구의 마감 시각(Figma `08:10`). 서버가 정한 인증 시간의 끝이다.
+    private var deadlineText: String {
+        viewModel.session.map { HomeFormatter.time(minuteOfDay: $0.window.endMinute) } ?? "마감"
     }
 
     private var isSheetPresented: Binding<Bool> {

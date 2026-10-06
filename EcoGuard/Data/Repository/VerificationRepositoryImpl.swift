@@ -11,12 +11,22 @@ final class VerificationRepositoryImpl: VerificationRepository {
     }
 
     func fetchSession() async throws -> VerificationSession {
-        let today: TodayVerificationResponseDTO = try await apiClient.send(.todayVerification)
-        return try today.session()
+        do {
+            let today: TodayVerificationResponseDTO = try await apiClient.send(.todayVerification)
+            return try today.session()
+        } catch APIError.server(404, "NO_ASSIGNMENT"?) {
+            throw VerificationError.notAssigned
+        }
     }
 
     /// 사진 ID를 재전송 키로 보내 같은 사진의 재시도는 서버가 처음 접수 결과를 돌려준다.
     func submit(_ photo: VerificationPhoto) async throws -> VerificationSubmission {
+        try await submit(photo, retriesConflict: true)
+    }
+
+    /// `retriesConflict`: 제출 시각 없는 `오늘 이미 제출`을 받으면 같은 키로 한 번 더 보낸다.
+    /// 같은 키의 전송이 동시에 들어가 한쪽이 저장 경합에서 진 경우라, 다시 보내면 서버가 먼저 접수된 결과를 돌려준다.
+    private func submit(_ photo: VerificationPhoto, retriesConflict: Bool) async throws -> VerificationSubmission {
         let endpoint = Endpoint.submitVerification(
             photoID: photo.id,
             jpegData: photo.jpegData,
@@ -32,6 +42,9 @@ final class VerificationRepositoryImpl: VerificationRepository {
         } catch APIError.server(_, "ALREADY_SUBMITTED_TODAY"?) {
             // 다른 사진(다른 키)이 오늘 이미 접수됐다. 제출 시각은 에러 바디에, 검수 상태는 오늘 인증 정보에 있다.
             let error = try? APIClient.decode(SubmitVerificationErrorDTO.self, from: data)
+            if error?.submittedAt == nil, retriesConflict {
+                return try await submit(photo, retriesConflict: false)
+            }
             let today: TodayVerificationResponseDTO? = try? await apiClient.send(.todayVerification)
             throw VerificationError.alreadySubmitted(
                 submittedAt: (error?.submittedAt ?? today?.submittedAt).flatMap(ServerDate.dateTime),

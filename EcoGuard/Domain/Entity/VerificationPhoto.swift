@@ -27,4 +27,6 @@ enum VerificationError: Error, Equatable {
     case alreadySubmitted(submittedAt: Date?, status: VerificationResult.Status?)
     /// 방학 기간이라 인증할 수 없다.
     case vacation
+    /// 배정된 청소 구역이 없다.
+    case notAssigned
 }

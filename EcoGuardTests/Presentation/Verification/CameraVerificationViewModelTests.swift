@@ -439,9 +439,9 @@ struct CameraVerificationViewModelTests {
         }
     }
 
-    /// 서버는 마감 후 유예 시간(5분)까지만 재시도를 받는다. 앱도 그때 시간 초과로 바꾼다.
+    /// 보내기 시작한 사진은 마감 후 유예 시간이 지나도 앱이 만료시키지 않는다. 앞선 전송이 접수됐으면 같은 키 재전송에 서버가 처음 결과를 준다.
     @Test(arguments: [false, true])
-    func startedUploadTimesOutWhenLateRetryGraceEnds(backToConfirm: Bool) async throws {
+    func startedUploadNeverExpiresLocally(backToConfirm: Bool) async throws {
         let (viewModel, _) = makeViewModel(uploadResults: [.networkFailure])
         _ = try #require(await capturedPhoto(viewModel))
         await viewModel.submit()
@@ -449,17 +449,14 @@ struct CameraVerificationViewModelTests {
             viewModel.returnToConfirm()
         }
 
-        serverClock.now = deadline.addingTimeInterval(VerificationSession.lateRetryGrace - 1)
+        serverClock.now = deadline.addingTimeInterval(VerificationSession.lateRetryGrace + 60)
+
         #expect(viewModel.expireIfNeeded() == false)
         #expect(viewModel.state != .timedOut)
-
-        serverClock.now = deadline.addingTimeInterval(VerificationSession.lateRetryGrace)
-        #expect(viewModel.expireIfNeeded())
-        #expect(viewModel.state == .timedOut)
     }
 
-    /// 화면이 유예 종료 갱신을 놓친 채 `같은 사진 다시 보내기`를 누르면 보내지 않고 시간 초과로 바꾼다.
-    @Test func retryAfterLateRetryGraceTimesOutWithoutSending() async throws {
+    /// 유예 시간이 지나도 같은 사진 재시도는 보내고, 시간 초과 여부는 서버 응답으로 정한다.
+    @Test func retryAfterLateRetryGraceIsSentAndServerDecides() async throws {
         let (viewModel, repository) = makeViewModel(uploadResults: [.networkFailure, .success])
         let photo = try #require(await capturedPhoto(viewModel))
         await viewModel.submit()
@@ -467,16 +464,19 @@ struct CameraVerificationViewModelTests {
         serverClock.now = deadline.addingTimeInterval(VerificationSession.lateRetryGrace + 1)
         await viewModel.submit()
 
+        #expect(repository.submittedPhotoIDs == [photo.photo.id, photo.photo.id])
+        // Mock 서버는 접수되지 않은 사진의 유예 후 재시도를 마감으로 거절한다.
         #expect(viewModel.state == .timedOut)
-        #expect(repository.submittedPhotoIDs == [photo.photo.id])
     }
 
-    @Test func expiryCheckDatesAreDeadlineAndGraceEnd() async {
-        let (viewModel, _) = makeViewModel()
+    @Test func noAssignmentShowsNotAssigned() async {
+        let viewModel = Self.makeServerViewModel(deviceNow: { Self.kst(8, 0) }, log: RequestLog(), today: (404, Data(#"{"code":"NO_ASSIGNMENT","message":"m"}"#.utf8))) {
+            (500, Data())
+        }
 
         await viewModel.load()
 
-        #expect(viewModel.expiryCheckDates == [deadline, deadline.addingTimeInterval(VerificationSession.lateRetryGrace)])
+        #expect(viewModel.state == .notAssigned)
     }
 
     @Test func retakeAfterDeadlineFromStartedUploadTimesOut() async throws {
@@ -628,6 +628,7 @@ struct CameraVerificationViewModelTests {
     private static func makeServerViewModel(
         deviceNow: @escaping @MainActor () -> Date,
         log: RequestLog,
+        today: (Int, Data)? = nil,
         submitResponse: @escaping @Sendable () -> (Int, Data)
     ) -> CameraVerificationViewModel {
         let httpClient = HTTPClient(
@@ -635,6 +636,7 @@ struct CameraVerificationViewModelTests {
             session: StubURLProtocol.makeSession { request in
                 log.append(request)
                 if request.url?.path() == "/api/v1/verifications/today" {
+                    if let today { return today }
                     return (200, Data(#"""
                     {"serverTime":"2026-09-29T08:00:00.25","areaId":3,"areaName":"본관 2층 복도 A","cleanTime":"07:20~08:10",
                     "startTime":"07:20:00","endTime":"08:10:00","canSubmit":true,"unavailableReason":null,

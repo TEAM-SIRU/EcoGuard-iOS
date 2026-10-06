@@ -109,10 +109,10 @@ struct VerificationRepositoryImplTests {
         #expect(session.availability == .alreadySubmitted(submittedAt: Self.kst(7, 41, 5), status: status))
     }
 
-    @Test func fetchSessionPropagatesNoAssignment() async throws {
+    @Test func fetchSessionMapsNoAssignment() async throws {
         let repository = Self.makeRepository { _ in (404, Self.errorJSON("NO_ASSIGNMENT")) }
 
-        await #expect(throws: APIError.server(statusCode: 404, code: "NO_ASSIGNMENT")) {
+        await #expect(throws: VerificationError.notAssigned) {
             try await repository.fetchSession()
         }
     }
@@ -257,6 +257,7 @@ struct VerificationRepositoryImplTests {
             try await repository.submit(Self.photo())
         }
         #expect(log.requests(path: Self.todayPath).map(\.httpMethod) == ["GET"])
+        #expect(log.requests(path: Self.path).count == 1)
     }
 
     /// 오늘 인증 정보 조회가 실패해도 에러 바디의 제출 시각은 싣는다.
@@ -271,9 +272,27 @@ struct VerificationRepositoryImplTests {
         }
     }
 
-    /// 동시 제출 경합에서는 서버가 제출 시각 없이 보낸다. 오늘 인증 정보의 값을 쓴다.
-    @Test func alreadySubmittedTodayWithoutBodyTimeUsesToday() async throws {
+    /// 같은 키 전송이 동시에 들어가 저장 경합에서 지면 제출 시각 없는 `오늘 이미 제출`이 온다. 같은 키로 한 번 더 보내 처음 결과를 받는다.
+    @Test func conflictWithoutSubmittedAtResendsOnceWithSameKey() async throws {
+        let log = RequestLog()
         let repository = Self.makeRepository { request in
+            log.append(request)
+            return log.requests(path: Self.path).count == 1 ? (409, Self.errorJSON("ALREADY_SUBMITTED_TODAY")) : (201, Self.createdJSON)
+        }
+        let photo = Self.photo()
+
+        let submission = try await repository.submit(photo)
+
+        #expect(submission == VerificationSubmission(id: "7", submittedAt: Self.kst(8, 4, 30)))
+        let keys = log.requests(path: Self.path).map { $0.value(forHTTPHeaderField: "Idempotency-Key") }
+        #expect(keys == [photo.id.uuidString, photo.id.uuidString])
+    }
+
+    /// 다시 보내도 제출 시각 없이 거절되면 더 보내지 않고 오늘 인증 정보의 값을 쓴다.
+    @Test func alreadySubmittedTodayWithoutBodyTimeUsesToday() async throws {
+        let log = RequestLog()
+        let repository = Self.makeRepository { request in
+            log.append(request)
             if request.url?.path() == Self.todayPath {
                 return (200, Self.todayJSON(canSubmit: false, reason: "ALREADY_SUBMITTED", submitted: true, status: "PROCESSING", submittedAt: "2026-09-29T07:41:05"))
             }
@@ -283,6 +302,7 @@ struct VerificationRepositoryImplTests {
         await #expect(throws: VerificationError.alreadySubmitted(submittedAt: Self.kst(7, 41, 5), status: .processing)) {
             try await repository.submit(Self.photo())
         }
+        #expect(log.requests(path: Self.path).count == 2)
     }
 
     @Test(arguments: [(400, "INVALID_IMAGE"), (403, "NOT_ASSIGNED_AREA"), (404, "NO_ASSIGNMENT")])
