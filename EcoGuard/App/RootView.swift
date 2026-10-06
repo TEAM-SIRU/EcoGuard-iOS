@@ -14,6 +14,10 @@ struct RootView: View {
 
     var body: some View {
         content
+            #if DEBUG
+            // 디버그 빌드 전용 화면 모음(#78). 로그인 화면에 진입 버튼을 띄우고, 실행 인자 `-ScreenGallery`면 바로 연다.
+            .screenGallery(showsEntryButton: loginViewModel.state == .idle || loginViewModel.state == .failed)
+            #endif
             .onChange(of: loginViewModel.state, initial: true) { _, state in
                 homeViewModel = state == .loggedIn ? container.makeHomeViewModel() : nil
             }
