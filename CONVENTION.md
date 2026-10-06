@@ -282,7 +282,7 @@ final class NoticeListViewModel {
 
 > 출처: Figma `환경지킴이 디자인 시스템` > 페이지 `App Screens · Redesign` > 프레임 `00 Foundations` (238:4).
 > 값은 두 가지 출처다. (1) Figma Variables: 데스크톱 `get_variable_defs`(노드 238:2, 238:4)로 실제 조회. (2) 프레임의 라벨 텍스트: 원격 `get_metadata`(238:2)로 조회. 텍스트 스타일·버튼 높이·아이콘 등 변수에 없는 항목은 (2)뿐이다.
-> **Variables와 라벨 값이 서로 다른 항목이 있다**(green 3종, radius/card). 아래 표에서 "충돌"로 표시했고 확정은 디자이너 확인이 필요하다.
+> **Variables와 라벨 값이 서로 다른 항목이 있다**(green 3종, radius/card). green 3종은 Figma 화면 색(변수 값)으로 결정했다(2026-10-06, #63). radius/card는 아래 표에서 "충돌"로 표시했고 확정은 디자이너 확인이 필요하다.
 
 ### 원칙
 - 색상·폰트·간격·라운드는 **하드코딩 금지, 토큰만 사용**한다.
@@ -313,14 +313,16 @@ final class NoticeListViewModel {
 #### 색상 토큰 (Variables 기준 16개 전체 / Foundations 라벨 13개)
 
 - 변수 값은 Figma가 소문자로 반환한 그대로다. 라벨 값은 Foundations 프레임의 스와치 라벨 텍스트다.
-- green/500, green/50, green/700은 **변수와 라벨이 다르다 → 충돌, 결정 필요**. 특히 변수에서 `green/500`과 `green/700`이 같은 #57c144다.
-  - 흰 배경 대비: #57c144 **2.30:1**, #1EAA55 3.03:1, #13843F 4.77:1. `Text on white` 역할은 본문 텍스트라 4.5:1 이상이 필요하므로 변수 값(#57c144)으로는 기준 미달이다. 디자이너 확인 근거로 남긴다.
+- **결정(2026-10-06, #63): green 3종은 Figma 화면에 실제로 쓰인 색(변수 값)을 쓴다.** Foundations 라벨 값(#1EAA55 / #EDF8F0 / #13843F)은 쓰지 않는다.
+  - 근거: `App Screens · Redesign`(238:2)의 모든 화면 프레임에서 초록 fill·stroke·글자는 `green/500`·`green/700` 바인딩 #57c144, 옅은 배경은 `green/50` #edf8eb 하나뿐이다(예: 로그인 버튼 238:138, 홈 `자세히 보기` 249:22, 전체 프로필 배경 512:45, 탭 바 Camera FAB 255:147). 라벨 값은 어느 화면에도 없다.
+  - 변수에서 `green/500`과 `green/700`이 같은 #57c144라 `ecoPrimary`와 `ecoPrimaryText` 값이 같다. 역할이 달라 colorset은 그대로 둘로 둔다.
+  - 흰 배경 대비: #57c144 **2.30:1**(흰 글자 on #57c144 버튼도 2.30:1, #edf8eb 위 2.11:1). 본문 텍스트 기준 4.5:1, 큰 글자 기준 3:1 모두 미달이다. 사용자 지시로 화면 색을 그대로 쓰고, 접근성 보완은 디자이너 확인 사항으로 남긴다.
 
 | Figma 변수 이름 | 변수 값 | 라벨 값 (역할) | colorset / Swift 심볼 제안 |
 |---|---|---|---|
-| green/500 | #57c144 | #1EAA55 (Primary) **충돌** | `Color.ecoPrimary` |
-| green/50 | #edf8eb | #EDF8F0 (Tint) **충돌** | `Color.ecoPrimaryTint` |
-| green/700 | #57c144 | #13843F (Text on white) **충돌** | `Color.ecoPrimaryText` |
+| green/500 | #57c144 | #1EAA55 (Primary) → 변수 값 채택 | `Color.ecoPrimary` |
+| green/50 | #edf8eb | #EDF8F0 (Tint) → 변수 값 채택 | `Color.ecoPrimaryTint` |
+| green/700 | #57c144 | #13843F (Text on white) → 변수 값 채택 | `Color.ecoPrimaryText` |
 | grey/900 | #1a1f1d | #1A1F1D (Text) | `Color.ecoTextPrimary` |
 | grey/700 | #4e5753 | #4E5753 (Sub) | `Color.ecoTextSub` |
 | grey/600 | #6b7470 | #6B7470 (Caption) | `Color.ecoTextCaption` |
@@ -429,7 +431,8 @@ final class NoticeListViewModel {
 - SF Symbol로 대체할지, 커스텀 에셋으로 넣을지는 **결정 필요** (Figma에서 벡터 원본 미확인).
 
 ### 미확인 / 결정 필요
-- **충돌(결정 필요):** green/500·green/50·green/700 변수 값과 라벨 값이 다름, radius/app-card 24 vs 라벨 20. 어느 쪽이 최신인지 미확인.
+- **충돌(결정 필요):** radius/app-card 24 vs 라벨 20. 어느 쪽이 최신인지 미확인.
+- **결정(2026-10-06, #63):** green/500·green/50·green/700은 Figma 화면 색(변수 값 #57c144 / #edf8eb / #57c144)을 쓴다. 근거는 색상 토큰 절.
 - 텍스트 스타일은 `get_variable_defs` 응답에 없어 라벨 텍스트(size/lineHeight/weight)만 근거다. Figma Text Style 정의는 미조회.
 - 변수 중 역할 미확인: `grey/300`, `fg/default`, `white`. 스와치 실제 fill도 조회하지 않았다.
 - 다크모드 값 없음(변수에 모드 정보는 응답에 없음) → 결정 필요.
