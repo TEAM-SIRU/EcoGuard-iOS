@@ -8,6 +8,13 @@
 	<string>https://$(ECO_WEB_ADMIN_HOST)</string>
 	<key>EcoAPIBaseURL</key>
 	<string>https://$(ECO_API_HOST)</string>
+	<key>EcoOAuthAuthorizeURL</key>
+	<string>https://$(ECO_OAUTH_AUTHORIZE_HOST)</string>
+	<key>EcoOAuthClientID</key>
+	<string>$(ECO_OAUTH_CLIENT_ID)</string>
+	<!-- https 리다이렉트는 Associated Domains(webcredentials:) 엔타이틀먼트와 서버 apple-app-site-association이 있어야 콜백이 온다. 아직 미설정이므로 지금은 커스텀 스킴만 동작한다. -->
+	<key>EcoOAuthRedirectURI</key>
+	<string>$(ECO_OAUTH_REDIRECT_SCHEME)://$(ECO_OAUTH_REDIRECT_HOST)</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>NotoSansKR-Regular.otf</string>

@@ -12,9 +12,11 @@ struct VerificationSession: Equatable {
 /// 지금 인증 사진을 보낼 수 있는지. 클라이언트 시간이 아니라 서버가 내려준 값으로 판단한다.
 enum VerificationAvailability: Equatable {
     /// 인증 가능. `deadline`은 서버가 정한 마감 시각으로, 남은 시간 표시와 마감 도달 처리에 쓴다.
-    case open(deadline: Date)
+    /// 서버가 마감 시각을 주지 않으면 nil이고, 남은 시간을 보여 주지 않고 마감 판단은 제출 응답에 맡긴다.
+    case open(deadline: Date?)
     /// 인증 시간 밖이다.
     case outsideWindow
     /// 오늘 이미 제출했다. 하루 1번만 제출할 수 있다.
-    case alreadySubmitted(submittedAt: Date)
+    /// 서버가 제출 시각·검수 상태를 주지 않으면 nil이다.
+    case alreadySubmitted(submittedAt: Date?, status: VerificationResult.Status?)
 }

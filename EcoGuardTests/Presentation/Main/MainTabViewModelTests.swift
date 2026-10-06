@@ -358,4 +358,25 @@ struct MainTabViewModelTests {
         #expect(viewModel.presentedFlow?.id == "verificationResult-verification-20260929")
         #expect(viewModel.submissionUnavailableCount == 0)
     }
+
+    /// 실서버 모드: 사진을 낸 직후 홈이 아직 오늘 제출분을 받지 못했으면 제출 응답의 서버 ID로 연다. 날이 바뀌면 쓰지 않는다.
+    @Test func recentCameraSubmissionStandsInUntilHomeRefreshes() {
+        var now = Date(timeIntervalSinceReferenceDate: 812_000_000)
+        let viewModel = MainTabViewModel(now: { now })
+        viewModel.verificationSubmitted(VerificationSubmission(id: nil, submittedAt: now))
+        viewModel.verificationSubmitted(VerificationSubmission(id: "41", submittedAt: now))
+        viewModel.present(.camera(DIContainer.preview().makeCameraVerificationViewModel()))
+
+        viewModel.openTodaySubmission(nil)
+
+        #expect(viewModel.presentedFlow?.id == "verificationResult-41")
+        #expect(viewModel.submissionUnavailableCount == 0)
+
+        now = now.addingTimeInterval(24 * 60 * 60)
+        viewModel.present(.camera(DIContainer.preview().makeCameraVerificationViewModel()))
+        viewModel.openTodaySubmission(nil)
+
+        #expect(viewModel.presentedFlow == nil)
+        #expect(viewModel.submissionUnavailableCount == 1)
+    }
 }

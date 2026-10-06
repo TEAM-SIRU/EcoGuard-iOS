@@ -12,6 +12,7 @@ struct TodayCleaning: Equatable {
 /// 오늘 제출한 인증 한 건.
 struct TodaySubmission: Equatable {
     let id: String
+    /// 서버가 제출 시각을 주지 않으면(현재 서버) 인증한 날 0시(KST).
     let submittedAt: Date
 }
 
@@ -27,9 +28,10 @@ enum TodayVerification: Equatable {
     case notOpenYet(opensAt: Date)
     /// 인증 가능. `deadline`까지 남은 시간은 표시용이고, 지나면 다시 조회한다.
     case open(deadline: Date)
-    case aiReviewing(submittedAt: Date)
+    /// `submittedAt`은 서버가 제출 시각을 주지 않으면(현재 서버) nil.
+    case aiReviewing(submittedAt: Date?)
     /// AI가 판단하기 어려워 선생님이 확인 중이다.
-    case teacherReviewing(submittedAt: Date)
+    case teacherReviewing(submittedAt: Date?)
     case approved(earnedMinutes: Int)
     case rejected(reason: String)
 

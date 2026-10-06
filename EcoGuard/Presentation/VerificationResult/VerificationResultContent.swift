@@ -37,7 +37,11 @@ struct VerificationResultContent: Equatable {
     let rows: [Row]
 
     init(result: VerificationResult, now: Date) {
-        let submittedAt = VerificationResultFormatter.submittedAt(result.submittedAt, now: now)
+        let submittedAt = VerificationResultFormatter.submittedAt(
+            result.submittedAt,
+            now: now,
+            includesTime: result.isSubmittedTimeKnown
+        )
         let areaRow = Row(label: "담당 구역", value: result.area)
         switch result.status {
         case .approved:
@@ -70,7 +74,10 @@ struct VerificationResultContent: Equatable {
             rows = [
                 Row(label: "상태", value: "검수 중", tone: .pending),
                 areaRow,
-                Row(label: "제출 시각", value: HomeFormatter.recordDate(result.submittedAt))
+                Row(
+                    label: "제출 시각",
+                    value: VerificationResultFormatter.dateTime(result.submittedAt, includesTime: result.isSubmittedTimeKnown)
+                )
             ]
         }
     }

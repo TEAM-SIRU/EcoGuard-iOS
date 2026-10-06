@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 /// 앱 셸의 화면 이동 상태. 고른 탭, 홈·전체 탭 안에서 쌓은 화면, 탭 위에 전체 화면으로 띄운 흐름을 들고 있는다.
@@ -53,9 +54,13 @@ final class MainTabViewModel {
     var flowPath: [FlowRoute] = []
     /// 오늘 제출한 인증을 찾지 못해 안내한 횟수. 바뀔 때마다 화면이 토스트를 띄운다.
     private(set) var submissionUnavailableCount = 0
+    /// 이 기기에서 방금 낸 인증(서버 ID가 있을 때만). 홈이 오늘 제출분을 아직 받지 못했을 때 대신 연다.
+    private var recentSubmission: TodaySubmission?
+    private let now: () -> Date
 
-    init(selectedTab: MainTab = .home) {
+    init(selectedTab: MainTab = .home, now: @escaping () -> Date = Date.init) {
         self.selectedTab = selectedTab
+        self.now = now
     }
 
     /// 이미 고른 홈·전체 탭을 다시 누르면 첫 화면으로 돌아간다.
@@ -108,12 +113,26 @@ final class MainTabViewModel {
     /// 이미 인증한 날 시트의 `제출한 인증 보기`. 오늘 제출한 인증 결과로 흐름을 바꾼다.
     /// 홈을 다시 불러와도 찾지 못했으면 인증 화면을 닫고 홈에서 안내한다.
     func openTodaySubmission(_ submission: TodaySubmission?) {
-        guard let submission else {
+        guard let submission = submission ?? todayRecentSubmission else {
             dismissFlow(selecting: .home)
             submissionUnavailableCount += 1
             return
         }
         present(.verificationResult(id: submission.id, entry: .submission))
+    }
+
+    /// 카메라에서 사진을 낸 직후. 서버 ID가 없으면(Mock) 기억하지 않는다.
+    func verificationSubmitted(_ submission: VerificationSubmission) {
+        guard let id = submission.id else { return }
+        recentSubmission = TodaySubmission(id: id, submittedAt: submission.submittedAt)
+    }
+
+    /// 오늘(KST) 낸 것만. 날이 바뀌면 어제 낸 인증을 오늘 제출분으로 열지 않는다.
+    private var todayRecentSubmission: TodaySubmission? {
+        guard let recentSubmission else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = HomeFormatter.timeZone
+        return calendar.isDate(recentSubmission.submittedAt, inSameDayAs: now()) ? recentSubmission : nil
     }
 
     /// 흐름을 닫는다. `tab`을 넘기면 그 탭으로 옮긴다(`홈으로`, `활동 기록 보기`).

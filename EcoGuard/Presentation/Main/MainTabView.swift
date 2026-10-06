@@ -240,6 +240,7 @@ struct MainTabView: View {
                     close: { viewModel.dismissFlow() },
                     openSubmitted: {
                         // 홈이 오늘 제출분을 아직 받지 못했으면(다른 기기에서 제출 등) 다시 조회한 뒤 연다.
+                        // 그래도 없으면 이 기기에서 방금 낸 인증 ID로 연다(`verificationSubmitted`).
                         Task {
                             if homeViewModel.todaySubmission == nil {
                                 await homeViewModel.refresh()
@@ -249,6 +250,11 @@ struct MainTabView: View {
                     }
                 )
             )
+            .onChange(of: cameraViewModel.submission) { _, submission in
+                if let submission {
+                    viewModel.verificationSubmitted(submission)
+                }
+            }
         case .recruitment:
             RecruitmentFlowView(container: container, onExit: { viewModel.dismissFlow() })
         case .applicationResult(let resultViewModel):

@@ -11,6 +11,9 @@ final class MockHomeRepository: HomeRepository {
         case notOpenYet
         case recruiting
         case awaitingAssignment
+        case applicationPending
+        case notSelected
+        case notRecruiting
         case excluded
         case failure
     }
@@ -78,9 +81,9 @@ extension MockHomeRepository {
         )
 
         static let recentRecords = [
-            CleaningRecord(id: "record-0928", cleanedAt: date(month: 9, day: 28, hour: 8, minute: 5), area: area, result: .approved(earnedMinutes: 10)),
-            CleaningRecord(id: "record-0923", cleanedAt: date(month: 9, day: 23, hour: 8, minute: 9), area: area, result: .approved(earnedMinutes: 10)),
-            CleaningRecord(id: "record-0922", cleanedAt: date(month: 9, day: 22, hour: 8, minute: 4), area: area, result: .rejected)
+            CleaningRecord(id: "record-0928", date: date(month: 9, day: 28), cleanedAt: date(month: 9, day: 28, hour: 8, minute: 5), area: area, result: .approved(earnedMinutes: 10)),
+            CleaningRecord(id: "record-0923", date: date(month: 9, day: 23), cleanedAt: date(month: 9, day: 23, hour: 8, minute: 9), area: area, result: .approved(earnedMinutes: 10)),
+            CleaningRecord(id: "record-0922", date: date(month: 9, day: 22), cleanedAt: date(month: 9, day: 22, hour: 8, minute: 4), area: area, result: .rejected)
         ]
 
         static let submittedAt = date(month: 9, day: 29, hour: 8, minute: 4)
@@ -106,6 +109,12 @@ extension MockHomeRepository {
                 )
             case .awaitingAssignment:
                 HomeSummary(status: .awaitingAssignment, notice: notice)
+            case .applicationPending:
+                HomeSummary(status: .applicationPending, notice: notice)
+            case .notSelected:
+                HomeSummary(status: .notSelected, notice: notice)
+            case .notRecruiting:
+                HomeSummary(status: .notRecruiting, notice: notice)
             case .excluded:
                 HomeSummary(status: .excluded(reason: "본인 요청으로 활동을 중단했어요."), notice: nil)
             case .failure:

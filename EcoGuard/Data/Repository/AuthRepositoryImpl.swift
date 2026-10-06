@@ -22,6 +22,7 @@ final class AuthRepositoryImpl: AuthRepository {
         switch role {
         case .student:
             await authSession.save(response.tokens)
+            await authSession.saveUser(response.sessionUser)
         case .teacher:
             await authSession.clear()
         }

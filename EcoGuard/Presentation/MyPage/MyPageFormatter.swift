@@ -9,10 +9,11 @@ enum MyPageFormatter {
         return String(trimmed.suffix(2))
     }
 
-    /// "2학년 3반 · 환경지킴이". 환경지킴이가 아니면 학반만.
+    /// "2학년 3반 · 환경지킴이". 환경지킴이가 아니면 학반만, 학반을 모르면 "환경지킴이"만.
     static func affiliation(of profile: UserProfile) -> String {
-        let classText = "\(profile.grade)학년 \(profile.classNumber)반"
-        return profile.isGuardian ? "\(classText) · 환경지킴이" : classText
+        let classText = profile.grade.flatMap { grade in profile.classNumber.map { "\(grade)학년 \($0)반" } }
+        let parts = [classText, profile.isGuardian ? "환경지킴이" : nil]
+        return parts.compactMap(\.self).joined(separator: " · ")
     }
 
     /// "7회"
