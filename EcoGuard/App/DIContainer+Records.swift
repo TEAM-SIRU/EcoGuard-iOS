@@ -5,13 +5,13 @@ extension DIContainer {
     // TODO: 서버 연동 시 서버 값으로 바꾼다.
     static let activityRecordsEarliestMonth = YearMonth(year: 2026, month: 3)
 
-    /// 활동 기록 화면.
-    // TODO: 서버 연동 때 저장소를 DIContainer 프로퍼티로 옮기고 실제 구현으로 바꾼다.
+    /// 활동 기록 화면. `repository`를 주지 않으면 서버 주소가 있을 때 실제 저장소, 없으면 Mock.
     func makeActivityRecordsViewModel(
-        repository: ActivityRepository = MockActivityRepository(),
+        repository: ActivityRepository? = nil,
         now: @escaping () -> Date = Date.init
     ) -> ActivityRecordsViewModel {
-        ActivityRecordsViewModel(
+        let repository: ActivityRepository = repository ?? apiClient.map { ActivityRepositoryImpl(apiClient: $0) } ?? MockActivityRepository()
+        return ActivityRecordsViewModel(
             fetchActivityMonthUseCase: FetchActivityMonthUseCase(activityRepository: repository),
             earliestMonth: Self.activityRecordsEarliestMonth,
             now: now

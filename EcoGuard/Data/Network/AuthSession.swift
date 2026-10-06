@@ -8,6 +8,7 @@ import os
 actor AuthSession {
     private let tokenStore: TokenStore
     private let httpClient: HTTPClient
+    private let userStore: SessionUserStore
     private let logger = Logger(subsystem: "EcoGuard", category: "AuthSession")
     /// 키체인을 매 요청 읽지 않도록 한 번 읽은 값을 들고 있는다. 바깥 nil = 아직 안 읽음.
     private var cachedTokens: AuthTokens??
@@ -18,9 +19,10 @@ actor AuthSession {
     /// 리프레시 토큰이 무효라 세션을 지웠을 때 알린다.
     nonisolated let expirations = SessionExpirationBroadcaster()
 
-    init(tokenStore: TokenStore, httpClient: HTTPClient) {
+    init(tokenStore: TokenStore, httpClient: HTTPClient, userStore: SessionUserStore = UserDefaultsSessionUserStore()) {
         self.tokenStore = tokenStore
         self.httpClient = httpClient
+        self.userStore = userStore
     }
 
     /// 앱 시작 시 로그인 유지 판단용. 키체인을 바로 읽는다.
@@ -41,7 +43,17 @@ actor AuthSession {
         generation += 1
         refreshTask = nil
         tokenStore.clear()
+        userStore.clear()
         cachedTokens = .some(nil)
+    }
+
+    /// 로그인한 사용자 요약. 토큰과 같이 `clear()`에서 지운다.
+    func saveUser(_ user: SessionUser) {
+        userStore.save(user)
+    }
+
+    nonisolated func currentUser() -> SessionUser? {
+        userStore.load()
     }
 
     /// `failedAccessToken`으로 401을 받은 요청이 다시 보낼 토큰.

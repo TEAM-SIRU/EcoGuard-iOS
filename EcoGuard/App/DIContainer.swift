@@ -79,7 +79,8 @@ final class DIContainer {
     }
 
     func makeHomeViewModel(state: HomeViewModel.State = .loading) -> HomeViewModel {
-        HomeViewModel(
+        let homeRepository: HomeRepository = apiClient.map { HomeRepositoryImpl(apiClient: $0) } ?? self.homeRepository
+        return HomeViewModel(
             fetchHomeUseCase: FetchHomeUseCase(homeRepository: homeRepository),
             dismissNoticeUseCase: DismissNoticeUseCase(homeRepository: homeRepository),
             state: state

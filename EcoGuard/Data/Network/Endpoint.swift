@@ -12,6 +12,8 @@ nonisolated struct Endpoint: Sendable {
 
     let method: Method
     let path: String
+    /// 쿼리 파라미터. `with(queryItems:)`로 붙인다.
+    var queryItems: [URLQueryItem] = []
     let body: Data?
     /// `body`의 Content-Type. 바디가 없으면 보내지 않는다.
     let contentType: String
