@@ -30,16 +30,13 @@ struct VerificationResultContentTests {
         ])
     }
 
-    /// 실제 서버는 제출 날짜만 준다. 시각 없이 날짜만 보여 준다.
-    @Test func unknownSubmittedTimeShowsDateOnly() {
-        var result = Fixture.result(status: .approved)
-        result.isSubmittedTimeKnown = false
-        var processing = Fixture.result(status: .processing)
-        processing.isSubmittedTimeKnown = false
+    /// 다른 날 열면 제출 날짜와 시각을 함께 보여 준다.
+    @Test func submittedTimeOnOtherDayShowsDateAndTime() {
+        let result = Fixture.result(status: .approved)
+        let processing = Fixture.result(status: .processing)
 
-        #expect(VerificationResultContent(result: result, now: sameDay).rows[1].value == "오늘")
-        #expect(VerificationResultContent(result: result, now: nextDay).rows[1].value == "9월 29일(화)")
-        #expect(VerificationResultContent(result: processing, now: sameDay).rows.last?.value == "9월 29일(화)")
+        #expect(VerificationResultContent(result: result, now: nextDay).rows[1].value == "9월 29일(화) 08:04")
+        #expect(VerificationResultContent(result: processing, now: sameDay).rows.last?.value == "9월 29일(화) 08:04")
     }
 
     /// 오늘 이미 제출 시트 문구. 시각·상태를 모르면 그 부분을 뺀다.

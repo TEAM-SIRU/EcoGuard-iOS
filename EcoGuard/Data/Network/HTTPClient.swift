@@ -30,6 +30,9 @@ nonisolated struct HTTPClient: Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        for (field, value) in endpoint.headers {
+            request.setValue(value, forHTTPHeaderField: field)
+        }
         if let body = endpoint.body {
             request.httpBody = body
             request.setValue(endpoint.contentType, forHTTPHeaderField: "Content-Type")

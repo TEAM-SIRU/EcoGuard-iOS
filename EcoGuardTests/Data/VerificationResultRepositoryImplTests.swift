@@ -21,8 +21,8 @@ struct VerificationResultRepositoryImplTests {
     /// 목록 응답의 상태는 일부러 오래된 값(PROCESSING)으로 둔다. 결과 상태는 한 건 조회 값을 써야 한다.
     private nonisolated static let meJSON = Data(#"""
     [
-      {"verificationId":8,"photoUrl":"/files/verifications/b.jpg","date":"2026-09-30","areaName":"별관","reviewStatus":"APPROVED","failReasons":null},
-      {"verificationId":7,"photoUrl":"/files/verifications/a.jpg","date":"2026-09-29","areaName":"본관 2층 복도 A","reviewStatus":"PROCESSING","failReasons":null}
+      {"verificationId":8,"photoUrl":"/files/verifications/b.jpg","date":"2026-09-30","submittedAt":"2026-09-30T07:55:12.3","areaName":"별관","reviewStatus":"APPROVED","failReasons":null},
+      {"verificationId":7,"photoUrl":"/files/verifications/a.jpg","date":"2026-09-29","submittedAt":"2026-09-29T08:04:31.123456","areaName":"본관 2층 복도 A","reviewStatus":"PROCESSING","failReasons":null}
     ]
     """#.utf8)
 
@@ -37,10 +37,10 @@ struct VerificationResultRepositoryImplTests {
         }
     }
 
-    private static func kst(_ year: Int, _ month: Int, _ day: Int) -> Date {
+    private static func kst(_ year: Int, _ month: Int, _ day: Int, _ hour: Int, _ minute: Int, _ second: Int) -> Date {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Seoul")!
-        return calendar.date(from: DateComponents(year: year, month: month, day: day))!
+        return calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute, second: second))!
     }
 
     @Test func rejectedResultCombinesReviewAndList() async throws {
@@ -52,13 +52,12 @@ struct VerificationResultRepositoryImplTests {
 
         #expect(result == VerificationResult(
             id: "7",
-            submittedAt: Self.kst(2026, 9, 29),
+            submittedAt: Self.kst(2026, 9, 29, 8, 4, 31),
             area: "본관 2층 복도 A",
             status: .rejected,
             rejectionReason: .init(title: "구역이 보이지 않아요", guide: "쓰레기가 남아 있어요"),
             earnedMinutes: 0,
-            photoURL: URL(string: "https://api.example.com/files/verifications/a.jpg"),
-            isSubmittedTimeKnown: false
+            photoURL: URL(string: "https://api.example.com/files/verifications/a.jpg")
         ))
         #expect(log.requests(path: Self.reviewPath).map(\.httpMethod) == ["GET"])
         #expect(log.requests(path: Self.mePath).map(\.httpMethod) == ["GET"])
@@ -109,9 +108,9 @@ struct VerificationResultRepositoryImplTests {
         }
     }
 
-    @Test func malformedDateIsDecodingError() async throws {
+    @Test func malformedSubmittedAtIsDecodingError() async throws {
         let review = Data(#"{"status":"APPROVED","failReasons":null}"#.utf8)
-        let me = Data(#"[{"verificationId":7,"photoUrl":"/a.jpg","date":"2026/09/29","areaName":"A","reviewStatus":"APPROVED"}]"#.utf8)
+        let me = Data(#"[{"verificationId":7,"photoUrl":"/a.jpg","date":"2026-09-29","submittedAt":"2026/09/29 08:04","areaName":"A","reviewStatus":"APPROVED"}]"#.utf8)
         let repository = Self.makeRepository(handler: Self.response(review: review, me: me))
 
         await #expect(throws: APIError.decoding) {
