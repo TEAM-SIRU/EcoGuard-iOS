@@ -70,6 +70,14 @@ struct RecruitmentApplyView: View {
         }
     }
 
+    /// 모르는 값(실제 서버의 학번 등)은 줄째 숨긴다.
+    private var applicantRows: [EcoInfoTable.Row] {
+        [
+            viewModel.applicant.studentNumber.map { .init(label: RecruitmentCopy.Apply.studentNumberLabel, value: $0) },
+            viewModel.applicant.name.map { .init(label: RecruitmentCopy.Apply.nameLabel, value: $0) }
+        ].compactMap { $0 }
+    }
+
     private var form: some View {
         ScrollView {
             VStack(spacing: 0) {
@@ -79,10 +87,9 @@ struct RecruitmentApplyView: View {
                 )
                 .padding(.top, Spacing.sm)
                 VStack(spacing: Spacing.xxl) {
-                    EcoInfoTable(rows: [
-                        .init(label: RecruitmentCopy.Apply.studentNumberLabel, value: viewModel.applicant.studentNumber),
-                        .init(label: RecruitmentCopy.Apply.nameLabel, value: viewModel.applicant.name)
-                    ])
+                    if !applicantRows.isEmpty {
+                        EcoInfoTable(rows: applicantRows)
+                    }
                     EcoTextArea(
                         title: RecruitmentCopy.Apply.motivationTitle,
                         prompt: RecruitmentCopy.Apply.motivationPrompt,

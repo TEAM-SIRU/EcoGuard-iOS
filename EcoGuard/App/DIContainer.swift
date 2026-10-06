@@ -28,12 +28,17 @@ final class DIContainer {
         self.webAdminURL = webAdminURL
     }
 
-    /// 서버 주소(`ECO_API_HOST`)가 정해지기 전까지 Mock을 쓴다. 다른 저장소는 아직 모두 Mock이다.
+    /// 서버 주소(`ECO_API_HOST`)가 정해지기 전까지 Mock을 쓴다. 저장소마다 실제 구현이 생기는 대로 바꾼다.
     static func live() -> DIContainer {
-        DIContainer(
-            authRepository: makeAuthRepository(apiBaseURL: AppConfig.apiBaseURL),
+        let authRepository = makeAuthRepository(apiBaseURL: AppConfig.apiBaseURL)
+        // 모집 공고·신청·결과 화면이 같은 저장소를 쓴다(신청할 공고 ID를 들고 있다). `AuthSession`은 로그인 저장소와 같다.
+        let apiClient = (authRepository as? AuthRepositoryImpl)?.apiClient
+        return DIContainer(
+            authRepository: authRepository,
             homeRepository: MockHomeRepository(),
-            recruitmentRepository: MockRecruitmentRepository(),
+            recruitmentRepository: apiClient.map {
+                RecruitmentRepositoryImpl(apiClient: $0, currentUserRepository: CurrentUserRepositoryImpl(authSession: $0.authSession))
+            } ?? MockRecruitmentRepository(),
             webAdminURL: AppConfig.webAdminURL
         )
     }

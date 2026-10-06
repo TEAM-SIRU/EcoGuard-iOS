@@ -206,10 +206,11 @@ enum CleaningAreaFormatter {
         "\(HomeFormatter.time(minuteOfDay: area.startMinute)) – \(HomeFormatter.time(minuteOfDay: area.endMinute))"
     }
 
-    /// "김서연 · 이도윤 · 나(최민준)". 나는 맨 뒤에 둔다.
+    /// "김서연 · 이도윤 · 나(최민준)". 나는 맨 뒤에 둔다. 내 이름을 모르면 서버 순서 그대로.
     static func members(_ area: MyCleaningArea) -> String {
-        let others = area.memberNames.filter { $0 != area.myName }
-        return (others + ["나(\(area.myName))"]).joined(separator: " · ")
+        guard let myName = area.myName else { return area.memberNames.joined(separator: " · ") }
+        let others = area.memberNames.filter { $0 != myName }
+        return (others + ["나(\(myName))"]).joined(separator: " · ")
     }
 }
 
