@@ -17,8 +17,6 @@ final class AppealFormViewModel {
     }
 
     let target: AppealTarget
-    /// 사진 첨부 영역을 보여 줄지. 서버가 이의신청 사진을 받기 전까지 실제 서버 모드에서는 끈다.
-    let allowsPhotos: Bool
     var message = ""
     private(set) var photos: [AppealPhoto] = []
     private(set) var phase: Phase = .editing
@@ -37,11 +35,9 @@ final class AppealFormViewModel {
         target: AppealTarget,
         submitAppealUseCase: SubmitAppealUseCase,
         requestID: String = UUID().uuidString,
-        allowsPhotos: Bool = true,
         phase: Phase = .editing
     ) {
         self.target = target
-        self.allowsPhotos = allowsPhotos
         self.submitAppealUseCase = submitAppealUseCase
         self.requestID = requestID
         self.phase = phase
@@ -60,7 +56,7 @@ final class AppealFormViewModel {
     }
 
     var canAddPhoto: Bool {
-        allowsPhotos && photos.count < AppealMessage.maxPhotoCount && !isSubmitting
+        photos.count < AppealMessage.maxPhotoCount && !isSubmitting
     }
 
     /// 카메라로 찍은 사진을 붙인다. 최대 개수를 넘으면 무시한다.
