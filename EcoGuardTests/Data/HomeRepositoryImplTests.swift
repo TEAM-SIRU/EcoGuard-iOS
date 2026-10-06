@@ -256,6 +256,37 @@ struct HomeRepositoryImplTests {
         #expect(recruitment.semester == expected)
     }
 
+    /// 오늘 인증 정보가 늦으면 기다리지 않고 기기 시각(09:00, 마감 뒤)으로 보여 준다.
+    @Test func slowTodayInfoFallsBackToDeviceTime() async throws {
+        var responses = Self.activeResponses
+        responses[Path.verifications] = (200, "[]")
+        let canSubmit = Self.todayJSON(serverTime: "2026-09-29T08:05:00", canSubmit: true, reason: nil)
+        let session = StubURLProtocol.makeSession { request in
+            let path = request.url?.path() ?? ""
+            if path == Path.today {
+                try await Task.sleep(for: .seconds(10))
+                return (200, Data(canSubmit.utf8))
+            }
+            guard let (statusCode, body) = responses[path] else { return (404, Data()) }
+            return (statusCode, Data(body.utf8))
+        }
+        let httpClient = HTTPClient(baseURL: PathStub.baseURL, session: session)
+        let repository = HomeRepositoryImpl(
+            apiClient: APIClient(httpClient: httpClient, authSession: AuthSession(tokenStore: InMemoryTokenStore(PathStub.tokens), httpClient: httpClient, userStore: InMemorySessionUserStore())),
+            defaults: try Self.makeDefaults(),
+            todayInfoTimeout: .milliseconds(200),
+            now: { Self.now }
+        )
+        let started = ContinuousClock.now
+
+        guard case .active(let cleaning) = try await repository.fetchHome().status else {
+            Issue.record("활동 중이어야 한다")
+            return
+        }
+        #expect(cleaning.today.verification == .notOpenYet(opensAt: PathStub.date(2026, 9, 30, 8)))
+        #expect(ContinuousClock.now - started < .seconds(5))
+    }
+
     nonisolated static func todayJSON(serverTime: String, canSubmit: Bool, reason: String?) -> String {
         """
         {"serverTime":"\(serverTime)","areaId":3,"areaName":"본관 계단 A","startTime":"08:00:00","endTime":"08:10:00",

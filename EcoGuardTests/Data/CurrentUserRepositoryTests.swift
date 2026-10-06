@@ -1,4 +1,5 @@
 import Foundation
+import os
 import Testing
 @testable import EcoGuard
 
@@ -25,7 +26,8 @@ struct CurrentUserRepositoryTests {
         role: String = "STUDENT",
         tokens: AuthTokens? = nil,
         user: SessionUser? = nil,
-        responses: [String: (Int, String)] = [:]
+        responses: [String: (Int, String)] = [:],
+        override: StubURLProtocol.Handler? = nil
     ) -> Fixture {
         let log = RequestLog()
         let session = StubURLProtocol.makeSession { request in
@@ -36,6 +38,7 @@ struct CurrentUserRepositoryTests {
             case Self.refreshPath:
                 return (401, Data())
             default:
+                if let override { return try await override(request) }
                 let key = "\(request.httpMethod ?? "") \(request.url?.path() ?? "")"
                 guard let (statusCode, body) = responses[key] else { return (200, Data()) }
                 return (statusCode, Data(body.utf8))
@@ -186,18 +189,34 @@ struct CurrentUserRepositoryTests {
         #expect(fixture.userStore.load() == SessionUser(userId: 7, name: "김학생"))
     }
 
-    /// 앞선 탈퇴 요청이 서버에 닿고 응답만 잃었으면 토큰이 무효라 다시 보낸 요청이 401·재발급 401(세션 만료)이 된다. 탈퇴한 것으로 보고 정리한다.
-    @Test func sessionExpiredWithdrawIsTreatedAsDone() async throws {
+    /// 앞선 탈퇴 요청이 응답 없이 끝났으면(타임아웃) 서버에 닿았을 수 있다. 다시 보낸 요청이 401·재발급 401(세션 만료)이면
+    /// 서버가 토큰을 무효로 만든 것이라 탈퇴한 것으로 보고 정리한다.
+    @Test func sessionExpiredAfterLostWithdrawResponseIsDone() async throws {
+        let deleteCalls = OSAllocatedUnfairLock(initialState: 0)
+        let fixture = makeFixture(tokens: PathStub.tokens, user: SessionUser(userId: 7, name: "김학생")) { _ in
+            let call = deleteCalls.withLock { $0 += 1; return $0 }
+            if call == 1 { throw URLError(.timedOut) }
+            return (401, Data())
+        }
+
+        await #expect(throws: URLError.self) { try await fixture.currentUser.withdraw() }
+        #expect(fixture.auth.hasStoredSession())
+
+        try await fixture.currentUser.withdraw()
+
+        #expect(!fixture.auth.hasStoredSession())
+        #expect(fixture.userStore.load() == nil)
+    }
+
+    /// 탈퇴 요청을 보낸 적이 없는데 세션이 만료됐으면(리프레시 토큰 만료 등) 계정은 남아 있다. 탈퇴로 보지 않고 그대로 알린다.
+    @Test func sessionExpiredWithoutPriorAttemptIsThrown() async {
         let fixture = makeFixture(
             tokens: PathStub.tokens,
             user: SessionUser(userId: 7, name: "김학생"),
             responses: ["DELETE \(Self.mePath)": (401, "")]
         )
 
-        try await fixture.currentUser.withdraw()
-
-        #expect(!fixture.auth.hasStoredSession())
-        #expect(fixture.userStore.load() == nil)
+        await #expect(throws: APIError.sessionExpired) { try await fixture.currentUser.withdraw() }
     }
 
     @Test func userDefaultsStoreRoundTrips() throws {
