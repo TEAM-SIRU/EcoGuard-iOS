@@ -13,6 +13,17 @@ nonisolated struct MultipartFormData: Sendable {
         "multipart/form-data; boundary=\(boundary)"
     }
 
+    /// 글자 값 파트. 한글이 깨지지 않도록 UTF-8임을 밝힌다(서버는 `@RequestParam`으로 받는다).
+    mutating func appendField(name: String, value: String) {
+        var part = Data()
+        part.append("--\(boundary)\r\n")
+        part.append("Content-Disposition: form-data; name=\"\(name)\"\r\n")
+        part.append("Content-Type: text/plain; charset=utf-8\r\n\r\n")
+        part.append(value)
+        part.append("\r\n")
+        parts.append(part)
+    }
+
     mutating func appendFile(name: String, fileName: String, mimeType: String, data: Data) {
         var part = Data()
         part.append("--\(boundary)\r\n")

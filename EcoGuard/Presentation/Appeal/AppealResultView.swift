@@ -68,8 +68,11 @@ private struct AppealRejectedView: View {
                     if let reply = appeal.teacherReply {
                         VerificationReviewNote(label: "선생님 답변", title: reply.title, guide: reply.message)
                     }
-                    VerificationResultPhoto(url: appeal.photoURL, height: VerificationPhotoView.Height.compact)
-                        .padding(.vertical, Spacing.lg)
+                    // 사진은 선택이라 첨부한 경우에만 첫 사진을 보여 준다.
+                    if let photoURL = appeal.photoURLs.first {
+                        VerificationResultPhoto(url: photoURL, height: VerificationPhotoView.Height.compact)
+                            .padding(.vertical, Spacing.lg)
+                    }
                 }
                 .padding(.horizontal, Spacing.screenHorizontal)
             }
