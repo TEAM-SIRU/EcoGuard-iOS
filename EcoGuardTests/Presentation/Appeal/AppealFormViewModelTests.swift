@@ -50,20 +50,6 @@ struct AppealFormViewModelTests {
         #expect(repository.submitCallCount == 0)
     }
 
-    /// 실제 서버 모드: 서버가 이의신청 사진을 받지 않아 사진을 붙이지 않는다.
-    @Test func photosDisabledIgnoresAddPhoto() {
-        let viewModel = AppealFormViewModel(
-            target: Fixture.target,
-            submitAppealUseCase: SubmitAppealUseCase(appealRepository: MockAppealRepository(delay: .zero)),
-            allowsPhotos: false
-        )
-
-        viewModel.addPhoto(Data([1]))
-
-        #expect(!viewModel.canAddPhoto)
-        #expect(viewModel.photos.isEmpty)
-    }
-
     @Test func messageAtMaxLengthIsValid() {
         let (viewModel, _) = makeViewModel(message: String(repeating: "가", count: AppealMessage.maxLength))
 

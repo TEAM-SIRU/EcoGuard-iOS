@@ -120,7 +120,7 @@ extension MockAppealRepository {
             status: .reviewing,
             earnedMinutes: 0,
             teacherReply: nil,
-            photoURL: nil
+            photoURLs: []
         )
 
         /// 1차 · 반려 (317:1084, 결과 317:1177).
@@ -136,7 +136,7 @@ extension MockAppealRepository {
                 title: "사진에 구역 표지판이 보이지 않아요",
                 message: "표지판이 보이게 다시 찍어 주세요. 08:10 이후에도 이의신청용 촬영은 가능해요."
             ),
-            photoURL: nil
+            photoURLs: []
         )
 
         /// 1차 · 승인 +10분 (317:1066, 결과 514:194).
@@ -149,7 +149,7 @@ extension MockAppealRepository {
             status: .approved,
             earnedMinutes: 10,
             teacherReply: nil,
-            photoURL: nil
+            photoURLs: []
         )
 
         static let history = [reviewing, rejected, approved]
@@ -164,7 +164,7 @@ extension MockAppealRepository {
                 status: .reviewing,
                 earnedMinutes: 0,
                 teacherReply: nil,
-                photoURL: nil
+                photoURLs: []
             )
         }
 
