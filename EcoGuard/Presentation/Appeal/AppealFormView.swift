@@ -212,9 +212,7 @@ struct AppealFormView: View {
                     )
                     .disabled(viewModel.isSubmitting)
                     .id(Field.message)
-                    if viewModel.allowsPhotos {
-                        photos
-                    }
+                    photos
                 }
                 .padding(.horizontal, Spacing.screenHorizontal)
                 .padding(.bottom, Spacing.xxl)
