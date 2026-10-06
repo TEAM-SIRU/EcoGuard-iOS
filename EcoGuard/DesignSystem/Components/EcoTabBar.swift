@@ -45,6 +45,14 @@ struct EcoTabBar<CenterButton: View>: View {
     }
 }
 
+extension View {
+    /// 탭 바 위에 놓는 탭 화면. 탭 바 위로 띄운 가운데 버튼에 스크롤 끝 콘텐츠가 가려지지 않게 그 높이만큼 스크롤 끝 여백을 더한다.
+    /// NavigationStack 안으로는 넘어가지 않아 스택의 루트와 push한 화면에 다시 건다.
+    func ecoTabBarContentMargins() -> some View {
+        contentMargins(.bottom, Metrics.centerButtonRise, for: .scrollContent)
+    }
+}
+
 /// 탭 바의 탭 하나.
 struct EcoTabItem: Identifiable {
     let id: AnyHashable
