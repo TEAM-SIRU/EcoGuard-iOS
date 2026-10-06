@@ -6,6 +6,8 @@ final class MockVerificationRepository: VerificationRepository {
     enum Scenario: CaseIterable {
         case open
         case outsideWindow
+        case weekend
+        case vacation
         case alreadySubmitted
         case failure
     }
@@ -23,7 +25,7 @@ final class MockVerificationRepository: VerificationRepository {
     private let delay: Duration
     private let now: () -> Date
     private let deadline: Date
-    /// 마감 전에 보내기 시작한 사진. 마감 후에도 같은 사진의 재시도는 받는다.
+    /// 마감 전에 보내기 시작한 사진. 마감 후 유예 시간까지 같은 사진의 재시도는 받는다.
     private var startedPhotoIDs: Set<UUID> = []
     private var acceptedSubmission: (photoID: UUID, submission: VerificationSubmission)?
     private(set) var fetchCallCount = 0
@@ -54,9 +56,13 @@ final class MockVerificationRepository: VerificationRepository {
         }
         switch scenario {
         case .open:
-            return Fixture.session(serverNow < deadline ? .open(deadline: deadline) : .outsideWindow, serverNow: serverNow)
+            return Fixture.session(serverNow < deadline ? .open(deadline: deadline) : .outsideWindow(.outsideHours), serverNow: serverNow)
         case .outsideWindow:
-            return Fixture.session(.outsideWindow, serverNow: serverNow)
+            return Fixture.session(.outsideWindow(.outsideHours), serverNow: serverNow)
+        case .weekend:
+            return Fixture.session(.outsideWindow(.weekend), serverNow: serverNow)
+        case .vacation:
+            return Fixture.session(.outsideWindow(.vacation), serverNow: serverNow)
         case .alreadySubmitted:
             return Fixture.session(.alreadySubmitted(submittedAt: Fixture.submittedAt, status: .processing), serverNow: serverNow)
         case .failure:
@@ -76,7 +82,11 @@ final class MockVerificationRepository: VerificationRepository {
         if scenario == .alreadySubmitted {
             throw VerificationError.alreadySubmitted(submittedAt: Fixture.submittedAt, status: .processing)
         }
-        guard now() < deadline || startedPhotoIDs.contains(photo.id) else {
+        if scenario == .vacation {
+            throw VerificationError.vacation
+        }
+        let isLateRetry = startedPhotoIDs.contains(photo.id) && now() < deadline.addingTimeInterval(VerificationSession.lateRetryGrace)
+        guard now() < deadline || isLateRetry else {
             throw VerificationError.deadlinePassed
         }
         startedPhotoIDs.insert(photo.id)
