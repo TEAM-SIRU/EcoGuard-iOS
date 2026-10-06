@@ -6,12 +6,7 @@ nonisolated struct APIClient: Sendable {
     let authSession: AuthSession
 
     func send<Response: Decodable>(_ endpoint: Endpoint, as type: Response.Type = Response.self) async throws -> Response {
-        let data = try await data(for: endpoint)
-        do {
-            return try JSONDecoder().decode(Response.self, from: data)
-        } catch {
-            throw APIError.decoding
-        }
+        try Self.decode(Response.self, from: try await data(for: endpoint))
     }
 
     /// 응답 바디가 없는 요청.
@@ -19,10 +14,11 @@ nonisolated struct APIClient: Sendable {
         _ = try await data(for: endpoint)
     }
 
-    private func data(for endpoint: Endpoint) async throws -> Data {
+    /// 에러 바디의 `code` 말고 다른 필드도 읽어야 하는 요청. 2xx가 아니어도 던지지 않는다(401 재발급은 한다).
+    /// 다 읽은 뒤 `HTTPClient.validate`·`decode`로 이어 간다.
+    func response(for endpoint: Endpoint) async throws -> (Data, HTTPURLResponse) {
         guard endpoint.requiresAuthorization else {
-            let (data, response) = try await httpClient.data(for: endpoint, accessToken: nil)
-            return try HTTPClient.validate(data, response)
+            return try await httpClient.data(for: endpoint, accessToken: nil)
         }
         var accessToken = await authSession.accessToken()
         if accessToken == nil {
@@ -34,6 +30,19 @@ nonisolated struct APIClient: Sendable {
             (data, response) = try await httpClient.data(for: endpoint, accessToken: refreshed)
             // 새 토큰으로도 401이면 더 재발급하지 않는다(무한 반복 방지). `validate`가 `.unauthorized`를 던진다.
         }
+        return (data, response)
+    }
+
+    static func decode<Response: Decodable>(_ type: Response.Type, from data: Data) throws -> Response {
+        do {
+            return try JSONDecoder().decode(Response.self, from: data)
+        } catch {
+            throw APIError.decoding
+        }
+    }
+
+    private func data(for endpoint: Endpoint) async throws -> Data {
+        let (data, response) = try await response(for: endpoint)
         return try HTTPClient.validate(data, response)
     }
 }

@@ -92,7 +92,23 @@ struct CameraVerificationViewModelTests {
         await viewModel.load()
         await viewModel.startCapture()
 
-        #expect(viewModel.sheet == .outsideWindow)
+        #expect(viewModel.sheet == .outsideWindow(.outsideHours))
+        #expect(viewModel.sheet?.closesFlow == true)
+        #expect(viewModel.state == .guide)
+    }
+
+    /// 주말·방학은 `인증 시간 아님` 시트에 사유만 바꿔 띄운다.
+    @Test(arguments: [
+        (MockVerificationRepository.Scenario.weekend, VerificationClosedReason.weekend),
+        (.vacation, .vacation)
+    ])
+    func closedDayShowsOutsideWindowSheetWithReason(scenario: MockVerificationRepository.Scenario, reason: VerificationClosedReason) async {
+        let (viewModel, _) = makeViewModel(scenario: scenario)
+
+        await viewModel.load()
+        await viewModel.startCapture()
+
+        #expect(viewModel.sheet == .outsideWindow(reason))
         #expect(viewModel.sheet?.closesFlow == true)
         #expect(viewModel.state == .guide)
     }
@@ -259,7 +275,7 @@ struct CameraVerificationViewModelTests {
             Issue.record("제출 완료가 아님: \(viewModel.state)")
             return
         }
-        #expect(submitted.photo == second.photo)
+        #expect(submitted.photo.id == second.photo.id)
         #expect(submittedAt == Date(timeIntervalSinceReferenceDate: 244))
         #expect(repository.submittedPhotoIDs == [second.photo.id])
     }
@@ -330,7 +346,7 @@ struct CameraVerificationViewModelTests {
             Issue.record("업로드 실패가 아님: \(viewModel.state)")
             return
         }
-        #expect(failed.photo == photo.photo)
+        #expect(failed.photo.id == photo.photo.id)
         #expect(failed.hasStartedUpload)
 
         await viewModel.submit()
@@ -338,8 +354,33 @@ struct CameraVerificationViewModelTests {
             Issue.record("제출 완료가 아님: \(viewModel.state)")
             return
         }
-        #expect(submitted.photo == photo.photo)
+        #expect(submitted.photo.id == photo.photo.id)
         #expect(repository.submittedPhotoIDs == [photo.photo.id, photo.photo.id])
+    }
+
+    /// 처음 보내기 시작한 시각(서버 기준)을 사진에 남기고, 재시도에도 그대로 보낸다.
+    @Test func uploadStartedAtIsFirstSendTimeAndKeptOnRetry() async throws {
+        var tests = self
+        tests.deviceSkew = 180
+        let (viewModel, _) = tests.makeViewModel(uploadResults: [.networkFailure, .success])
+        let photo = try #require(await tests.capturedPhoto(viewModel))
+        #expect(photo.photo.uploadStartedAt == nil)
+
+        serverClock.now = Date(timeIntervalSinceReferenceDate: 100)
+        await viewModel.submit()
+        guard case .uploadFailed(let failed) = viewModel.state else {
+            Issue.record("업로드 실패가 아님: \(viewModel.state)")
+            return
+        }
+        #expect(failed.photo.uploadStartedAt == Date(timeIntervalSinceReferenceDate: 100))
+
+        serverClock.now = Date(timeIntervalSinceReferenceDate: 200)
+        await viewModel.submit()
+        guard case .submitted(let submitted, _) = viewModel.state else {
+            Issue.record("제출 완료가 아님: \(viewModel.state)")
+            return
+        }
+        #expect(submitted.photo.uploadStartedAt == Date(timeIntervalSinceReferenceDate: 100))
     }
 
     @Test func backFromUploadFailureReturnsToConfirmWithSamePhoto() async throws {
@@ -353,7 +394,7 @@ struct CameraVerificationViewModelTests {
             Issue.record("확인 화면이 아님: \(viewModel.state)")
             return
         }
-        #expect(confirming.photo == photo.photo)
+        #expect(confirming.photo.id == photo.photo.id)
         #expect(confirming.hasStartedUpload)
     }
 
@@ -396,6 +437,46 @@ struct CameraVerificationViewModelTests {
             Issue.record("마감 전에 시작한 사진의 재시도가 거부됨: \(viewModel.state)")
             return
         }
+    }
+
+    /// 서버는 마감 후 유예 시간(5분)까지만 재시도를 받는다. 앱도 그때 시간 초과로 바꾼다.
+    @Test(arguments: [false, true])
+    func startedUploadTimesOutWhenLateRetryGraceEnds(backToConfirm: Bool) async throws {
+        let (viewModel, _) = makeViewModel(uploadResults: [.networkFailure])
+        _ = try #require(await capturedPhoto(viewModel))
+        await viewModel.submit()
+        if backToConfirm {
+            viewModel.returnToConfirm()
+        }
+
+        serverClock.now = deadline.addingTimeInterval(VerificationSession.lateRetryGrace - 1)
+        #expect(viewModel.expireIfNeeded() == false)
+        #expect(viewModel.state != .timedOut)
+
+        serverClock.now = deadline.addingTimeInterval(VerificationSession.lateRetryGrace)
+        #expect(viewModel.expireIfNeeded())
+        #expect(viewModel.state == .timedOut)
+    }
+
+    /// 화면이 유예 종료 갱신을 놓친 채 `같은 사진 다시 보내기`를 누르면 보내지 않고 시간 초과로 바꾼다.
+    @Test func retryAfterLateRetryGraceTimesOutWithoutSending() async throws {
+        let (viewModel, repository) = makeViewModel(uploadResults: [.networkFailure, .success])
+        let photo = try #require(await capturedPhoto(viewModel))
+        await viewModel.submit()
+
+        serverClock.now = deadline.addingTimeInterval(VerificationSession.lateRetryGrace + 1)
+        await viewModel.submit()
+
+        #expect(viewModel.state == .timedOut)
+        #expect(repository.submittedPhotoIDs == [photo.photo.id])
+    }
+
+    @Test func expiryCheckDatesAreDeadlineAndGraceEnd() async {
+        let (viewModel, _) = makeViewModel()
+
+        await viewModel.load()
+
+        #expect(viewModel.expiryCheckDates == [deadline, deadline.addingTimeInterval(VerificationSession.lateRetryGrace)])
     }
 
     @Test func retakeAfterDeadlineFromStartedUploadTimesOut() async throws {
@@ -539,5 +620,91 @@ struct CameraVerificationViewModelTests {
 
         #expect(viewModel.state == .timedOut)
         #expect(viewModel.sheet == nil)
+    }
+
+    // MARK: - 실제 서버 저장소
+
+    /// 실제 서버 저장소와 묶은 VM. 오늘 인증 정보는 서버 시각 2026-09-29 08:00:00, 인증 시간 07:20~08:10이다.
+    private static func makeServerViewModel(
+        deviceNow: @escaping @MainActor () -> Date,
+        log: RequestLog,
+        submitResponse: @escaping @Sendable () -> (Int, Data)
+    ) -> CameraVerificationViewModel {
+        let httpClient = HTTPClient(
+            baseURL: URL(string: "https://api.example.com")!,
+            session: StubURLProtocol.makeSession { request in
+                log.append(request)
+                if request.url?.path() == "/api/v1/verifications/today" {
+                    return (200, Data(#"""
+                    {"serverTime":"2026-09-29T08:00:00.25","areaId":3,"areaName":"본관 2층 복도 A","cleanTime":"07:20~08:10",
+                    "startTime":"07:20:00","endTime":"08:10:00","canSubmit":true,"unavailableReason":null,
+                    "submitted":false,"verificationId":null,"status":null,"submittedAt":null}
+                    """#.utf8))
+                }
+                return submitResponse()
+            }
+        )
+        let store = InMemoryTokenStore(AuthTokens(accessToken: "access", refreshToken: "refresh"))
+        let repository = VerificationRepositoryImpl(
+            apiClient: APIClient(httpClient: httpClient, authSession: AuthSession(tokenStore: store, httpClient: httpClient)),
+            now: { deviceNow() }
+        )
+        return CameraVerificationViewModel(
+            fetchSessionUseCase: FetchVerificationSessionUseCase(verificationRepository: repository),
+            submitPhotoUseCase: SubmitVerificationPhotoUseCase(verificationRepository: repository),
+            camera: makeCamera(),
+            permission: FakeCameraPermission(),
+            now: { deviceNow() }
+        )
+    }
+
+    private static func kst(_ hour: Int, _ minute: Int, _ second: Int = 0) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Seoul")!
+        return calendar.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: hour, minute: minute, second: second))!
+    }
+
+    /// 기기 시계가 서버보다 10분 빠르거나 느려도 마감·남은 시간·전송 시작 시각은 서버 시각 기준이다.
+    @Test(arguments: [-600.0, 600.0])
+    func serverSessionCorrectsDeviceClock(skew: TimeInterval) async throws {
+        let deviceClock = TestClock(now: Self.kst(8, 0).addingTimeInterval(skew))
+        let log = RequestLog()
+        let viewModel = Self.makeServerViewModel(deviceNow: { deviceClock.now }, log: log) {
+            (201, Data(#"{"verificationId":7,"status":"PROCESSING","submittedAt":"2026-09-29T08:01:00"}"#.utf8))
+        }
+
+        _ = try #require(await capturedPhoto(viewModel))
+
+        #expect(viewModel.deadline == Self.kst(8, 10))
+        #expect(viewModel.timeUntilDeadline() == 600)
+        #expect(viewModel.expireIfNeeded() == false)
+
+        deviceClock.now = Self.kst(8, 1).addingTimeInterval(skew)
+        await viewModel.submit()
+
+        guard case .submitted = viewModel.state else {
+            Issue.record("제출 완료가 아님: \(viewModel.state)")
+            return
+        }
+        #expect(viewModel.submission == VerificationSubmission(id: "7", submittedAt: Self.kst(8, 1)))
+        let upload = try #require(log.requests(path: "/api/v1/verifications").first)
+        #expect(upload.value(forHTTPHeaderField: "X-Submit-Started-At") == "2026-09-29T08:01:00+09:00")
+
+        deviceClock.now = Self.kst(8, 10).addingTimeInterval(skew - 1)
+        #expect(viewModel.timeUntilDeadline() == 1)
+    }
+
+    /// 방학 기간이라 제출이 거절되면 `인증 시간 아님` 시트를 방학 사유로 띄운다.
+    @Test func vacationOnSubmitShowsVacationSheet() async throws {
+        let deviceClock = TestClock(now: Self.kst(8, 0))
+        let viewModel = Self.makeServerViewModel(deviceNow: { deviceClock.now }, log: RequestLog()) {
+            (403, Data(#"{"code":"VACATION_PERIOD","message":"m"}"#.utf8))
+        }
+        _ = try #require(await capturedPhoto(viewModel))
+
+        await viewModel.submit()
+
+        #expect(viewModel.sheet == .outsideWindow(.vacation))
+        #expect(viewModel.sheet?.closesFlow == true)
     }
 }

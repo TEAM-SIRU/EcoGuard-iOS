@@ -2,12 +2,11 @@ import Foundation
 
 extension DIContainer {
     /// 청소 인증 흐름. 시뮬레이터에는 카메라가 없어 가짜 카메라(샘플 이미지)를 쓴다.
-    /// 서버에 오늘 인증 정보 API가 없어 실제 저장소도 인증 정보는 Mock에서 가져온다.
     func makeCameraVerificationViewModel(
         repository: VerificationRepository? = nil
     ) -> CameraVerificationViewModel {
         let repository = repository ?? apiClient.map {
-            VerificationRepositoryImpl(apiClient: $0, sessionSource: MockVerificationRepository(delay: .zero))
+            VerificationRepositoryImpl(apiClient: $0)
         } ?? MockVerificationRepository()
         let (camera, permission) = makeCamera()
         return CameraVerificationViewModel(

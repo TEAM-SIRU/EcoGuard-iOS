@@ -23,14 +23,16 @@ struct CameraVerificationView: View {
                 guard viewModel.state == .loading else { return }
                 await viewModel.load()
             }
-            // 마감 시각이 되면 아직 보내기 시작하지 않은 촬영을 시간 초과로 바꾼다.
+            // 마감 시각이 되면 아직 보내기 시작하지 않은 촬영을, 재시도 유예가 끝나면 보내다 실패한 사진도 시간 초과로 바꾼다.
             .task(id: viewModel.deadline) {
-                guard let interval = viewModel.timeUntilDeadline() else { return }
-                if interval > 0 {
-                    try? await Task.sleep(for: .seconds(interval))
+                for date in viewModel.expiryCheckDates {
+                    let interval = date.timeIntervalSince(viewModel.serverNow)
+                    if interval > 0 {
+                        try? await Task.sleep(for: .seconds(interval))
+                    }
+                    guard !Task.isCancelled else { return }
+                    viewModel.expireIfNeeded()
                 }
-                guard !Task.isCancelled else { return }
-                viewModel.expireIfNeeded()
             }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
@@ -111,8 +113,8 @@ struct CameraVerificationView: View {
 
     private var sheetKind: VerificationSheet.Kind? {
         switch viewModel.sheet {
-        case .outsideWindow:
-            viewModel.session.map { .outsideWindow($0.window) }
+        case .outsideWindow(let reason):
+            viewModel.session.map { .outsideWindow($0.window, reason) }
         case .alreadySubmitted(let submittedAt, let status):
             .alreadySubmitted(submittedAt: submittedAt, status: status)
         case .permissionRequired:
@@ -204,7 +206,15 @@ private extension CameraVerificationViewModel {
 }
 
 #Preview("인증 시간 아님") {
-    CameraVerificationView(viewModel: .preview(.guide, sheet: .outsideWindow, availability: .outsideWindow))
+    CameraVerificationView(viewModel: .preview(.guide, sheet: .outsideWindow(.outsideHours), availability: .outsideWindow(.outsideHours)))
+}
+
+#Preview("주말 (임시 문구)") {
+    CameraVerificationView(viewModel: .preview(.guide, sheet: .outsideWindow(.weekend), availability: .outsideWindow(.weekend)))
+}
+
+#Preview("방학 (임시 문구)") {
+    CameraVerificationView(viewModel: .preview(.guide, sheet: .outsideWindow(.vacation), availability: .outsideWindow(.vacation)))
 }
 
 #Preview("오늘 이미 제출") {

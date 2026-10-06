@@ -2,10 +2,10 @@ import Foundation
 
 /// 인증 결과 화면 날짜 문자열. 학교 기준 시각이라 `HomeFormatter`와 같이 KST로 고정한다.
 enum VerificationResultFormatter {
-    /// 오늘이면 "오늘 08:04", 아니면 "9월 29일(화) 08:04". 시각을 모르면 "오늘"·"9월 29일(화)".
-    static func submittedAt(_ date: Date, now: Date, includesTime: Bool = true) -> String {
-        guard isSameDay(date, now) else { return dateTime(date, includesTime: includesTime) }
-        return includesTime ? "오늘 \(HomeFormatter.clockTime(date))" : "오늘"
+    /// 오늘이면 "오늘 08:04", 아니면 "9월 29일(화) 08:04".
+    static func submittedAt(_ date: Date, now: Date) -> String {
+        guard isSameDay(date, now) else { return HomeFormatter.recordDate(date) }
+        return "오늘 \(HomeFormatter.clockTime(date))"
     }
 
     /// "9월 29일(화) 08:04". 시각을 모르면 "9월 29일(화)".

@@ -14,6 +14,8 @@ nonisolated struct Endpoint: Sendable {
     let path: String
     /// 쿼리 파라미터. `with(queryItems:)`로 붙인다.
     var queryItems: [URLQueryItem] = []
+    /// 요청마다 다른 헤더(재전송 키 등). `with(headers:)`로 붙인다. `Authorization`·`Content-Type`은 `HTTPClient`가 정한다.
+    var headers: [String: String] = [:]
     let body: Data?
     /// `body`의 Content-Type. 바디가 없으면 보내지 않는다.
     let contentType: String
@@ -51,6 +53,14 @@ nonisolated struct Endpoint: Sendable {
             contentType: multipart.contentType,
             requiresAuthorization: requiresAuthorization
         )
+    }
+}
+
+nonisolated extension Endpoint {
+    func with(headers: [String: String]) -> Endpoint {
+        var endpoint = self
+        endpoint.headers.merge(headers) { _, new in new }
+        return endpoint
     }
 }
 

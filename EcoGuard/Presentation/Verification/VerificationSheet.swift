@@ -4,7 +4,8 @@ import SwiftUI
 /// 이의신청 사진 다시 찍기에서도 같은 권한 시트를 띄울 수 있도록 내용만 그린다. 띄우는 쪽에서 `.ecoBottomSheet()`를 붙인다.
 struct VerificationSheet: View {
     enum Kind: Equatable {
-        case outsideWindow(CleaningWindow)
+        /// 주말·방학은 안내 화면 디자인 전이라 이 시트에 `VerificationClosedCopy` 임시 문구를 쓴다.
+        case outsideWindow(CleaningWindow, VerificationClosedReason)
         /// 서버가 제출 시각·검수 상태를 주지 않으면 nil이다.
         case alreadySubmitted(submittedAt: Date?, status: VerificationResult.Status?)
         case permissionRequired
@@ -74,7 +75,9 @@ struct VerificationSheet: View {
 
     private var title: LocalizedStringKey {
         switch kind {
-        case .outsideWindow: "지금은 인증 시간이 아니에요"
+        case .outsideWindow(_, .outsideHours): "지금은 인증 시간이 아니에요"
+        case .outsideWindow(_, .weekend): "\(VerificationClosedCopy.weekendTitle)"
+        case .outsideWindow(_, .vacation): "\(VerificationClosedCopy.vacationTitle)"
         case .alreadySubmitted: "오늘은 이미 인증했어요"
         case .permissionRequired: "카메라 권한이 필요해요"
         }
@@ -82,8 +85,12 @@ struct VerificationSheet: View {
 
     private var message: LocalizedStringKey {
         switch kind {
-        case .outsideWindow(let window):
+        case .outsideWindow(let window, .outsideHours):
             "청소 인증은 매일 \(HomeFormatter.window(window))에만 할 수 있어요"
+        case .outsideWindow(let window, .weekend):
+            "\(VerificationClosedCopy.weekendMessage(window: HomeFormatter.window(window)))"
+        case .outsideWindow(_, .vacation):
+            "\(VerificationClosedCopy.vacationMessage)"
         case .alreadySubmitted(let submittedAt, let status):
             "하루 1번만 제출할 수 있어요.\n\(Self.submittedPhotoStatus(submittedAt: submittedAt, status: status))"
         case .permissionRequired:
@@ -104,6 +111,17 @@ extension VerificationSheet {
         case nil: "\(photo)이 있어요"
         }
     }
+}
+
+/// 주말·방학 안내 임시 문구. Figma에 화면이 없어 `인증 시간 아님` 시트(317:134)에 문구만 바꿔 쓴다. 기획 확정 시 여기만 바꾼다.
+enum VerificationClosedCopy {
+    static let weekendTitle = "오늘은 인증하는 날이 아니에요"
+    static func weekendMessage(window: String) -> String {
+        "청소 인증은 평일 \(window)에만 할 수 있어요"
+    }
+
+    static let vacationTitle = "지금은 방학 기간이에요"
+    static let vacationMessage = "방학 기간에는 청소 인증을 하지 않아요"
 }
 
 extension View {

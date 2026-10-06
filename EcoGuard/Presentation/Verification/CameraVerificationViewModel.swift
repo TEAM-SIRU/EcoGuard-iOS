@@ -23,7 +23,7 @@ final class CameraVerificationViewModel {
 
     /// 화면 위에 띄우는 안내 시트.
     enum Sheet: Equatable {
-        case outsideWindow
+        case outsideWindow(VerificationClosedReason)
         /// 서버가 제출 시각·검수 상태를 주지 않으면 nil이다.
         case alreadySubmitted(submittedAt: Date?, status: VerificationResult.Status?)
         case permissionRequired
@@ -36,13 +36,17 @@ final class CameraVerificationViewModel {
 
     /// 찍은 사진. 업로드용 JPEG와 화면 표시용 이미지를 함께 둔다.
     struct CapturedPhoto: Equatable {
-        let photo: VerificationPhoto
+        var photo: VerificationPhoto
         let image: UIImage
-        /// 한 번이라도 보내기 시작했는지. 서버는 마감 전에 시작한 사진의 재시도를 마감 후에도 받으므로, 이 사진은 시간 초과로 보내지 않는다.
-        var hasStartedUpload = false
+
+        /// 한 번이라도 보내기 시작했는지. 서버는 마감 전에 시작한 사진의 재시도를 마감 후 유예 시간까지 받으므로,
+        /// 그때까지 이 사진은 시간 초과로 보내지 않는다.
+        var hasStartedUpload: Bool {
+            photo.uploadStartedAt != nil
+        }
 
         static func == (lhs: Self, rhs: Self) -> Bool {
-            lhs.photo == rhs.photo && lhs.hasStartedUpload == rhs.hasStartedUpload
+            lhs.photo == rhs.photo
         }
     }
 
@@ -91,6 +95,11 @@ final class CameraVerificationViewModel {
         return deadline
     }
 
+    /// 시간 초과를 다시 확인할 시각(서버 기준): 마감, 마감 후 재시도 유예가 끝나는 시각.
+    var expiryCheckDates: [Date] {
+        deadline.map { [$0, $0.addingTimeInterval(VerificationSession.lateRetryGrace)] } ?? []
+    }
+
     private var isOpen: Bool {
         guard case .open = session?.availability else { return false }
         return true
@@ -131,8 +140,8 @@ final class CameraVerificationViewModel {
             case .open:
                 sheet = nil
                 expireIfNeeded()
-            case .outsideWindow:
-                sheet = .outsideWindow
+            case .outsideWindow(let reason):
+                sheet = .outsideWindow(reason)
             case .alreadySubmitted(let submittedAt, let status):
                 sheet = .alreadySubmitted(submittedAt: submittedAt, status: status)
             }
@@ -201,8 +210,10 @@ final class CameraVerificationViewModel {
     }
 
     /// 확인 화면의 `보내기`, 업로드 실패 화면의 `같은 사진 다시 보내기`.
-    /// 같은 사진은 같은 `photo.id`로 보내 마감 전에 시작한 업로드를 마감 후에도 이어 갈 수 있게 한다.
+    /// 같은 사진은 같은 `photo.id`(재전송 키)와 처음 시작 시각으로 보내 마감 전에 시작한 업로드를 유예 시간까지 이어 갈 수 있게 한다.
     func submit() async {
+        // 화면이 마감 시각 갱신을 놓친 채 눌렀으면 보내지 않는다.
+        guard !expireIfNeeded() else { return }
         var captured: CapturedPhoto
         switch state {
         case .confirming(let photo), .uploadFailed(let photo):
@@ -210,8 +221,10 @@ final class CameraVerificationViewModel {
         default:
             return
         }
-        captured.hasStartedUpload = true
-        // 취소되면 돌아갈 화면. 업로드를 시작한 사진으로 남겨 마감 후 다시 보내도 시간 초과로 보지 않게 한다.
+        if captured.photo.uploadStartedAt == nil {
+            captured.photo.uploadStartedAt = serverNow
+        }
+        // 취소되면 돌아갈 화면. 업로드를 시작한 사진으로 남겨 마감 후 유예 시간 안에 다시 보내도 시간 초과로 보지 않게 한다.
         let previous: State = if case .confirming = state { .confirming(captured) } else { .uploadFailed(captured) }
         state = .uploading(captured)
         do {
@@ -223,6 +236,9 @@ final class CameraVerificationViewModel {
         } catch VerificationError.alreadySubmitted(let submittedAt, let status) {
             state = .uploadFailed(captured)
             sheet = .alreadySubmitted(submittedAt: submittedAt, status: status)
+        } catch VerificationError.vacation {
+            state = .uploadFailed(captured)
+            sheet = .outsideWindow(.vacation)
         } catch {
             guard !Task.isCancelled else {
                 state = previous
@@ -257,17 +273,19 @@ final class CameraVerificationViewModel {
         deadline.map { $0.timeIntervalSince(serverNow) }
     }
 
-    /// 마감이 지났고 아직 업로드를 시작하지 않은 사진이면 시간 초과로 바꾼다. 바꿨으면 true.
-    /// 화면이 마감 시각·앱 복귀 때 부른다. 업로드를 시작한 사진(업로드 중·실패·그 뒤 확인 화면)과 완료는 그대로 둔다.
+    /// 마감이 지났으면 시간 초과로 바꾼다. 바꿨으면 true. 화면이 `expiryCheckDates`·앱 복귀 때 부른다.
+    /// 업로드를 시작한 사진(실패·그 뒤 확인 화면)은 서버가 재시도를 받아 주는 유예 시간까지 그대로 둔다.
+    /// 업로드 중·완료는 제출 응답에 맡긴다.
     @discardableResult
     func expireIfNeeded() -> Bool {
         guard let deadline, serverNow >= deadline else { return false }
+        let isLateRetryOver = serverNow >= deadline.addingTimeInterval(VerificationSession.lateRetryGrace)
         switch state {
         case .guide, .capturing:
             break
-        case .confirming(let photo):
-            guard !photo.hasStartedUpload else { return false }
-        case .loading, .loadFailed, .uploading, .uploadFailed, .submitted, .timedOut:
+        case .confirming(let photo), .uploadFailed(let photo):
+            guard !photo.hasStartedUpload || isLateRetryOver else { return false }
+        case .loading, .loadFailed, .uploading, .submitted, .timedOut:
             return false
         }
         state = .timedOut

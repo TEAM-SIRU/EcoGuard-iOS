@@ -5,6 +5,8 @@ struct VerificationPhoto: Equatable {
     let id: UUID
     let jpegData: Data
     let capturedAt: Date
+    /// 처음 보내기 시작한 시각(서버 기준). 재시도에도 이 값을 보내 마감 전에 시작한 전송임을 알린다. 보내기 전에는 nil.
+    var uploadStartedAt: Date?
 }
 
 struct VerificationSubmission: Equatable {
@@ -23,4 +25,6 @@ enum VerificationError: Error, Equatable {
     case deadlinePassed
     /// 오늘 다른 사진을 이미 제출했다. 서버가 제출 시각·검수 상태를 주지 않으면 nil이다.
     case alreadySubmitted(submittedAt: Date?, status: VerificationResult.Status?)
+    /// 방학 기간이라 인증할 수 없다.
+    case vacation
 }
