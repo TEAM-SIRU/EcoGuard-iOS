@@ -8,7 +8,7 @@ struct CleaningAreaRepositoryImplTests {
 
     private func makeRepository(
         log: RequestLog = RequestLog(),
-        currentUser: CurrentUser? = CurrentUser(id: "2", name: "이도윤"),
+        currentUser: CurrentUser? = CurrentUser(id: "2", name: "이도윤", studentNumber: nil, grade: 2, classNumber: 3),
         statusCode: Int,
         json: String
     ) -> CleaningAreaRepositoryImpl {
@@ -66,9 +66,11 @@ struct CleaningAreaRepositoryImplTests {
         #expect(!floors.flatMap { $0.rows.flatMap { $0 } }.contains { $0.kind == .mine })
     }
 
-    /// 로그인 때 저장한 사용자가 없으면(이 기능 전 세션) 나를 따로 표시하지 않는다.
-    @Test func unknownCurrentUserHasNoMyName() async throws {
-        let repository = makeRepository(currentUser: nil, statusCode: 200, json: Self.assignmentJSON())
+    /// 내 정보를 받지 못했거나 구성원에 내 ID가 없으면 나를 따로 표시하지 않는다(구역은 보여 준다).
+    @Test(arguments: [nil, "9"] as [String?])
+    func unknownCurrentUserHasNoMyName(userID: String?) async throws {
+        let user = userID.map { CurrentUser(id: $0, name: "이도윤", studentNumber: nil, grade: 2, classNumber: 3) }
+        let repository = makeRepository(currentUser: user, statusCode: 200, json: Self.assignmentJSON())
 
         guard case .assigned(_, _, let area) = try await repository.fetchCleaningArea() else {
             Issue.record("배정 상태여야 한다")

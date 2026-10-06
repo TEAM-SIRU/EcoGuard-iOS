@@ -9,9 +9,9 @@ final class MockHomeRepository: HomeRepository {
         case rejected
         case teacherReviewing
         case notOpenYet
+        case vacation
         case recruiting
         case awaitingAssignment
-        case applicationPending
         case notSelected
         case notRecruiting
         case excluded
@@ -76,8 +76,9 @@ extension MockHomeRepository {
             id: "notice-2026-09",
             title: "9월 환경지킴이 활동 안내",
             body: "매일 **08:00 – 08:10**에 청소하고 **사진 1장**으로 인증해 주세요.",
+            preview: "매일 **08:00 – 08:10**에 청소하고 **사진 1장**으로 인증해 주세요.",
             publishedAt: date(month: 9, day: 1),
-            isNew: true
+            isRead: false
         )
 
         static let recentRecords = [
@@ -102,6 +103,8 @@ extension MockHomeRepository {
                 active(.teacherReviewing(submittedAt: submittedAt))
             case .notOpenYet:
                 active(.notOpenYet(opensAt: opensAt(onDayOf: now)))
+            case .vacation:
+                active(.vacation)
             case .recruiting:
                 HomeSummary(
                     status: .recruiting(Recruitment(semester: 2, capacityPerClass: 6, className: "2학년 3반", appliedCount: 4)),
@@ -109,8 +112,6 @@ extension MockHomeRepository {
                 )
             case .awaitingAssignment:
                 HomeSummary(status: .awaitingAssignment, notice: notice)
-            case .applicationPending:
-                HomeSummary(status: .applicationPending, notice: notice)
             case .notSelected:
                 HomeSummary(status: .notSelected, notice: notice)
             case .notRecruiting:
@@ -151,7 +152,7 @@ extension MockHomeRepository {
         /// 오늘 인증 상태에 맞는 인증 결과 상태. 제출 전이면 nil.
         private static func resultStatus(for verification: TodayVerification) -> VerificationResult.Status? {
             switch verification {
-            case .notOpenYet, .open: nil
+            case .notOpenYet, .open, .vacation: nil
             case .aiReviewing: .processing
             case .teacherReviewing: .manualReview
             case .approved: .approved

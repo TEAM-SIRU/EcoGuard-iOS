@@ -16,7 +16,7 @@ struct HomeNoticeCard: View {
                     .padding(.top, Spacing.lg)
                     .padding(.bottom, Spacing.sm)
                     .accessibilityAddTraits(.isHeader)
-                Text(HomeNoticeBody.attributed(from: notice.body))
+                bodyText
                     .ecoFont(.body2)
                 Button(action: onOpen) {
                     HStack(spacing: Spacing.xs) {
@@ -30,6 +30,15 @@ struct HomeNoticeCard: View {
                 .buttonStyle(.plain)
                 .padding(.top, Spacing.md)
             }
+        }
+    }
+
+    /// 본문(마크다운)이 없으면(서버 목록에서 받은 공지) 미리보기를 마크다운으로 읽지 않고 그대로 보여 준다.
+    private var bodyText: Text {
+        if notice.body.isEmpty {
+            Text(verbatim: notice.preview).foregroundStyle(Color.ecoTextSub)
+        } else {
+            Text(HomeNoticeBody.attributed(from: notice.body))
         }
     }
 

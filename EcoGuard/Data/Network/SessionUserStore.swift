@@ -1,9 +1,13 @@
 import Foundation
 
-/// 로그인 응답의 사용자 요약(저장 형식). 내 정보 API가 없어 이름을 여기서 쓴다(`CurrentUserRepositoryImpl`).
+/// 로그인한 사용자(저장 형식). 로그인 응답으로 처음 저장하고 `GET /users/me`를 받을 때마다 바꾼다(`CurrentUserRepositoryImpl`).
+/// 로그인 응답에는 학번·학년·반이 없어 내 정보를 받기 전까지 nil이다. 이전 버전이 저장한 값(이름만)도 그대로 읽힌다.
 nonisolated struct SessionUser: Codable, Equatable, Sendable {
     let userId: Int64
     let name: String
+    var studentNumber: String?
+    var grade: Int?
+    var classNo: Int?
 }
 
 /// 로그인한 사용자 요약 보관. 토큰과 같이 `AuthSession`이 지운다(로그아웃·세션 만료·교사 로그인). 재설치하면 UserDefaults째 지워진다.

@@ -16,6 +16,7 @@ nonisolated enum HomeMapper {
         assignment: HomeDTO.Assignment,
         weekly: WeeklyActivityResponseDTO,
         verifications: [HomeDTO.Verification],
+        todayInfo: TodayVerificationResponseDTO?,
         now: Date
     ) throws -> ActiveCleaning {
         let today = calendar.startOfDay(for: now)
@@ -34,7 +35,9 @@ nonisolated enum HomeMapper {
             today: TodayCleaning(
                 area: assignment.areaName,
                 window: window,
-                verification: todaySubmission.map(\.todayVerification) ?? verification(window: window, now: now),
+                verification: todaySubmission.map(\.todayVerification)
+                    ?? todayInfo.flatMap { verification(window: window, today: $0) }
+                    ?? verification(window: window, now: now),
                 // 서버가 제출 시각을 주지 않아 인증한 날 0시를 넣는다.
                 submission: todaySubmission.map { TodaySubmission(id: String($0.verificationId), submittedAt: today) }
             ),
@@ -46,7 +49,8 @@ nonisolated enum HomeMapper {
     /// 구역 배정 전. #56 모집 저장소와 같이 현재 공고에 신청했을 때(`alreadyApplied`)만 내 신청을 본다(지난 공고 신청으로 판단하지 않는다).
     /// - 공고 없음, 또는 신청하지 않았고 모집 기간이 아님 → 모집 없음
     /// - 신청하지 않았고 모집 중 → 모집
-    /// - 신청함: 승인 → 배정 대기, 반려 → 미선발, 그 밖(대기·알 수 없음) → 확정 대기
+    /// - 신청함: 미선발 → 미선발, 그 밖 → 배정 대기. 서버 #16부터 신청하면 바로 승인되고 교사 확정이 없어
+    ///   이전 데이터에 남은 `PENDING`이나 모르는 상태도 받아들여진 신청으로 본다.
     static func unassignedStatus(
         recruitment: HomeDTO.CurrentRecruitment?,
         application: HomeDTO.Application?,
@@ -54,13 +58,9 @@ nonisolated enum HomeMapper {
     ) -> HomeStatus {
         guard let recruitment else { return .notRecruiting }
         guard recruitment.alreadyApplied else {
-            return recruitment.periodStatus == .open ? .recruiting(recruitment.toDomain(now: now)) : .notRecruiting
+            return recruitment.periodStatus == .open ? .recruiting(recruitment.toDomain()) : .notRecruiting
         }
-        switch application?.status {
-        case .approved: return .awaitingAssignment
-        case .rejected: return .notSelected
-        case .pending, .unknown, nil: return .applicationPending
-        }
+        return application?.status == .rejected ? .notSelected : .awaitingAssignment
     }
 
     /// Figma `Recent section` 3건.
@@ -73,7 +73,23 @@ nonisolated enum HomeMapper {
         return CleaningWindow(startMinute: start, endMinute: end)
     }
 
-    /// 오늘 제출 전 상태. 서버가 인증 가능 여부를 주지 않아 청소 시간과 기기 시각으로 정한다.
+    /// 오늘 제출 전 상태를 오늘 인증 정보(`GET /verifications/today`)의 인증 가능 여부·사유·서버 시각으로 정한다.
+    /// 방학은 서버만 알아 이 값으로만 알 수 있다. 서버 시각을 읽을 수 없으면 nil(기기 시각으로 정한다).
+    static func verification(window: CleaningWindow, today info: TodayVerificationResponseDTO) -> TodayVerification? {
+        guard let serverNow = ServerDate.dateTime(info.serverTime) else { return nil }
+        if info.canSubmit {
+            let deadline = calendar.startOfDay(for: serverNow).addingTimeInterval(TimeInterval(window.endMinute * 60))
+            return .open(deadline: deadline)
+        }
+        if info.unavailableReason == "VACATION" { return .vacation }
+        // 주말·시작 전·마감 뒤(그리고 모르는 사유)는 다음 인증 시작 시각을 기다린다. 서버가 안 된다고 했으니 열린 상태로 두지 않는다.
+        let local = verification(window: window, now: serverNow)
+        guard case .open = local else { return local }
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: serverNow)) ?? serverNow
+        return .notOpenYet(opensAt: opening(onOrAfter: tomorrow, window: window))
+    }
+
+    /// 오늘 제출 전 상태를 청소 시간과 기기 시각으로 정한다. 오늘 인증 정보를 받지 못했을 때 쓴다(방학은 알 수 없다).
     /// 시간이 지났거나 주말이면 다음 평일 시작 시각까지 `notOpenYet`으로 둔다(홈 도메인에 미제출 상태가 없다).
     static func verification(window: CleaningWindow, now: Date) -> TodayVerification {
         let today = calendar.startOfDay(for: now)
@@ -146,12 +162,10 @@ nonisolated extension WeeklyActivityResponseDTO {
 }
 
 nonisolated extension HomeDTO.CurrentRecruitment {
-    /// 서버 학기는 `2026-2`. 읽을 수 없으면 홈을 실패로 두지 않고 `now`(KST)의 학기(3~8월 1학기, 그 밖 2학기)로 둔다.
-    func toDomain(now: Date) -> Recruitment {
-        let parsed = semester.split(separator: "-").last.flatMap { Int($0) }.flatMap { (1...2).contains($0) ? $0 : nil }
-        let month = HomeMapper.calendar.component(.month, from: now)
-        return Recruitment(
-            semester: parsed ?? ((3...8).contains(month) ? 1 : 2),
+    /// 학기를 읽을 수 없으면 홈을 실패로 두지 않고 학기 없이 보여 준다(`ServerSemester`).
+    func toDomain() -> Recruitment {
+        Recruitment(
+            semester: ServerSemester.number(semester),
             capacityPerClass: maxCount,
             className: "\(grade)학년 \(classNo)반",
             appliedCount: currentApplicants
@@ -159,10 +173,11 @@ nonisolated extension HomeDTO.CurrentRecruitment {
     }
 }
 
-nonisolated extension HomeDTO.NoticeDetail {
-    /// 홈에는 닫지 않은 최신 공지 하나만 띄우므로 늘 새 공지다.
+nonisolated extension HomeDTO.NoticeListItem {
+    /// 홈 카드는 목록의 미리보기(일반 텍스트)를 보여 준다. 본문(마크다운)은 비워 둔다.
+    /// 상세를 받으면 서버가 읽음으로 기록해 NEW가 사라지므로 홈에서는 상세를 받지 않는다.
     func toHomeNotice() throws -> Notice {
         guard let publishedAt = ServerDate.dateTime(createdAt) else { throw APIError.decoding }
-        return Notice(id: String(noticeId), title: title, body: content, publishedAt: publishedAt, isNew: true)
+        return Notice(id: String(noticeId), title: title, body: "", preview: preview, publishedAt: publishedAt, isRead: isRead)
     }
 }

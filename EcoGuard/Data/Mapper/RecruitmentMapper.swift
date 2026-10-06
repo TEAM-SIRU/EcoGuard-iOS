@@ -1,27 +1,22 @@
 import Foundation
 
 extension CurrentRecruitmentResponseDTO {
-    /// 학기는 문자열 끝 숫자("2", "2026-2", "2학기")로 읽고 1·2학기만 받는다. 형식은 서버와 정해야 한다(서버 요청 목록).
-    var semesterNumber: Int? {
-        semester.firstMatch(of: /(\d+)\D*$/).flatMap { Int($0.1) }.flatMap { (1...2).contains($0) ? $0 : nil }
-    }
-
     /// `myApplication`은 `alreadyApplied`일 때 `GET /applications/me`로 따로 받아 넣는다.
-    /// 활동 시간은 공고에 없어 `activityWindow`(앱 기본값)를 쓴다.
-    func toDomain(activityWindow: CleaningWindow, myApplication: RecruitmentApplication?) throws -> RecruitmentDetail {
-        guard let semesterNumber else { throw APIError.decoding }
+    /// 학기·활동 시간은 보여 주기만 하는 값이라 읽을 수 없으면 실패로 두지 않고 기본값을 쓴다.
+    func toDomain(myApplication: RecruitmentApplication?) throws -> RecruitmentDetail {
+        let startDate = try ServerDate.requiredDateTime(period.start)
         // 신청했는데 보여 줄 신청이 없으면(반려 등) 다시 신청할 수 없으므로 마감으로 보여 준다.
         let phase = alreadyApplied && myApplication == nil ? .ended : periodStatus.phase
         return RecruitmentDetail(
             recruitment: Recruitment(
-                semester: semesterNumber,
+                semester: ServerSemester.number(semester),
                 capacityPerClass: maxCount,
                 className: "\(grade)학년 \(classNo)반",
                 appliedCount: currentApplicants
             ),
-            startDate: try ServerDate.requiredDateTime(period.start),
+            startDate: startDate,
             endDate: try ServerDate.requiredDateTime(period.end),
-            activityWindow: activityWindow,
+            activityWindow: activityTime.window,
             phase: phase,
             myApplication: myApplication
         )
@@ -38,22 +33,37 @@ extension CurrentRecruitmentResponseDTO.PeriodStatus {
     }
 }
 
+extension CurrentRecruitmentResponseDTO.ActivityTime {
+    /// `"07:20:00"`~`"08:10:00"` → 분. 읽을 수 없으면 서버 기본값(07:20~08:10).
+    var window: CleaningWindow {
+        guard let start = Self.minuteOfDay(start), let end = Self.minuteOfDay(end), start < end else { return .serverDefault }
+        return CleaningWindow(startMinute: start, endMinute: end)
+    }
+
+    /// `HH:mm` 또는 `HH:mm:ss`(초는 버린다).
+    private static func minuteOfDay(_ string: String) -> Int? {
+        guard let match = string.wholeMatch(of: /(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?/),
+              let hour = Int(match.1), let minute = Int(match.2), (0..<24).contains(hour), (0..<60).contains(minute)
+        else { return nil }
+        return hour * 60 + minute
+    }
+}
+
 extension ApplyResponseDTO {
-    /// 신청 응답에는 신청 시각이 없어 응답을 받은 시각(`receivedAt`)을 쓴다. 막 신청했으므로 초 단위까지 맞다.
-    func toDomain(receivedAt: Date) -> RecruitmentApplication {
-        RecruitmentApplication(order: order, appliedAt: receivedAt, isAreaAssigned: false)
+    /// 막 신청했으므로 구역은 아직 배정 전이다.
+    func toDomain() throws -> RecruitmentApplication {
+        RecruitmentApplication(order: order, appliedAt: try ServerDate.requiredDateTime(appliedAt), isAreaAssigned: false)
     }
 }
 
 extension ApplicationStatusResponseDTO {
-    /// 반려(`REJECTED`)면 nil. 앱은 선착순 즉시 확정이라 반려 상태가 없다(서버는 정원 안에서만 신청을 받아 확정 때 모두 승인한다).
-    /// `appliedAt`이 아직 서버에 없어 없으면 `fallbackAppliedAt`을 쓴다.
-    func toDomain(fallbackAppliedAt: Date) throws -> RecruitmentApplication? {
+    /// 미선발(`REJECTED`)이면 nil. 서버 #16부터 신청은 바로 승인되고 반려를 만드는 코드가 없지만, 열거형과 이전 데이터에 남아 있어 막아 둔다.
+    func toDomain() throws -> RecruitmentApplication? {
         guard status != .rejected else { return nil }
         return RecruitmentApplication(
             order: order,
-            appliedAt: try appliedAt.map { try ServerDate.requiredDateTime($0) } ?? fallbackAppliedAt,
-            // 승인 전(PENDING)에는 서버가 waitingForAssignment를 false로 주므로 승인됐을 때만 배정 여부로 본다.
+            appliedAt: try ServerDate.requiredDateTime(appliedAt),
+            // 승인이 아니면(이전 데이터의 PENDING) 서버가 waitingForAssignment를 false로 주므로 승인됐을 때만 배정 여부로 본다.
             isAreaAssigned: status == .approved && !waitingForAssignment
         )
     }

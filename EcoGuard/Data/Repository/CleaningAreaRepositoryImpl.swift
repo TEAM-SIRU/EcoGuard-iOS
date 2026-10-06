@@ -4,7 +4,7 @@ final class CleaningAreaRepositoryImpl: CleaningAreaRepository {
     private let floors: [FloorPlan]
     private let currentUserRepository: CurrentUserRepository
 
-    // TODO: 서버가 도면을 내려주면 Mock 도면을 뺀다.
+    // TODO: 서버가 도면을 내려주면 Mock 도면을 뺀다(서버 요청 목록).
     init(
         apiClient: APIClient,
         currentUserRepository: CurrentUserRepository,
@@ -18,8 +18,9 @@ final class CleaningAreaRepositoryImpl: CleaningAreaRepository {
     func fetchCleaningArea() async throws -> CleaningAreaSummary {
         do {
             let response: MyAssignmentResponseDTO = try await apiClient.send(.myAssignment)
-            // 응답에 누가 나인지 없어 로그인 때 저장한 이름으로 찾는다. 모르면 나를 따로 표시하지 않는다.
-            return response.toDomain(floors: floors, myName: currentUserRepository.currentUser()?.name)
+            // 구성원 중 내 정보의 사용자 ID가 나다. 받아 오지 못하면 나를 따로 표시하지 않는다(구역은 보여 준다).
+            let myUserID = try? await currentUserRepository.fetchCurrentUser().id
+            return response.toDomain(floors: floors, myUserID: myUserID)
         } catch let error as APIError where error == .server(statusCode: 404, code: "NO_ASSIGNMENT") {
             return .unassigned
         }

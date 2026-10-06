@@ -12,6 +12,7 @@ struct HomeRepositoryImplTests {
         static let recruitment = "/api/v1/recruitments/current"
         static let notices = "/api/v1/notices"
         static let notice = "/api/v1/notices/7"
+        static let today = "/api/v1/verifications/today"
     }
 
     /// 2026-09-29(화) 09:00 KST.
@@ -37,11 +38,8 @@ struct HomeRepositoryImplTests {
     """
 
     private static let noticesJSON = """
-    [{"noticeId":7,"title":"10월 안내","createdAt":"2026-09-28T17:30:00.123456"},{"noticeId":6,"title":"9월 안내","createdAt":"2026-09-01T09:00:00"}]
-    """
-
-    private static let noticeJSON = """
-    {"noticeId":7,"title":"10월 안내","content":"매일 **08:00**에 청소해요","createdAt":"2026-09-28T17:30:00.123456","previousNoticeId":6,"nextNoticeId":null}
+    [{"noticeId":7,"title":"10월 안내","preview":"매일 **08:00**에 청소해요","isRead":false,"createdAt":"2026-09-28T17:30:00.123456"},
+     {"noticeId":6,"title":"9월 안내","preview":"9월 안내","isRead":true,"createdAt":"2026-09-01T09:00:00"}]
     """
 
     private static var activeResponses: [String: (Int, String)] {
@@ -49,8 +47,7 @@ struct HomeRepositoryImplTests {
             Path.assignment: (200, assignmentJSON),
             Path.weekly: (200, weeklyJSON),
             Path.verifications: (200, verificationsJSON),
-            Path.notices: (200, noticesJSON),
-            Path.notice: (200, noticeJSON)
+            Path.notices: (200, noticesJSON)
         ]
     }
 
@@ -74,12 +71,14 @@ struct HomeRepositoryImplTests {
 
         let summary = try await repository.fetchHome()
 
-        for path in [Path.assignment, Path.weekly, Path.verifications, Path.notices, Path.notice] {
+        for path in [Path.assignment, Path.weekly, Path.verifications, Path.notices] {
             let request = try #require(log.requests(path: path).first, "\(path) 요청 없음")
             #expect(request.httpMethod == "GET")
             #expect(request.bearerToken == PathStub.tokens.accessToken)
         }
         #expect(log.requests(path: Path.application).isEmpty)
+        // 상세를 받으면 서버가 읽음으로 기록해 NEW가 사라진다. 홈은 목록의 미리보기만 쓴다.
+        #expect(log.requests(path: Path.notice).isEmpty)
 
         guard case .active(let cleaning) = summary.status else {
             Issue.record("활동 중이어야 한다: \(summary.status)")
@@ -107,11 +106,14 @@ struct HomeRepositoryImplTests {
         #expect(summary.notice == Notice(
             id: "7",
             title: "10월 안내",
-            body: "매일 **08:00**에 청소해요",
+            // 미리보기는 일반 텍스트라 마크다운 본문으로 넘기지 않는다.
+            body: "",
+            preview: "매일 **08:00**에 청소해요",
             // 소수점 초는 버린다.
             publishedAt: PathStub.date(2026, 9, 28, 17, 30),
-            isNew: true
+            isRead: false
         ))
+        #expect(summary.notice?.isNew == true)
     }
 
     @Test(arguments: [
@@ -186,12 +188,13 @@ struct HomeRepositoryImplTests {
         #expect(log.requests(path: Path.notice).isEmpty)
     }
 
-    /// 현재 공고에 신청했을 때만 내 신청 상태를 본다. 승인만 배정 대기(기존 "환경지킴이가 됐어요")다.
+    /// 현재 공고에 신청했을 때만 내 신청 상태를 본다. 신청하면 바로 승인되므로(서버 #16) 이전 데이터의 PENDING이나
+    /// 모르는 상태도 배정 대기이고, 미선발(이전 데이터의 REJECTED)만 따로 보여 준다.
     @Test(arguments: [
         ("APPROVED", HomeStatus.awaitingAssignment),
-        ("PENDING", .applicationPending),
+        ("PENDING", .awaitingAssignment),
         ("REJECTED", .notSelected),
-        ("SOMETHING_NEW", .applicationPending)
+        ("SOMETHING_NEW", .awaitingAssignment)
     ])
     func appliedStatusFollowsCurrentApplication(status: String, expected: HomeStatus) async throws {
         let log = RequestLog()
@@ -237,9 +240,9 @@ struct HomeRepositoryImplTests {
         #expect(log.requests(path: Path.application).isEmpty)
     }
 
-    /// 학기를 읽을 수 없어도 홈은 실패하지 않고 오늘(9월 → 2학기) 기준 학기로 둔다.
-    @Test(arguments: ["2학기", "2026-3", ""])
-    func malformedSemesterFallsBackToCurrentSemester(semester: String) async throws {
+    /// 학기는 "2026-2"를 먼저, 아니면 끝 숫자(1·2)를 읽는다. 그래도 읽을 수 없으면 홈은 실패하지 않고 학기를 비운다.
+    @Test(arguments: [("2학기", 2), ("1", 1), ("2026-3", nil), ("", nil)] as [(String, Int?)])
+    func semesterIsParsedLeniently(semester: String, expected: Int?) async throws {
         let json = Self.recruitmentJSON(status: "OPEN", alreadyApplied: false).replacingOccurrences(of: "2026-2", with: semester)
         let repository = try makeRepository(responses: [
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
@@ -250,7 +253,72 @@ struct HomeRepositoryImplTests {
             Issue.record("모집이어야 한다")
             return
         }
-        #expect(recruitment.semester == 2)
+        #expect(recruitment.semester == expected)
+    }
+
+    /// 오늘 인증 정보가 늦으면 기다리지 않고 기기 시각(09:00, 마감 뒤)으로 보여 준다.
+    @Test func slowTodayInfoFallsBackToDeviceTime() async throws {
+        var responses = Self.activeResponses
+        responses[Path.verifications] = (200, "[]")
+        let canSubmit = Self.todayJSON(serverTime: "2026-09-29T08:05:00", canSubmit: true, reason: nil)
+        let session = StubURLProtocol.makeSession { request in
+            let path = request.url?.path() ?? ""
+            if path == Path.today {
+                try await Task.sleep(for: .seconds(10))
+                return (200, Data(canSubmit.utf8))
+            }
+            guard let (statusCode, body) = responses[path] else { return (404, Data()) }
+            return (statusCode, Data(body.utf8))
+        }
+        let httpClient = HTTPClient(baseURL: PathStub.baseURL, session: session)
+        let repository = HomeRepositoryImpl(
+            apiClient: APIClient(httpClient: httpClient, authSession: AuthSession(tokenStore: InMemoryTokenStore(PathStub.tokens), httpClient: httpClient, userStore: InMemorySessionUserStore())),
+            defaults: try Self.makeDefaults(),
+            todayInfoTimeout: .milliseconds(200),
+            now: { Self.now }
+        )
+        let started = ContinuousClock.now
+
+        guard case .active(let cleaning) = try await repository.fetchHome().status else {
+            Issue.record("활동 중이어야 한다")
+            return
+        }
+        #expect(cleaning.today.verification == .notOpenYet(opensAt: PathStub.date(2026, 9, 30, 8)))
+        #expect(ContinuousClock.now - started < .seconds(5))
+    }
+
+    nonisolated static func todayJSON(serverTime: String, canSubmit: Bool, reason: String?) -> String {
+        """
+        {"serverTime":"\(serverTime)","areaId":3,"areaName":"본관 계단 A","startTime":"08:00:00","endTime":"08:10:00",
+         "canSubmit":\(canSubmit),"unavailableReason":\(reason.map { "\"\($0)\"" } ?? "null"),
+         "submitted":false,"verificationId":null,"status":null,"submittedAt":null}
+        """
+    }
+
+    /// 제출 전 상태는 오늘 인증 정보(서버 시각·인증 가능 여부·사유)로 정한다. 방학은 서버만 안다.
+    /// 오늘 인증 정보를 받지 못하면 홈은 기기 시각(09:00, 마감 뒤)으로 보여 준다.
+    @Test(arguments: [
+        (200, HomeRepositoryImplTests.todayJSON(serverTime: "2026-09-29T08:05:00", canSubmit: true, reason: nil),
+         TodayVerification.open(deadline: PathStub.date(2026, 9, 29, 8, 10))),
+        (200, HomeRepositoryImplTests.todayJSON(serverTime: "2026-09-29T09:00:00", canSubmit: false, reason: "VACATION"), .vacation),
+        (200, HomeRepositoryImplTests.todayJSON(serverTime: "2026-09-29T07:50:00", canSubmit: false, reason: "BEFORE_START"),
+         .notOpenYet(opensAt: PathStub.date(2026, 9, 29, 8))),
+        // 기기 시각으로는 인증 시간이어도 서버가 안 된다고 하면 다음 날을 기다린다.
+        (200, HomeRepositoryImplTests.todayJSON(serverTime: "2026-09-29T08:05:00", canSubmit: false, reason: "SOMETHING_NEW"),
+         .notOpenYet(opensAt: PathStub.date(2026, 9, 30, 8))),
+        (500, PathStub.error("INTERNAL_SERVER_ERROR"), .notOpenYet(opensAt: PathStub.date(2026, 9, 30, 8))),
+    ])
+    func todayInfoDecidesVerification(statusCode: Int, json: String, expected: TodayVerification) async throws {
+        var responses = Self.activeResponses
+        responses[Path.verifications] = (200, "[]")
+        responses[Path.today] = (statusCode, json)
+        let repository = try makeRepository(responses: responses)
+
+        guard case .active(let cleaning) = try await repository.fetchHome().status else {
+            Issue.record("활동 중이어야 한다")
+            return
+        }
+        #expect(cleaning.today.verification == expected)
     }
 
     /// 404라도 "아직 없음" 코드가 아니면 에러다.
@@ -290,6 +358,18 @@ struct HomeRepositoryImplTests {
         }
     }
 
+    /// 이미 열어 본(`isRead`) 공지는 NEW를 붙이지 않는다.
+    @Test func readNoticeIsNotNew() async throws {
+        var responses = Self.activeResponses
+        responses[Path.notices] = (200, #"[{"noticeId":7,"title":"10월 안내","preview":"안내","isRead":true,"createdAt":"2026-09-28T17:30:00"}]"#)
+        let repository = try makeRepository(responses: responses)
+
+        let notice = try #require(try await repository.fetchHome().notice)
+
+        #expect(notice.isRead)
+        #expect(!notice.isNew)
+    }
+
     @Test func dismissedNoticeIsNotShownAgain() async throws {
         let defaults = try Self.makeDefaults()
         let log = RequestLog()
@@ -308,7 +388,7 @@ struct HomeRepositoryImplTests {
     nonisolated static func recruitmentJSON(status: String, alreadyApplied: Bool) -> String {
         """
         {"recruitmentId":1,"semester":"2026-2","grade":2,"classNo":3,
-         "period":{"start":"2026-09-01T00:00:00","end":"2026-09-10T23:59:59"},
+         "period":{"start":"2026-09-01T00:00:00","end":"2026-09-10T23:59:59"},"activityTime":{"start":"07:20:00","end":"08:10:00"},
          "periodStatus":"\(status)","maxCount":6,"currentApplicants":4,"isFull":false,"alreadyApplied":\(alreadyApplied)}
         """
     }

@@ -14,7 +14,10 @@ enum RecruitmentCopy {
 
     enum Notice {
         // Figma 246:3 · 313:2 · 313:53
-        static func title(semester: Int) -> LocalizedStringKey { "\(semester)학기 환경지킴이를 모집해요" }
+        /// 학기를 모르면 학기 없이(새 문구).
+        static func title(semester: Int?) -> LocalizedStringKey {
+            semester.map { "\($0)학기 환경지킴이를 모집해요" } ?? "환경지킴이를 모집해요"
+        }
         static func subtitle(capacity: Int) -> LocalizedStringKey { "반마다 최대 \(capacity)명, 먼저 신청한 순서대로 확정돼요" }
         static let periodLabel: LocalizedStringKey = "모집 기간"
         static let capacityLabel: LocalizedStringKey = "모집 인원"

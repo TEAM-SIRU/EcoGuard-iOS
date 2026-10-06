@@ -15,9 +15,7 @@ enum HomeStatus: Equatable {
     case recruiting(Recruitment)
     /// 선발됐고 선생님이 구역을 배정하기 전이다.
     case awaitingAssignment
-    /// 이번 모집에 신청했고 선생님 확정을 기다린다.
-    case applicationPending
-    /// 이번 모집에서 선발되지 않았다.
+    /// 이번 모집에서 선발되지 않았다. 서버 #16부터 신청은 바로 승인되지만 이전 데이터의 `REJECTED`를 위해 남긴다.
     case notSelected
     /// 모집 기간이 아니고 이번 모집에 신청하지도 않았다.
     case notRecruiting

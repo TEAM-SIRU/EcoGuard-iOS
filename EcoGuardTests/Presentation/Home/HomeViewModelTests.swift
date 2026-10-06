@@ -315,6 +315,7 @@ struct HomeViewModelTests {
     @Test(arguments: [
         (MockHomeRepository.Scenario.notSubmitted, true),
         (.notOpenYet, true),
+        (.vacation, false),
         (.approved, true),
         (.recruiting, false),
         (.awaitingAssignment, false),

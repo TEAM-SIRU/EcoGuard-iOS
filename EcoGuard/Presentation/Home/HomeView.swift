@@ -106,8 +106,6 @@ struct HomeView: View {
             HomeRecruitCard(content: .recruiting(recruitment), action: actions.openRecruitment)
         case .awaitingAssignment:
             HomeRecruitCard(content: .awaitingAssignment, action: actions.openApplicationResult)
-        case .applicationPending:
-            HomeRecruitCard(content: .applicationPending)
         case .notSelected:
             HomeRecruitCard(content: .notSelected)
         case .notRecruiting:
@@ -146,16 +144,16 @@ struct HomeView: View {
     HomeView(viewModel: DIContainer.preview(homeScenario: .notOpenYet).makeHomeViewModel())
 }
 
+#Preview("방학") {
+    HomeView(viewModel: DIContainer.preview(homeScenario: .vacation).makeHomeViewModel())
+}
+
 #Preview("모집 기간 (미가입)") {
     HomeView(viewModel: DIContainer.preview(homeScenario: .recruiting).makeHomeViewModel())
 }
 
 #Preview("구역 배정 대기") {
     HomeView(viewModel: DIContainer.preview(homeScenario: .awaitingAssignment).makeHomeViewModel())
-}
-
-#Preview("확정 대기") {
-    HomeView(viewModel: DIContainer.preview(homeScenario: .applicationPending).makeHomeViewModel())
 }
 
 #Preview("미선발") {

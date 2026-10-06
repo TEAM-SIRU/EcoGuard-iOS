@@ -11,12 +11,19 @@ nonisolated struct CurrentRecruitmentResponseDTO: Decodable, Sendable {
         case closed = "CLOSED"
     }
 
+    /// 청소 활동 시간(하루 중). 서버 `LocalTime`이라 `"07:20:00"`. 모집에 정하지 않았으면 서버가 07:20~08:10으로 준다.
+    struct ActivityTime: Decodable, Sendable {
+        let start: String
+        let end: String
+    }
+
     let recruitmentId: Int64
-    /// 서버가 형식을 정하지 않은 문자열이다(교사 웹 입력값). 예: "2", "2026-2".
+    /// `"2026-2"`(연도-학기). `ServerSemester`로 읽는다.
     let semester: String
     let grade: Int
     let classNo: Int
     let period: Period
+    let activityTime: ActivityTime
     let periodStatus: PeriodStatus
     let maxCount: Int
     let currentApplicants: Int
@@ -28,7 +35,8 @@ nonisolated struct ApplyRequestDTO: Encodable, Sendable {
     let motivation: String
 }
 
-/// 서버 `ApplicationStatus`. 신청하면 `PENDING`이고 선생님이 확정하면 `APPROVED`/`REJECTED`가 된다.
+/// 서버 `ApplicationStatus`. 신청하면 바로 `APPROVED`다(서버 #16에서 교사 확정 제거).
+/// `PENDING`·`REJECTED`는 서버가 더 만들지 않지만 열거형과 이전 데이터에 남아 있어 받는다.
 nonisolated enum ApplicationStatusDTO: String, Decodable, Sendable {
     case pending = "PENDING"
     case approved = "APPROVED"
@@ -42,14 +50,16 @@ nonisolated struct ApplyResponseDTO: Decodable, Sendable {
     let order: Int
     let studentNumber: String?
     let name: String
+    /// 신청 시각. `2026-09-01T08:00:00`
+    let appliedAt: String
 }
 
 /// `GET /applications/me`.
 nonisolated struct ApplicationStatusResponseDTO: Decodable, Sendable {
     let status: ApplicationStatusDTO
     let order: Int
-    /// 승인됐지만 아직 청소 구역이 배정되지 않았다. 승인 전(`PENDING`)에는 false다.
+    /// 신청 시각. `2026-09-01T08:00:00`
+    let appliedAt: String
+    /// 승인됐지만 아직 청소 구역이 배정되지 않았다. 승인이 아니면(`PENDING`·`REJECTED`) false다.
     let waitingForAssignment: Bool
-    /// 서버에 아직 없다(서버 요청). 내려오면 쓴다.
-    let appliedAt: String?
 }

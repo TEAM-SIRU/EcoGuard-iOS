@@ -13,9 +13,5 @@ nonisolated extension Endpoint {
         static let currentRecruitment = Endpoint(method: .get, path: "/api/v1/recruitments/current")
         /// 서버 계약: `notice/NoticeController.kt`. 최신순.
         static let notices = Endpoint(method: .get, path: "/api/v1/notices")
-
-        static func notice(id: String) -> Endpoint {
-            Endpoint(method: .get, path: "/api/v1/notices/\(id)")
-        }
     }
 }

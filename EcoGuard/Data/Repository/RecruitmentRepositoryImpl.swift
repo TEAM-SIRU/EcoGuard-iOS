@@ -7,33 +7,24 @@ import Foundation
 final class RecruitmentRepositoryImpl: RecruitmentRepository {
     private let apiClient: APIClient
     private let currentUserRepository: CurrentUserRepository
-    private let activityWindow: CleaningWindow
-    private let now: () -> Date
     private var recruitmentID: Int64?
 
-    /// 공고에 활동 시간이 없어 `activityWindow`는 서버 청소 구역 시드 값을 기본으로 쓴다.
-    init(
-        apiClient: APIClient,
-        currentUserRepository: CurrentUserRepository,
-        activityWindow: CleaningWindow = .serverDefault,
-        now: @escaping () -> Date = Date.init
-    ) {
+    init(apiClient: APIClient, currentUserRepository: CurrentUserRepository) {
         self.apiClient = apiClient
         self.currentUserRepository = currentUserRepository
-        self.activityWindow = activityWindow
-        self.now = now
     }
 
     func fetchRecruitment() async throws -> RecruitmentDetail? {
         guard let response = try await fetchCurrent() else { return nil }
         // 공고에는 신청 여부만 있어 순서·배정 여부는 내 신청에서 받는다.
         let myApplication = response.alreadyApplied ? try await fetchLatestApplication() : nil
-        return try response.toDomain(activityWindow: activityWindow, myApplication: myApplication)
+        return try response.toDomain(myApplication: myApplication)
     }
 
-    /// 이름은 로그인 때 저장한 사용자에서 쓴다. 서버에 내 정보 API가 없어 학번은 nil(서버 요청 목록).
+    /// 내 정보(`GET /users/me`)의 학번·이름.
     func fetchApplicant() async throws -> Applicant {
-        Applicant(studentNumber: nil, name: currentUserRepository.currentUser()?.name)
+        let user = try await currentUserRepository.fetchCurrentUser()
+        return Applicant(studentNumber: user.studentNumber, name: user.name)
     }
 
     func apply(motivation: String) async throws -> RecruitmentApplication {
@@ -71,13 +62,12 @@ final class RecruitmentRepositoryImpl: RecruitmentRepository {
         }
     }
 
-    /// 가장 최근 신청. 현재 공고에 신청한 것이 확인됐을 때만 부른다. 반려(앱에 없는 상태)면 nil.
+    /// 가장 최근 신청. 현재 공고에 신청한 것이 확인됐을 때만 부른다. 미선발(이전 데이터)이면 nil.
     // TODO: 서버가 `recruitmentId`를 내려주면 현재 공고의 신청인지 직접 확인한다(서버 요청 목록).
     private func fetchLatestApplication() async throws -> RecruitmentApplication? {
         do {
             let response: ApplicationStatusResponseDTO = try await apiClient.send(.myApplication)
-            // TODO: 서버가 신청 시각을 내려주면 대체값을 뺀다. 그 전까지 조회 시각을 보여 준다.
-            return try response.toDomain(fallbackAppliedAt: now())
+            return try response.toDomain()
         } catch let error as APIError where error == .server(statusCode: 404, code: "NO_APPLICATION") {
             return nil
         }
@@ -85,7 +75,7 @@ final class RecruitmentRepositoryImpl: RecruitmentRepository {
 
     private func send(motivation: String, recruitmentID: Int64) async throws -> RecruitmentApplication {
         let response: ApplyResponseDTO = try await apiClient.send(.apply(recruitmentID: recruitmentID, motivation: motivation))
-        return response.toDomain(receivedAt: now())
+        return try response.toDomain()
     }
 
     /// 공고 화면을 거치지 않고 신청하면(다시 열린 화면 등) 공고를 먼저 조회한다.

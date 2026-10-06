@@ -78,10 +78,10 @@ final class HomeViewModel {
         await refresh()
     }
 
-    /// 가운데 카메라 버튼을 켤지. 구역을 배정받아 활동 중일 때만 켠다.
+    /// 가운데 카메라 버튼을 켤지. 구역을 배정받아 활동 중일 때만 켠다. 방학에는 홈 카드 버튼처럼 끈다.
     var isCameraAvailable: Bool {
-        guard case .loaded(let summary) = state, case .active = summary.status else { return false }
-        return true
+        guard case .loaded(let summary) = state, case .active(let cleaning) = summary.status else { return false }
+        return cleaning.today.verification != .vacation
     }
 
     /// 오늘 제출한 인증. 홈 카드의 `제출한 사진 보기`, 인증 화면의 `제출한 인증 보기`에서 결과 화면을 열 때 쓴다.
