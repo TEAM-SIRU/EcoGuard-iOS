@@ -6,13 +6,20 @@ import Foundation
 /// 현재 공고의 `alreadyApplied`가 true일 때만 쓴다.
 final class RecruitmentRepositoryImpl: RecruitmentRepository {
     private let apiClient: APIClient
+    private let currentUserRepository: CurrentUserRepository
     private let activityWindow: CleaningWindow
     private let now: () -> Date
     private var recruitmentID: Int64?
 
     /// 공고에 활동 시간이 없어 `activityWindow`는 서버 청소 구역 시드 값을 기본으로 쓴다.
-    init(apiClient: APIClient, activityWindow: CleaningWindow = .serverDefault, now: @escaping () -> Date = Date.init) {
+    init(
+        apiClient: APIClient,
+        currentUserRepository: CurrentUserRepository,
+        activityWindow: CleaningWindow = .serverDefault,
+        now: @escaping () -> Date = Date.init
+    ) {
         self.apiClient = apiClient
+        self.currentUserRepository = currentUserRepository
         self.activityWindow = activityWindow
         self.now = now
     }
@@ -24,9 +31,9 @@ final class RecruitmentRepositoryImpl: RecruitmentRepository {
         return try response.toDomain(activityWindow: activityWindow, myApplication: myApplication)
     }
 
-    // TODO: 서버에 내 정보 API(학번·이름)가 생기면 바꾼다. 그 전까지 Mock 값을 보여 준다.
+    /// 이름은 로그인 때 저장한 사용자에서 쓴다. 서버에 내 정보 API가 없어 학번은 nil(서버 요청 목록).
     func fetchApplicant() async throws -> Applicant {
-        MockRecruitmentRepository.Fixture.applicant
+        Applicant(studentNumber: nil, name: currentUserRepository.currentUser()?.name)
     }
 
     func apply(motivation: String) async throws -> RecruitmentApplication {
@@ -35,16 +42,12 @@ final class RecruitmentRepositoryImpl: RecruitmentRepository {
         do {
             return try await send(motivation: motivation, recruitmentID: recruitmentID)
         } catch let error as APIError where isCached && Self.mayBeStaleRecruitment(error) {
-            // 들고 있던 공고가 그새 바뀌었을 수 있다(새 모집 시작 등). 다시 조회해 공고가 바뀌었으면 한 번만 다시 보낸다.
+            // 들고 있던 공고가 그새 바뀌었을 수 있다(새 모집 시작 등). 다시 조회해 공고가 바뀌었으면(없어졌으면)
+            // 사용자가 보지 않은 공고에 신청되지 않게 다시 보내지 않고, 화면이 공고를 새로 불러오도록 기간 아님으로 알린다.
             // 방금 조회한 공고면 다시 조회하지 않는다.
-            guard try await fetchCurrent() != nil, let refreshedID = self.recruitmentID, refreshedID != recruitmentID else {
-                throw try await recruitmentError(for: error)
-            }
-            do {
-                return try await send(motivation: motivation, recruitmentID: refreshedID)
-            } catch let error as APIError {
-                throw try await recruitmentError(for: error)
-            }
+            let refreshed = try await fetchCurrent()
+            guard refreshed?.recruitmentId == recruitmentID else { throw RecruitmentError.notInPeriod }
+            throw try await recruitmentError(for: error)
         } catch let error as APIError {
             throw try await recruitmentError(for: error)
         }

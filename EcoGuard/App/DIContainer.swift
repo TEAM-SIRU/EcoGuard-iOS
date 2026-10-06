@@ -36,7 +36,9 @@ final class DIContainer {
         return DIContainer(
             authRepository: authRepository,
             homeRepository: MockHomeRepository(),
-            recruitmentRepository: apiClient.map { RecruitmentRepositoryImpl(apiClient: $0) } ?? MockRecruitmentRepository(),
+            recruitmentRepository: apiClient.map {
+                RecruitmentRepositoryImpl(apiClient: $0, currentUserRepository: CurrentUserRepositoryImpl(authSession: $0.authSession))
+            } ?? MockRecruitmentRepository(),
             webAdminURL: AppConfig.webAdminURL
         )
     }

@@ -2,24 +2,24 @@
 final class CleaningAreaRepositoryImpl: CleaningAreaRepository {
     private let apiClient: APIClient
     private let floors: [FloorPlan]
-    private let myName: String?
+    private let currentUserRepository: CurrentUserRepository
 
     // TODO: 서버가 도면을 내려주면 Mock 도면을 뺀다.
-    // TODO: #55에서 로그인 응답의 사용자 이름을 저장하면 그 이름을 `myName`으로 넘긴다. 그 전까지 nil(나를 따로 표시하지 않음).
     init(
         apiClient: APIClient,
-        floors: [FloorPlan] = MockCleaningAreaRepository.Fixture.floors,
-        myName: String? = nil
+        currentUserRepository: CurrentUserRepository,
+        floors: [FloorPlan] = MockCleaningAreaRepository.Fixture.floors
     ) {
         self.apiClient = apiClient
+        self.currentUserRepository = currentUserRepository
         self.floors = floors
-        self.myName = myName
     }
 
     func fetchCleaningArea() async throws -> CleaningAreaSummary {
         do {
             let response: MyAssignmentResponseDTO = try await apiClient.send(.myAssignment)
-            return response.toDomain(floors: floors, myName: myName)
+            // 응답에 누가 나인지 없어 로그인 때 저장한 이름으로 찾는다. 모르면 나를 따로 표시하지 않는다.
+            return response.toDomain(floors: floors, myName: currentUserRepository.currentUser()?.name)
         } catch let error as APIError where error == .server(statusCode: 404, code: "NO_ASSIGNMENT") {
             return .unassigned
         }

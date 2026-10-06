@@ -11,7 +11,11 @@ struct RecruitmentRepositoryImplTests {
     private static let now = Date(timeIntervalSince1970: 1_800_000_000)
 
     /// 경로별 고정 응답. 등록하지 않은 경로는 404.
-    private func makeRepository(log: RequestLog = RequestLog(), responses: [String: (Int, Data)]) -> RecruitmentRepositoryImpl {
+    private func makeRepository(
+        log: RequestLog = RequestLog(),
+        currentUser: CurrentUser? = MockCurrentUserRepository.user,
+        responses: [String: (Int, Data)]
+    ) -> RecruitmentRepositoryImpl {
         let httpClient = HTTPClient(
             baseURL: URL(string: "https://api.example.com")!,
             session: StubURLProtocol.makeSession { request in
@@ -25,6 +29,7 @@ struct RecruitmentRepositoryImplTests {
         )
         return RecruitmentRepositoryImpl(
             apiClient: APIClient(httpClient: httpClient, authSession: authSession),
+            currentUserRepository: MockCurrentUserRepository(user: currentUser),
             now: { Self.now }
         )
     }
@@ -322,9 +327,10 @@ extension RecruitmentRepositoryImplTests {
         await #expect(throws: APIError.decoding) { try await repository.fetchRecruitment() }
     }
 
-    /// 들고 있던 공고가 그새 바뀌었으면(새 모집) 다시 조회한 공고로 한 번만 다시 보낸다.
+    /// 들고 있던 공고가 그새 바뀌었으면(새 모집) 사용자가 보지 않은 공고에 신청되지 않게 다시 보내지 않고,
+    /// 화면이 공고를 새로 불러오도록 기간 아님으로 알린다.
     @Test(arguments: [(400, "OUT_OF_PERIOD"), (409, "RECRUITMENT_FULL"), (409, "ALREADY_APPLIED"), (404, "RECRUITMENT_NOT_FOUND")])
-    func staleRecruitmentIsRefetchedAndRetriedOnce(statusCode: Int, code: String) async throws {
+    func changedRecruitmentIsNotResent(statusCode: Int, code: String) async throws {
         let log = RequestLog()
         let currentCalls = OSAllocatedUnfairLock(initialState: 0)
         let first = Self.currentJSON(id: 7)
@@ -350,16 +356,60 @@ extension RecruitmentRepositoryImplTests {
                 httpClient: httpClient,
                 authSession: AuthSession(tokenStore: InMemoryTokenStore(AuthTokens(accessToken: "a", refreshToken: "r")), httpClient: httpClient)
             ),
+            currentUserRepository: MockCurrentUserRepository(),
             now: { Self.now }
         )
         _ = try await repository.fetchRecruitment()
 
-        let application = try await repository.apply(motivation: "동기")
+        do {
+            _ = try await repository.apply(motivation: "동기")
+            Issue.record("에러가 나야 한다")
+        } catch RecruitmentError.notInPeriod {
+        }
+        #expect(log.requests.compactMap { $0.url?.path() } == [Self.currentPath, Self.applyPath, Self.currentPath])
+    }
 
-        #expect(application.order == 2)
-        #expect(log.requests.compactMap { $0.url?.path() } == [
-            Self.currentPath, Self.applyPath, Self.currentPath, "/api/v1/recruitments/8/applications",
-        ])
+    /// 다시 조회했더니 공고가 없어졌어도 다시 보내지 않고 기간 아님으로 알린다.
+    @Test func removedRecruitmentIsNotInPeriod() async throws {
+        let currentCalls = OSAllocatedUnfairLock(initialState: 0)
+        let current = Self.currentJSON()
+        let noRecruitment = Self.errorJSON("NO_ACTIVE_RECRUITMENT")
+        let full = Self.errorJSON("RECRUITMENT_FULL")
+        let httpClient = HTTPClient(
+            baseURL: URL(string: "https://api.example.com")!,
+            session: StubURLProtocol.makeSession { request in
+                switch request.url?.path() {
+                case Self.currentPath:
+                    let call = currentCalls.withLock { $0 += 1; return $0 }
+                    return call == 1 ? (200, current) : (404, noRecruitment)
+                default: return (409, full)
+                }
+            }
+        )
+        let repository = RecruitmentRepositoryImpl(
+            apiClient: APIClient(
+                httpClient: httpClient,
+                authSession: AuthSession(tokenStore: InMemoryTokenStore(AuthTokens(accessToken: "a", refreshToken: "r")), httpClient: httpClient)
+            ),
+            currentUserRepository: MockCurrentUserRepository()
+        )
+        _ = try await repository.fetchRecruitment()
+
+        do {
+            _ = try await repository.apply(motivation: "동기")
+            Issue.record("에러가 나야 한다")
+        } catch RecruitmentError.notInPeriod {
+        } catch {
+            Issue.record("기간 아님이어야 한다: \(error)")
+        }
+    }
+
+    /// 이름은 로그인 때 저장한 사용자에서, 학번은 서버에 없어 nil이다. 실제 서버 모드에 Mock 이름이 보이지 않는다.
+    @Test(arguments: [CurrentUser(id: "5", name: "김서연"), nil])
+    func applicantComesFromCurrentUser(user: CurrentUser?) async throws {
+        let repository = makeRepository(currentUser: user, responses: [:])
+
+        #expect(try await repository.fetchApplicant() == Applicant(studentNumber: nil, name: user?.name))
     }
 }
 

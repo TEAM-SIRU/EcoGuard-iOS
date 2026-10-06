@@ -56,7 +56,10 @@ struct NoticeViewModelTests {
         let (viewModel, repository) = makeViewModel(scenarios: [.loaded], delay: .milliseconds(200))
 
         let task = Task { await viewModel.load() }
-        try? await Task.sleep(for: .milliseconds(50))
+        // 고정 대기는 느린 CI에서 조회가 시작되기 전이나 끝난 뒤에 취소할 수 있다. 조회가 시작된 것을 보고 취소한다.
+        while repository.fetchCallCount == 0 {
+            await Task.yield()
+        }
         task.cancel()
         await task.value
 

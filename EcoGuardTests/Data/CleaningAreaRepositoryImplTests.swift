@@ -6,7 +6,12 @@ import Testing
 struct CleaningAreaRepositoryImplTests {
     private static let path = "/api/v1/assignments/me"
 
-    private func makeRepository(log: RequestLog = RequestLog(), statusCode: Int, json: String) -> CleaningAreaRepositoryImpl {
+    private func makeRepository(
+        log: RequestLog = RequestLog(),
+        currentUser: CurrentUser? = CurrentUser(id: "2", name: "이도윤"),
+        statusCode: Int,
+        json: String
+    ) -> CleaningAreaRepositoryImpl {
         let data = Data(json.utf8)
         let httpClient = HTTPClient(
             baseURL: URL(string: "https://api.example.com")!,
@@ -20,7 +25,8 @@ struct CleaningAreaRepositoryImplTests {
             httpClient: httpClient
         )
         return CleaningAreaRepositoryImpl(
-            apiClient: APIClient(httpClient: httpClient, authSession: authSession)
+            apiClient: APIClient(httpClient: httpClient, authSession: authSession),
+            currentUserRepository: MockCurrentUserRepository(user: currentUser)
         )
     }
 
@@ -52,12 +58,23 @@ struct CleaningAreaRepositoryImplTests {
             startMinute: 7 * 60 + 20,
             endMinute: 8 * 60 + 10,
             memberNames: ["김서연", "이도윤"],
-            myName: nil
+            myName: "이도윤"
         ))
         // 서버에 도면이 없어 앱 도면을 쓰고, 어느 칸이 내 구역인지 몰라 `.mine` 칸을 두지 않는다.
         #expect(floors.map(\.id) == MockCleaningAreaRepository.Fixture.floors.map(\.id))
         #expect(myFloorID == floors.first?.id)
         #expect(!floors.flatMap { $0.rows.flatMap { $0 } }.contains { $0.kind == .mine })
+    }
+
+    /// 로그인 때 저장한 사용자가 없으면(이 기능 전 세션) 나를 따로 표시하지 않는다.
+    @Test func unknownCurrentUserHasNoMyName() async throws {
+        let repository = makeRepository(currentUser: nil, statusCode: 200, json: Self.assignmentJSON())
+
+        guard case .assigned(_, _, let area) = try await repository.fetchCleaningArea() else {
+            Issue.record("배정 상태여야 한다")
+            return
+        }
+        #expect(area.myName == nil)
     }
 
     @Test func noAssignmentIsUnassigned() async throws {
