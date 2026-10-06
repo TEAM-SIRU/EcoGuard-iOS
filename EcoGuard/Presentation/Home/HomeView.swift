@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Figma `02 홈` 상태별 화면 11개.
-/// 하단 탭 바·카메라 FAB는 앱 셸 이슈에서 붙인다. 탭 바는 `safeAreaInset(edge: .bottom)`으로 얹으면 스크롤 끝 여백이 맞춰진다.
+/// 하단 탭 바·카메라 FAB는 앱 셸(`MainTabView`)이 붙이고, 카메라 버튼만큼의 스크롤 끝 여백도 셸이 더한다.
 struct HomeView: View {
     /// 다른 화면으로 가는 동작. 앱 셸(`MainTabView`)이 모두 연결하고, 기본값(아무것도 안 함)은 Preview용이다.
     struct Actions {

@@ -28,20 +28,24 @@ struct MainTabView: View {
     private static let submissionUnavailableMessage: LocalizedStringResource = "제출한 인증을 불러오지 못했어요. 잠시 후 다시 확인해 주세요"
 
     var body: some View {
-        content
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                EcoTabBar(
-                    leadingItems: [item(.home), item(.area)],
-                    trailingItems: [item(.records), item(.myPage)]
-                ) {
-                    EcoCameraButton(action: openCamera)
-                        // 구역을 배정받아 활동 중일 때만 인증할 수 있다 (Figma 모집 기간·배정 대기 프레임은 회색).
-                        // 인증 시간이 아니거나 이미 제출한 날도 켠다. Figma `06 인증 불가` 화면에서 카메라 화면이 서버 상태로 막는다.
-                        .disabled(!homeViewModel.isCameraAvailable)
-                        .accessibilityHint(homeViewModel.isCameraAvailable ? Text(verbatim: "") : Text("환경지킴이로 활동 중일 때 쓸 수 있어요"))
-                }
+        // 탭 바는 `safeAreaInset`이 아니라 아래에 쌓는다. 홈·전체 탭의 NavigationStack은 바깥에서 더한 safe area를 받지 않아
+        // 탭 바 뒤(기기 하단)까지 깔리고 마지막 콘텐츠가 가려진다(#64). 탭 화면이 프레임으로 탭 바 위에서 끝나게 한다.
+        // 카메라 버튼 여백(`ecoTabBarContentMargins`)도 NavigationStack 안으로는 넘어가지 않아 `tabStack`이 다시 건다.
+        VStack(spacing: 0) {
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ecoTabBarContentMargins()
+            EcoTabBar(
+                leadingItems: [item(.home), item(.area)],
+                trailingItems: [item(.records), item(.myPage)]
+            ) {
+                EcoCameraButton(action: openCamera)
+                    // 구역을 배정받아 활동 중일 때만 인증할 수 있다 (Figma 모집 기간·배정 대기 프레임은 회색).
+                    // 인증 시간이 아니거나 이미 제출한 날도 켠다. Figma `06 인증 불가` 화면에서 카메라 화면이 서버 상태로 막는다.
+                    .disabled(!homeViewModel.isCameraAvailable)
+                    .accessibilityHint(homeViewModel.isCameraAvailable ? Text(verbatim: "") : Text("환경지킴이로 활동 중일 때 쓸 수 있어요"))
             }
+        }
             // 홈 재조회는 다른 탭에 있어도 돌아야 해서 셸에 둔다. 시각이 이미 지났으면 바로 다시 조회한다.
             .task(id: homeViewModel.nextRefreshDate) {
                 guard let date = homeViewModel.nextRefreshDate else { return }
@@ -151,7 +155,7 @@ struct MainTabView: View {
 
     /// 홈 탭. 공지는 탭 바를 둔 채 이 안에서 push해 뒤로 가면 홈으로 돌아온다.
     private var homeStack: some View {
-        NavigationStack(path: $viewModel.homePath) {
+        tabStack(path: $viewModel.homePath) {
             HomeView(
                 viewModel: homeViewModel,
                 actions: HomeView.Actions(
@@ -171,15 +175,13 @@ struct MainTabView: View {
                     openApplicationResult: openApplicationResult
                 )
             )
-            .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(for: MainTabViewModel.HomeRoute.self) { route in
-                switch route {
-                case .notices(let focusedNoticeID):
-                    if let homeNoticeViewModel {
-                        NoticeView(viewModel: homeNoticeViewModel, focusedNoticeID: focusedNoticeID, onBack: { viewModel.popHome() })
-                            .toolbar(.hidden, for: .navigationBar)
-                            .navigationBarBackButtonHidden()
-                    }
+        } destination: { route in
+            switch route {
+            case .notices(let focusedNoticeID):
+                if let homeNoticeViewModel {
+                    NoticeView(viewModel: homeNoticeViewModel, focusedNoticeID: focusedNoticeID, onBack: { viewModel.popHome() })
+                        .toolbar(.hidden, for: .navigationBar)
+                        .navigationBarBackButtonHidden()
                 }
             }
         }
@@ -187,7 +189,7 @@ struct MainTabView: View {
 
     /// 전체 탭. 공지·이의신청 내역은 탭 바를 둔 채 이 안에서 push한다.
     private func myPageStack(_ myPageViewModel: MyPageViewModel) -> some View {
-        NavigationStack(path: $viewModel.myPagePath) {
+        tabStack(path: $viewModel.myPagePath) {
             MyPageView(
                 viewModel: myPageViewModel,
                 actions: MyPageView.Actions(
@@ -203,10 +205,25 @@ struct MainTabView: View {
                     }
                 )
             )
-            .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(for: MainTabViewModel.MyPageRoute.self) { route in
-                myPageDestination(route)
-            }
+        } destination: { route in
+            myPageDestination(route)
+        }
+    }
+
+    /// 탭 바 위에서 push하는 탭 안 NavigationStack. 바깥에서 건 카메라 버튼 여백이 루트와 push한 화면에 닿지 않아 각각 다시 건다.
+    private func tabStack<Route: Hashable>(
+        path: Binding<[Route]>,
+        @ViewBuilder root: () -> some View,
+        @ViewBuilder destination: @escaping (Route) -> some View
+    ) -> some View {
+        NavigationStack(path: path) {
+            root()
+                .toolbar(.hidden, for: .navigationBar)
+                .ecoTabBarContentMargins()
+                .navigationDestination(for: Route.self) { route in
+                    destination(route)
+                        .ecoTabBarContentMargins()
+                }
         }
     }
 
