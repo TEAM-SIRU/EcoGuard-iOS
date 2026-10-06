@@ -11,7 +11,6 @@ final class MockHomeRepository: HomeRepository {
         case notOpenYet
         case recruiting
         case awaitingAssignment
-        case applicationPending
         case notSelected
         case notRecruiting
         case excluded
@@ -76,8 +75,9 @@ extension MockHomeRepository {
             id: "notice-2026-09",
             title: "9월 환경지킴이 활동 안내",
             body: "매일 **08:00 – 08:10**에 청소하고 **사진 1장**으로 인증해 주세요.",
+            preview: "매일 **08:00 – 08:10**에 청소하고 **사진 1장**으로 인증해 주세요.",
             publishedAt: date(month: 9, day: 1),
-            isNew: true
+            isRead: false
         )
 
         static let recentRecords = [
@@ -109,8 +109,6 @@ extension MockHomeRepository {
                 )
             case .awaitingAssignment:
                 HomeSummary(status: .awaitingAssignment, notice: notice)
-            case .applicationPending:
-                HomeSummary(status: .applicationPending, notice: notice)
             case .notSelected:
                 HomeSummary(status: .notSelected, notice: notice)
             case .notRecruiting:

@@ -37,11 +37,8 @@ struct HomeRepositoryImplTests {
     """
 
     private static let noticesJSON = """
-    [{"noticeId":7,"title":"10월 안내","createdAt":"2026-09-28T17:30:00.123456"},{"noticeId":6,"title":"9월 안내","createdAt":"2026-09-01T09:00:00"}]
-    """
-
-    private static let noticeJSON = """
-    {"noticeId":7,"title":"10월 안내","content":"매일 **08:00**에 청소해요","createdAt":"2026-09-28T17:30:00.123456","previousNoticeId":6,"nextNoticeId":null}
+    [{"noticeId":7,"title":"10월 안내","preview":"매일 **08:00**에 청소해요","isRead":false,"createdAt":"2026-09-28T17:30:00.123456"},
+     {"noticeId":6,"title":"9월 안내","preview":"9월 안내","isRead":true,"createdAt":"2026-09-01T09:00:00"}]
     """
 
     private static var activeResponses: [String: (Int, String)] {
@@ -49,8 +46,7 @@ struct HomeRepositoryImplTests {
             Path.assignment: (200, assignmentJSON),
             Path.weekly: (200, weeklyJSON),
             Path.verifications: (200, verificationsJSON),
-            Path.notices: (200, noticesJSON),
-            Path.notice: (200, noticeJSON)
+            Path.notices: (200, noticesJSON)
         ]
     }
 
@@ -74,12 +70,14 @@ struct HomeRepositoryImplTests {
 
         let summary = try await repository.fetchHome()
 
-        for path in [Path.assignment, Path.weekly, Path.verifications, Path.notices, Path.notice] {
+        for path in [Path.assignment, Path.weekly, Path.verifications, Path.notices] {
             let request = try #require(log.requests(path: path).first, "\(path) 요청 없음")
             #expect(request.httpMethod == "GET")
             #expect(request.bearerToken == PathStub.tokens.accessToken)
         }
         #expect(log.requests(path: Path.application).isEmpty)
+        // 상세를 받으면 서버가 읽음으로 기록해 NEW가 사라진다. 홈은 목록의 미리보기만 쓴다.
+        #expect(log.requests(path: Path.notice).isEmpty)
 
         guard case .active(let cleaning) = summary.status else {
             Issue.record("활동 중이어야 한다: \(summary.status)")
@@ -108,10 +106,12 @@ struct HomeRepositoryImplTests {
             id: "7",
             title: "10월 안내",
             body: "매일 **08:00**에 청소해요",
+            preview: "매일 **08:00**에 청소해요",
             // 소수점 초는 버린다.
             publishedAt: PathStub.date(2026, 9, 28, 17, 30),
-            isNew: true
+            isRead: false
         ))
+        #expect(summary.notice?.isNew == true)
     }
 
     @Test(arguments: [
@@ -186,12 +186,13 @@ struct HomeRepositoryImplTests {
         #expect(log.requests(path: Path.notice).isEmpty)
     }
 
-    /// 현재 공고에 신청했을 때만 내 신청 상태를 본다. 승인만 배정 대기(기존 "환경지킴이가 됐어요")다.
+    /// 현재 공고에 신청했을 때만 내 신청 상태를 본다. 신청하면 바로 승인되므로(서버 #16) 이전 데이터의 PENDING이나
+    /// 모르는 상태도 배정 대기이고, 미선발(이전 데이터의 REJECTED)만 따로 보여 준다.
     @Test(arguments: [
         ("APPROVED", HomeStatus.awaitingAssignment),
-        ("PENDING", .applicationPending),
+        ("PENDING", .awaitingAssignment),
         ("REJECTED", .notSelected),
-        ("SOMETHING_NEW", .applicationPending)
+        ("SOMETHING_NEW", .awaitingAssignment)
     ])
     func appliedStatusFollowsCurrentApplication(status: String, expected: HomeStatus) async throws {
         let log = RequestLog()
@@ -290,6 +291,18 @@ struct HomeRepositoryImplTests {
         }
     }
 
+    /// 이미 열어 본(`isRead`) 공지는 NEW를 붙이지 않는다.
+    @Test func readNoticeIsNotNew() async throws {
+        var responses = Self.activeResponses
+        responses[Path.notices] = (200, #"[{"noticeId":7,"title":"10월 안내","preview":"안내","isRead":true,"createdAt":"2026-09-28T17:30:00"}]"#)
+        let repository = try makeRepository(responses: responses)
+
+        let notice = try #require(try await repository.fetchHome().notice)
+
+        #expect(notice.isRead)
+        #expect(!notice.isNew)
+    }
+
     @Test func dismissedNoticeIsNotShownAgain() async throws {
         let defaults = try Self.makeDefaults()
         let log = RequestLog()
@@ -308,7 +321,7 @@ struct HomeRepositoryImplTests {
     nonisolated static func recruitmentJSON(status: String, alreadyApplied: Bool) -> String {
         """
         {"recruitmentId":1,"semester":"2026-2","grade":2,"classNo":3,
-         "period":{"start":"2026-09-01T00:00:00","end":"2026-09-10T23:59:59"},
+         "period":{"start":"2026-09-01T00:00:00","end":"2026-09-10T23:59:59"},"activityTime":{"start":"07:20:00","end":"08:10:00"},
          "periodStatus":"\(status)","maxCount":6,"currentApplicants":4,"isFull":false,"alreadyApplied":\(alreadyApplied)}
         """
     }

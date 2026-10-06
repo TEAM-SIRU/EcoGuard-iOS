@@ -1,7 +1,6 @@
 import Foundation
 
-/// 서버 마이페이지. 이번 달 활동·구역 배정·신청 내역을 함께 불러 합친다.
-/// 서버에 내 정보 API가 없어 이름은 로그인 때 저장한 사용자(`CurrentUserRepository`)에서 쓰고 학년·반은 비워 둔다(서버 요청 목록).
+/// 서버 마이페이지. 내 정보·이번 달 활동·구역 배정·신청 내역을 함께 불러 합친다.
 final class MyPageRepositoryImpl: MyPageRepository {
     private let apiClient: APIClient
     private let currentUserRepository: CurrentUserRepository
@@ -29,8 +28,10 @@ final class MyPageRepositoryImpl: MyPageRepository {
             missingCode: "NO_APPLICATION",
             apiClient: apiClient
         )
+        // 나머지 요청은 위에서 이미 보냈다. 기다리는 동안 내 정보를 받는다.
+        let user = try await currentUserRepository.fetchCurrentUser()
         return MyPageMapper.summary(
-            user: currentUserRepository.currentUser(),
+            user: user,
             activity: try await activity,
             assignment: try await assignment,
             application: try await application

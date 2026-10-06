@@ -60,8 +60,7 @@ final class HomeRepositoryImpl: HomeRepository {
         do {
             let notices: [HomeDTO.NoticeListItem] = try await apiClient.send(.Home.notices)
             guard let latest = notices.first, !dismissedIDs.contains(String(latest.noticeId)) else { return nil }
-            let detail: HomeDTO.NoticeDetail = try await apiClient.send(.Home.notice(id: String(latest.noticeId)))
-            return try detail.toHomeNotice()
+            return try latest.toHomeNotice()
         } catch {
             return nil
         }

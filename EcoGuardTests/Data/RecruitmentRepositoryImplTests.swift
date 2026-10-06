@@ -8,7 +8,10 @@ struct RecruitmentRepositoryImplTests {
     private nonisolated static let currentPath = "/api/v1/recruitments/current"
     private nonisolated static let myApplicationPath = "/api/v1/applications/me"
     private nonisolated static let applyPath = "/api/v1/recruitments/7/applications"
-    private static let now = Date(timeIntervalSince1970: 1_800_000_000)
+    /// 신청 시각 `2026-09-01T12:34:00`(KST).
+    private static let appliedAt = MockRecruitmentRepository.Fixture.calendar.date(
+        from: DateComponents(year: 2026, month: 9, day: 1, hour: 12, minute: 34)
+    )!
 
     /// 경로별 고정 응답. 등록하지 않은 경로는 404.
     private func makeRepository(
@@ -29,8 +32,7 @@ struct RecruitmentRepositoryImplTests {
         )
         return RecruitmentRepositoryImpl(
             apiClient: APIClient(httpClient: httpClient, authSession: authSession),
-            currentUserRepository: MockCurrentUserRepository(user: currentUser),
-            now: { Self.now }
+            currentUserRepository: MockCurrentUserRepository(user: currentUser)
         )
     }
 
@@ -38,17 +40,18 @@ struct RecruitmentRepositoryImplTests {
         id: Int = 7,
         semester: String = "2026-2",
         periodStatus: String = "OPEN",
+        activityTime: String = #"{"start":"07:20:00","end":"08:10:00"}"#,
         alreadyApplied: Bool = false
     ) -> Data {
         Data("""
         {"recruitmentId":\(id),"semester":"\(semester)","grade":2,"classNo":3,
-         "period":{"start":"2026-09-01T00:00:00","end":"2026-09-04T23:59:00"},
+         "period":{"start":"2026-09-01T00:00:00","end":"2026-09-04T23:59:00"},"activityTime":\(activityTime),
          "periodStatus":"\(periodStatus)","maxCount":6,"currentApplicants":4,"isFull":false,"alreadyApplied":\(alreadyApplied)}
         """.utf8)
     }
 
     private nonisolated static func myApplicationJSON(status: String = "APPROVED", waitingForAssignment: Bool = true) -> Data {
-        Data(#"{"status":"\#(status)","order":4,"waitingForAssignment":\#(waitingForAssignment)}"#.utf8)
+        Data(#"{"status":"\#(status)","order":4,"appliedAt":"2026-09-01T12:34:00","waitingForAssignment":\#(waitingForAssignment)}"#.utf8)
     }
 
     private nonisolated static func errorJSON(_ code: String) -> Data {
@@ -75,7 +78,7 @@ struct RecruitmentRepositoryImplTests {
         #expect(detail.startDate == Self.kst(month: 9, day: 1))
         #expect(detail.endDate == Self.kst(month: 9, day: 4, hour: 23, minute: 59))
         #expect(detail.phase == .open)
-        #expect(detail.activityWindow == CleaningWindow.serverDefault)
+        #expect(detail.activityWindow == CleaningWindow(startMinute: 7 * 60 + 20, endMinute: 8 * 60 + 10))
         #expect(detail.myApplication == nil)
         // 신청하지 않았으면 내 신청을 조회하지 않는다.
         #expect(log.requests(path: Self.myApplicationPath).isEmpty)
@@ -96,8 +99,8 @@ struct RecruitmentRepositoryImplTests {
 
         let detail = try #require(try await repository.fetchRecruitment())
 
-        #expect(detail.myApplication == RecruitmentApplication(order: 4, appliedAt: Self.now, isAreaAssigned: true))
-        #expect(detail.status == .applied(RecruitmentApplication(order: 4, appliedAt: Self.now, isAreaAssigned: true)))
+        #expect(detail.myApplication == RecruitmentApplication(order: 4, appliedAt: Self.appliedAt, isAreaAssigned: true))
+        #expect(detail.status == .applied(RecruitmentApplication(order: 4, appliedAt: Self.appliedAt, isAreaAssigned: true)))
     }
 
     @Test func noActiveRecruitmentIsNil() async throws {
@@ -118,7 +121,7 @@ struct RecruitmentRepositoryImplTests {
         let log = RequestLog()
         let repository = makeRepository(log: log, responses: [
             Self.currentPath: (200, Self.currentJSON()),
-            Self.applyPath: (201, Data(#"{"applicationId":11,"status":"PENDING","order":5,"studentNumber":"2310","name":"최민준"}"#.utf8)),
+            Self.applyPath: (201, Data(#"{"applicationId":11,"status":"APPROVED","order":5,"studentNumber":"2310","name":"최민준","appliedAt":"2026-09-01T12:34:00"}"#.utf8)),
         ])
         _ = try await repository.fetchRecruitment()
 
@@ -129,7 +132,7 @@ struct RecruitmentRepositoryImplTests {
         #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
         let body = try JSONDecoder().decode([String: String].self, from: try #require(request.bodyData))
         #expect(body == ["motivation": "깨끗한 학교"])
-        #expect(application == RecruitmentApplication(order: 5, appliedAt: Self.now, isAreaAssigned: false))
+        #expect(application == RecruitmentApplication(order: 5, appliedAt: Self.appliedAt, isAreaAssigned: false))
         #expect(log.requests(path: Self.currentPath).count == 1)
     }
 
@@ -138,7 +141,7 @@ struct RecruitmentRepositoryImplTests {
         let log = RequestLog()
         let repository = makeRepository(log: log, responses: [
             Self.currentPath: (200, Self.currentJSON()),
-            Self.applyPath: (201, Data(#"{"applicationId":11,"status":"PENDING","order":1,"studentNumber":null,"name":"최민준"}"#.utf8)),
+            Self.applyPath: (201, Data(#"{"applicationId":11,"status":"APPROVED","order":1,"studentNumber":null,"name":"최민준","appliedAt":"2026-09-01T12:34:00"}"#.utf8)),
         ])
 
         #expect(try await repository.apply(motivation: "동기").order == 1)
@@ -188,14 +191,14 @@ struct RecruitmentRepositoryImplTests {
         let repository = makeRepository(responses: [
             Self.currentPath: (200, Self.currentJSON()),
             Self.applyPath: (409, Self.errorJSON("ALREADY_APPLIED")),
-            Self.myApplicationPath: (200, Self.myApplicationJSON(status: "PENDING", waitingForAssignment: false)),
+            Self.myApplicationPath: (200, Self.myApplicationJSON(status: "APPROVED", waitingForAssignment: true)),
         ])
 
         do {
             _ = try await repository.apply(motivation: "동기")
             Issue.record("에러가 나야 한다")
         } catch RecruitmentError.alreadyApplied(let application) {
-            #expect(application == RecruitmentApplication(order: 4, appliedAt: Self.now, isAreaAssigned: false))
+            #expect(application == RecruitmentApplication(order: 4, appliedAt: Self.appliedAt, isAreaAssigned: false))
         }
     }
 
@@ -220,7 +223,7 @@ struct RecruitmentRepositoryImplTests {
         #expect(try await repository.fetchMyApplication() == nil)
     }
 
-    /// 승인 전(PENDING)에는 서버가 배정 대기를 false로 주지만 배정된 것이 아니다.
+    /// 이전 데이터의 PENDING은 서버가 배정 대기를 false로 주지만 배정된 것이 아니다.
     @Test(arguments: [
         ("PENDING", false, false),
         ("APPROVED", true, false),
@@ -244,15 +247,30 @@ struct RecruitmentRepositoryImplTests {
         #expect(try await repository.fetchMyApplication() == nil)
     }
 
-    /// 서버가 신청 시각을 내려주면 대체값 대신 쓴다.
-    @Test func myApplicationUsesServerAppliedAtWhenPresent() async throws {
-        let json = Data(#"{"status":"APPROVED","order":4,"waitingForAssignment":true,"appliedAt":"2026-09-01T12:34:00"}"#.utf8)
+    /// 신청 시각은 서버 값이라 읽을 수 없으면 지어내지 않고 실패로 둔다.
+    @Test func unreadableAppliedAtIsDecodingError() async throws {
+        let json = Data(#"{"status":"APPROVED","order":4,"appliedAt":"어제","waitingForAssignment":true}"#.utf8)
         let repository = makeRepository(responses: [
             Self.currentPath: (200, Self.currentJSON(alreadyApplied: true)),
             Self.myApplicationPath: (200, json),
         ])
 
-        #expect(try await repository.fetchMyApplication()?.appliedAt == Self.kst(month: 9, day: 1, hour: 12, minute: 34))
+        await #expect(throws: APIError.decoding) { try await repository.fetchMyApplication() }
+    }
+
+    /// 활동 시간은 공고 값(`LocalTime` `"07:00:00"`)을 쓴다. 읽을 수 없으면 서버 기본값(07:20~08:10)으로 보여 준다.
+    @Test(arguments: [
+        (#"{"start":"07:00:00","end":"07:50:00"}"#, 420, 470),
+        (#"{"start":"07:00","end":"07:50"}"#, 420, 470),
+        (#"{"start":"아침","end":"07:50:00"}"#, 440, 490),
+        (#"{"start":"08:10:00","end":"07:20:00"}"#, 440, 490),
+    ] as [(String, Int, Int)])
+    func activityTimeComesFromRecruitment(activityTime: String, startMinute: Int, endMinute: Int) async throws {
+        let repository = makeRepository(responses: [Self.currentPath: (200, Self.currentJSON(activityTime: activityTime))])
+
+        let detail = try #require(try await repository.fetchRecruitment())
+
+        #expect(detail.activityWindow == CleaningWindow(startMinute: startMinute, endMinute: endMinute))
     }
 }
 
@@ -272,7 +290,7 @@ extension RecruitmentRepositoryImplTests {
 
     /// 409 이미 신청인데 보여 줄 신청이 없으면 마감으로 알려 같은 실패를 되풀이하지 않는다.
     @Test(arguments: [
-        (200, Data(#"{"status":"REJECTED","order":7,"waitingForAssignment":false}"#.utf8)),
+        (200, Data(#"{"status":"REJECTED","order":7,"appliedAt":"2026-09-01T12:34:00","waitingForAssignment":false}"#.utf8)),
         (404, Data(#"{"code":"NO_APPLICATION","message":"메시지"}"#.utf8)),
     ])
     func alreadyAppliedWithoutApplicationIsFull(statusCode: Int, json: Data) async throws {
@@ -313,18 +331,12 @@ extension RecruitmentRepositoryImplTests {
         #expect(try await repository.fetchMyApplication() == nil)
     }
 
-    @Test(arguments: [("1", 1), ("2학기", 2), ("2026-1", 1)])
-    func semesterAcceptsFirstAndSecond(semester: String, expected: Int) async throws {
+    /// 학기는 `"2026-2"`(연도-학기). 다른 형식이면 화면을 실패로 두지 않고 모집 시작일(9월)의 학기(2학기)로 보여 준다.
+    @Test(arguments: [("2026-1", 1), ("2026-2", 2), ("1", 2), ("2026-3", 2), ("여름", 2)])
+    func semesterParsesYearDashSemester(semester: String, expected: Int) async throws {
         let repository = makeRepository(responses: [Self.currentPath: (200, Self.currentJSON(semester: semester))])
 
         #expect(try await repository.fetchRecruitment()?.recruitment.semester == expected)
-    }
-
-    @Test(arguments: ["3", "2026", "0", "여름"])
-    func otherSemesterIsDecodingError(semester: String) async throws {
-        let repository = makeRepository(responses: [Self.currentPath: (200, Self.currentJSON(semester: semester))])
-
-        await #expect(throws: APIError.decoding) { try await repository.fetchRecruitment() }
     }
 
     /// 들고 있던 공고가 그새 바뀌었으면(새 모집) 사용자가 보지 않은 공고에 신청되지 않게 다시 보내지 않고,
@@ -336,7 +348,7 @@ extension RecruitmentRepositoryImplTests {
         let first = Self.currentJSON(id: 7)
         let second = Self.currentJSON(id: 8)
         let error = Self.errorJSON(code)
-        let applied = Data(#"{"applicationId":12,"status":"PENDING","order":2,"studentNumber":"2310","name":"최민준"}"#.utf8)
+        let applied = Data(#"{"applicationId":12,"status":"APPROVED","order":2,"studentNumber":"2310","name":"최민준","appliedAt":"2026-09-01T12:34:00"}"#.utf8)
         let httpClient = HTTPClient(
             baseURL: URL(string: "https://api.example.com")!,
             session: StubURLProtocol.makeSession { request in
@@ -356,8 +368,7 @@ extension RecruitmentRepositoryImplTests {
                 httpClient: httpClient,
                 authSession: AuthSession(tokenStore: InMemoryTokenStore(AuthTokens(accessToken: "a", refreshToken: "r")), httpClient: httpClient)
             ),
-            currentUserRepository: MockCurrentUserRepository(),
-            now: { Self.now }
+            currentUserRepository: MockCurrentUserRepository()
         )
         _ = try await repository.fetchRecruitment()
 
@@ -404,12 +415,19 @@ extension RecruitmentRepositoryImplTests {
         }
     }
 
-    /// 이름은 로그인 때 저장한 사용자에서, 학번은 서버에 없어 nil이다. 실제 서버 모드에 Mock 이름이 보이지 않는다.
-    @Test(arguments: [CurrentUser(id: "5", name: "김서연"), nil])
-    func applicantComesFromCurrentUser(user: CurrentUser?) async throws {
+    /// 학번·이름은 내 정보(`GET /users/me`)에서 쓴다. 학번을 모르면 nil이라 화면이 그 줄을 숨긴다.
+    @Test(arguments: ["2310", nil] as [String?])
+    func applicantComesFromCurrentUser(studentNumber: String?) async throws {
+        let user = CurrentUser(id: "5", name: "김서연", studentNumber: studentNumber, grade: 2, classNumber: 3)
         let repository = makeRepository(currentUser: user, responses: [:])
 
-        #expect(try await repository.fetchApplicant() == Applicant(studentNumber: nil, name: user?.name))
+        #expect(try await repository.fetchApplicant() == Applicant(studentNumber: studentNumber, name: "김서연"))
+    }
+
+    @Test func applicantFailsWithoutCurrentUser() async {
+        let repository = makeRepository(currentUser: nil, responses: [:])
+
+        await #expect(throws: MockCurrentUserRepository.FetchFailedError.self) { try await repository.fetchApplicant() }
     }
 }
 
@@ -417,6 +435,14 @@ extension RecruitmentRepositoryImplTests {
 struct ServerDateDecodingTests {
     @Test func unreadableDateTimeIsDecodingError() {
         #expect(throws: APIError.decoding) { try ServerDate.requiredDateTime("어제") }
+    }
+
+    /// 형식이 다르면 `fallbackDate`(KST)의 학기. 3~8월 1학기, 그 밖 2학기.
+    @Test func semesterFallsBackToDateSemester() {
+        #expect(ServerSemester.number("2026-2", fallbackDate: PathStub.date(2026, 3, 2)) == 2)
+        #expect(ServerSemester.number("1학기", fallbackDate: PathStub.date(2026, 3, 2)) == 1)
+        #expect(ServerSemester.number("1학기", fallbackDate: PathStub.date(2026, 2, 28)) == 2)
+        #expect(ServerSemester.number("1학기", fallbackDate: PathStub.date(2026, 9, 1)) == 2)
     }
 
     @Test func parsesCleanTime() {

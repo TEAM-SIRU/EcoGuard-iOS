@@ -17,7 +17,7 @@ struct MyPageRepositoryImplTests {
 
     private func makeRepository(
         log: RequestLog = RequestLog(),
-        user: CurrentUser? = CurrentUser(id: "1", name: "김학생"),
+        user: CurrentUser? = CurrentUser(id: "1", name: "김학생", studentNumber: "2310", grade: 2, classNumber: 3),
         responses: [String: (Int, String)]
     ) -> MyPageRepositoryImpl {
         // 2026-10-01 00:30 KST(UTC로는 9월 30일). 이번 달은 학교 시간대로 정한다.
@@ -33,7 +33,7 @@ struct MyPageRepositoryImplTests {
         let repository = makeRepository(log: log, responses: [
             Path.activity: (200, Self.activityJSON),
             Path.assignment: (200, #"{"areaId":3,"areaName":"본관 계단 A","description":null,"cleanTime":null,"mapCoordinates":{"x":0,"y":0},"members":[]}"#),
-            Path.application: (200, #"{"status":"APPROVED","order":2,"waitingForAssignment":false}"#)
+            Path.application: (200, #"{"status":"APPROVED","order":2,"appliedAt":"2026-09-01T08:00:00","waitingForAssignment":false}"#)
         ])
 
         let summary = try await repository.fetchMyPage()
@@ -42,7 +42,7 @@ struct MyPageRepositoryImplTests {
         #expect(activity.httpMethod == "GET")
         #expect(activity.url?.query() == "year=2026&month=10")
         #expect(summary == MyPageSummary(
-            profile: UserProfile(name: "김학생", grade: nil, classNumber: nil, isGuardian: true),
+            profile: UserProfile(name: "김학생", grade: 2, classNumber: 3, isGuardian: true),
             monthlyApprovedCount: 7,
             monthlyActivityMinutes: 70,
             cleaningAreaName: "본관 계단 A",
@@ -64,29 +64,32 @@ struct MyPageRepositoryImplTests {
         #expect(summary.hasApplied == false)
     }
 
-    /// 신청했지만 아직 선발 전이면 환경지킴이가 아니다.
-    @Test func pendingApplicationIsNotGuardian() async throws {
+    /// 신청하면 바로 승인된다(서버 #16). 이전 데이터의 `PENDING`도 받아들여진 신청이고, 미선발(`REJECTED`)만 환경지킴이가 아니다.
+    @Test(arguments: [("APPROVED", true), ("PENDING", true), ("REJECTED", false)])
+    func applicationStatusDecidesGuardian(status: String, isGuardian: Bool) async throws {
         let repository = makeRepository(responses: [
             Path.activity: (200, Self.activityJSON),
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
-            Path.application: (200, #"{"status":"PENDING","order":2,"waitingForAssignment":false}"#)
+            Path.application: (200, #"{"status":"\#(status)","order":2,"appliedAt":"2026-09-01T08:00:00","waitingForAssignment":false}"#)
         ])
 
         let summary = try await repository.fetchMyPage()
 
-        #expect(summary.profile.isGuardian == false)
+        #expect(summary.profile.isGuardian == isGuardian)
         #expect(summary.hasApplied)
     }
 
-    /// 이 기능 전에 로그인해 둔 세션은 저장한 이름이 없다.
-    @Test func missingSessionUserLeavesNameEmpty() async throws {
+    /// 내 정보를 받지 못하고 저장한 값도 없으면 이름 없이 보여 주지 않고 실패로 둔다.
+    @Test func missingUserFailsMyPage() async {
         let repository = makeRepository(user: nil, responses: [
             Path.activity: (200, Self.activityJSON),
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
             Path.application: (404, PathStub.error("NO_APPLICATION"))
         ])
 
-        #expect(try await repository.fetchMyPage().profile.name.isEmpty)
+        await #expect(throws: MockCurrentUserRepository.FetchFailedError.self) {
+            try await repository.fetchMyPage()
+        }
     }
 
     @Test func activityFailureFailsMyPage() async {

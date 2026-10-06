@@ -1,4 +1,4 @@
-/// 서버 공지. 목록에는 본문이 없어 본문은 상세로 받는다.
+/// 서버 공지. 목록에는 본문 대신 미리보기·읽음 여부가 있고, 본문은 상세로 받는다(상세를 받으면 읽음으로 기록된다).
 final class NoticeRepositoryImpl: NoticeRepository {
     private let apiClient: APIClient
 

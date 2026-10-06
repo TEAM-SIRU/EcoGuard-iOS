@@ -26,8 +26,8 @@ struct NoticeRepositoryImplTests {
     @Test func fetchNoticesMapsList() async throws {
         let log = RequestLog()
         let json = Data("""
-        [{"noticeId":2,"title":"9월 활동 안내","createdAt":"2026-09-02T09:00:00.123"},
-         {"noticeId":1,"title":"모집 안내","createdAt":"2026-09-01T08:00:00"}]
+        [{"noticeId":2,"title":"9월 활동 안내","preview":"매일 08:00에 청소해요","isRead":false,"createdAt":"2026-09-02T09:00:00.123"},
+         {"noticeId":1,"title":"모집 안내","preview":"2학기 모집","isRead":true,"createdAt":"2026-09-01T08:00:00"}]
         """.utf8)
         let repository = makeRepository(log: log, responses: ["/api/v1/notices": (200, json)])
 
@@ -37,9 +37,10 @@ struct NoticeRepositoryImplTests {
         #expect(request.httpMethod == "GET")
         #expect(request.bearerToken == "access")
         #expect(notices == [
-            Notice(id: "2", title: "9월 활동 안내", body: "", publishedAt: Self.kst(day: 2, hour: 9), isNew: false),
-            Notice(id: "1", title: "모집 안내", body: "", publishedAt: Self.kst(day: 1, hour: 8), isNew: false),
+            Notice(id: "2", title: "9월 활동 안내", body: "", preview: "매일 08:00에 청소해요", publishedAt: Self.kst(day: 2, hour: 9), isRead: false),
+            Notice(id: "1", title: "모집 안내", body: "", preview: "2학기 모집", publishedAt: Self.kst(day: 1, hour: 8), isRead: true),
         ])
+        #expect(notices.map(\.isNew) == [true, false])
     }
 
     @Test func emptyListIsEmpty() async throws {
@@ -48,13 +49,21 @@ struct NoticeRepositoryImplTests {
         #expect(try await repository.fetchNotices().isEmpty)
     }
 
+    /// 상세를 받으면 서버가 읽음으로 기록하므로 읽은 공지다. 미리보기는 서버처럼 공백을 정리한다.
     @Test func fetchNoticeMapsDetail() async throws {
-        let json = Data(#"{"noticeId":2,"title":"안내","content":"**08:00**에 청소해요","createdAt":"2026-09-02T09:00:00","previousNoticeId":1,"nextNoticeId":null}"#.utf8)
+        let json = Data(#"{"noticeId":2,"title":"안내","content":"**08:00**에\n  청소해요","createdAt":"2026-09-02T09:00:00","previousNoticeId":1,"nextNoticeId":null}"#.utf8)
         let repository = makeRepository(responses: ["/api/v1/notices/2": (200, json)])
 
         let notice = try await repository.fetchNotice(id: "2")
 
-        #expect(notice == Notice(id: "2", title: "안내", body: "**08:00**에 청소해요", publishedAt: Self.kst(day: 2, hour: 9), isNew: false))
+        #expect(notice == Notice(
+            id: "2",
+            title: "안내",
+            body: "**08:00**에\n  청소해요",
+            preview: "**08:00**에 청소해요",
+            publishedAt: Self.kst(day: 2, hour: 9),
+            isRead: true
+        ))
     }
 
     @Test func missingNoticeIsNil() async throws {

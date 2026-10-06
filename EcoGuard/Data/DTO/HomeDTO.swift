@@ -96,15 +96,11 @@ nonisolated enum HomeDTO {
     nonisolated struct NoticeListItem: Decodable, Sendable {
         let noticeId: Int64
         let title: String
+        /// 본문 앞부분(공백 정리 후 최대 100자).
+        let preview: String
+        /// 상세를 열어 본 공지인지.
+        let isRead: Bool
         /// `2026-09-01T09:00:00`
-        let createdAt: String
-    }
-
-    /// `GET /notices/{noticeId}`.
-    nonisolated struct NoticeDetail: Decodable, Sendable {
-        let noticeId: Int64
-        let title: String
-        let content: String
         let createdAt: String
     }
 }

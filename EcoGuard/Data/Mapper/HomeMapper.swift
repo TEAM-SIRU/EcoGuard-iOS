@@ -46,7 +46,8 @@ nonisolated enum HomeMapper {
     /// 구역 배정 전. #56 모집 저장소와 같이 현재 공고에 신청했을 때(`alreadyApplied`)만 내 신청을 본다(지난 공고 신청으로 판단하지 않는다).
     /// - 공고 없음, 또는 신청하지 않았고 모집 기간이 아님 → 모집 없음
     /// - 신청하지 않았고 모집 중 → 모집
-    /// - 신청함: 승인 → 배정 대기, 반려 → 미선발, 그 밖(대기·알 수 없음) → 확정 대기
+    /// - 신청함: 미선발 → 미선발, 그 밖 → 배정 대기. 서버 #16부터 신청하면 바로 승인되고 교사 확정이 없어
+    ///   이전 데이터에 남은 `PENDING`이나 모르는 상태도 받아들여진 신청으로 본다.
     static func unassignedStatus(
         recruitment: HomeDTO.CurrentRecruitment?,
         application: HomeDTO.Application?,
@@ -56,11 +57,7 @@ nonisolated enum HomeMapper {
         guard recruitment.alreadyApplied else {
             return recruitment.periodStatus == .open ? .recruiting(recruitment.toDomain(now: now)) : .notRecruiting
         }
-        switch application?.status {
-        case .approved: return .awaitingAssignment
-        case .rejected: return .notSelected
-        case .pending, .unknown, nil: return .applicationPending
-        }
+        return application?.status == .rejected ? .notSelected : .awaitingAssignment
     }
 
     /// Figma `Recent section` 3건.
@@ -146,12 +143,10 @@ nonisolated extension WeeklyActivityResponseDTO {
 }
 
 nonisolated extension HomeDTO.CurrentRecruitment {
-    /// 서버 학기는 `2026-2`. 읽을 수 없으면 홈을 실패로 두지 않고 `now`(KST)의 학기(3~8월 1학기, 그 밖 2학기)로 둔다.
+    /// 학기를 읽을 수 없으면 홈을 실패로 두지 않고 `now`(KST)의 학기로 둔다(`ServerSemester`).
     func toDomain(now: Date) -> Recruitment {
-        let parsed = semester.split(separator: "-").last.flatMap { Int($0) }.flatMap { (1...2).contains($0) ? $0 : nil }
-        let month = HomeMapper.calendar.component(.month, from: now)
-        return Recruitment(
-            semester: parsed ?? ((3...8).contains(month) ? 1 : 2),
+        Recruitment(
+            semester: ServerSemester.number(semester, fallbackDate: now),
             capacityPerClass: maxCount,
             className: "\(grade)학년 \(classNo)반",
             appliedCount: currentApplicants
@@ -159,10 +154,10 @@ nonisolated extension HomeDTO.CurrentRecruitment {
     }
 }
 
-nonisolated extension HomeDTO.NoticeDetail {
-    /// 홈에는 닫지 않은 최신 공지 하나만 띄우므로 늘 새 공지다.
+nonisolated extension HomeDTO.NoticeListItem {
+    /// 홈 카드 본문은 목록의 미리보기다. 상세를 받으면 서버가 읽음으로 기록해 NEW가 사라지므로 홈에서는 상세를 받지 않는다.
     func toHomeNotice() throws -> Notice {
         guard let publishedAt = ServerDate.dateTime(createdAt) else { throw APIError.decoding }
-        return Notice(id: String(noticeId), title: title, body: content, publishedAt: publishedAt, isNew: true)
+        return Notice(id: String(noticeId), title: title, body: preview, preview: preview, publishedAt: publishedAt, isRead: isRead)
     }
 }

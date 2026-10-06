@@ -1,5 +1,8 @@
-/// 로그인한 사용자 요약(로그인 응답 기준). 학년·반은 서버가 주지 않는다.
+/// 로그인한 사용자(`GET /users/me` 기준). 학번·학년·반은 서버가 모르면 nil이다.
 struct CurrentUser: Hashable {
     let id: String
     let name: String
+    let studentNumber: String?
+    let grade: Int?
+    let classNumber: Int?
 }

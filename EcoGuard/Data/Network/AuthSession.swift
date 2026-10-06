@@ -52,6 +52,17 @@ actor AuthSession {
         userStore.save(user)
     }
 
+    /// 지금 세션. `updateUser(_:startedIn:)`에 넘긴다.
+    func sessionGeneration() -> Int {
+        generation
+    }
+
+    /// 내 정보 응답으로 사용자 요약을 바꾼다. 요청하는 사이 로그아웃·다시 로그인했으면(세션이 바뀌었으면) 저장하지 않는다.
+    func updateUser(_ user: SessionUser, startedIn startedGeneration: Int) {
+        guard generation == startedGeneration, tokens != nil else { return }
+        userStore.save(user)
+    }
+
     nonisolated func currentUser() -> SessionUser? {
         userStore.load()
     }
