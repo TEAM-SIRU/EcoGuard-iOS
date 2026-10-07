@@ -14,7 +14,7 @@ extension HomeStatus {
     }
 }
 
-/// 청소 알림 문구. 알림 시점과 함께 기획 확인 전 임시값이다.
+/// 청소 알림 문구. 알림 시각(인증 시작 시각)과 본문은 확정, 제목·권한 거부 안내는 기획 확인 전 임시값이다.
 enum CleaningReminderCopy {
     static let title = "청소 인증할 시간이에요"
 

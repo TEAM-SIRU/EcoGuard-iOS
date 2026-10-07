@@ -9,7 +9,7 @@ struct SyncCleaningReminderUseCase {
     }
 
     /// `schedule`이 nil이면(미배정·활동 제외·로그아웃·탈퇴) 해제한다.
-    /// 알림을 켰고 권한이 있을 때만 예약한다. 켜 두었는데 권한이 없으면 끈 것으로 저장한다(권한은 마이페이지에서 켤 때만 묻는다).
+    /// 알림을 켰고 권한이 있을 때만 예약한다. 권한은 묻지 않는다(첫 진입 `RequestInitialCleaningReminderUseCase`, 마이페이지 스위치에서 묻는다).
     func execute(schedule: CleaningReminderSchedule?) async {
         notificationSettingRepository.setCleaningReminderSchedule(schedule)
         guard let schedule, notificationSettingRepository.isCleaningReminderOn() else {
@@ -17,7 +17,6 @@ struct SyncCleaningReminderUseCase {
             return
         }
         guard await cleaningReminderScheduler.isAuthorized() else {
-            notificationSettingRepository.setCleaningReminderOn(false)
             cleaningReminderScheduler.cancel()
             return
         }

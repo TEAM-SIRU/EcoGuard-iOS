@@ -23,6 +23,10 @@ final class NotificationSettingRepositoryImpl: NotificationSettingRepository {
         defaults.set(isOn, forKey: Key.cleaningReminder)
     }
 
+    func hasDecidedCleaningReminder() -> Bool {
+        defaults.object(forKey: Key.cleaningReminder) != nil
+    }
+
     func cleaningReminderSchedule() -> CleaningReminderSchedule? {
         guard let areaName = defaults.string(forKey: Key.scheduleAreaName),
               let startMinute = defaults.object(forKey: Key.scheduleStartMinute) as? Int else { return nil }

@@ -44,6 +44,7 @@ struct CleaningReminderUseCaseTests {
 
         func isCleaningReminderOn() -> Bool { isOn ?? true }
         func setCleaningReminderOn(_ isOn: Bool) { self.isOn = isOn }
+        func hasDecidedCleaningReminder() -> Bool { isOn != nil }
         func cleaningReminderSchedule() -> CleaningReminderSchedule? { schedule }
         func setCleaningReminderSchedule(_ schedule: CleaningReminderSchedule?) { self.schedule = schedule }
     }
@@ -184,8 +185,8 @@ struct CleaningReminderUseCaseTests {
         #expect(settings.schedule == area)
     }
 
-    /// 권한은 마이페이지에서 켤 때만 묻는다. 켜 둔 기본값이어도 권한이 없으면 끈 것으로 저장한다.
-    @Test func syncWithoutPermissionTurnsOffWithoutAsking() async {
+    /// 홈 갱신에서는 권한을 묻지 않고, 정하지 않은 사용자의 설정도 저장하지 않는다(첫 진입 요청이 남는다).
+    @Test func syncWithoutPermissionNeitherAsksNorSaves() async {
         let settings = InMemorySettings()
         let scheduler = SpyScheduler(authorized: false)
 
@@ -194,16 +195,72 @@ struct CleaningReminderUseCaseTests {
 
         #expect(scheduler.requestAuthorizationCount == 0)
         #expect(scheduler.scheduleCount == 0)
-        #expect(settings.isOn == false)
+        #expect(settings.isOn == nil)
     }
 
-    @Test func fetchTurnsOffWhenPermissionRevoked() async {
+    @Test func fetchShowsOffWhenPermissionRevokedWithoutSaving() async {
         let settings = InMemorySettings()
+        settings.isOn = true
         let scheduler = SpyScheduler(authorized: false)
         let fetch = FetchCleaningReminderUseCase(notificationSettingRepository: settings, cleaningReminderScheduler: scheduler)
 
         #expect(fetch.execute())
         #expect(!(await fetch.executeCheckingAuthorization()))
+        #expect(settings.isOn == true)
+    }
+
+    // MARK: - 첫 진입 권한 요청
+
+    @Test func firstEntryAllowedTurnsOnAndSchedulesAssignedArea() async {
+        let settings = InMemorySettings()
+        settings.schedule = area
+        let scheduler = SpyScheduler(authorized: false, grants: true)
+
+        await RequestInitialCleaningReminderUseCase(notificationSettingRepository: settings, cleaningReminderScheduler: scheduler)
+            .execute()
+
+        #expect(scheduler.requestAuthorizationCount == 1)
+        #expect(settings.isOn == true)
+        #expect(scheduler.scheduled == area)
+    }
+
+    @Test func firstEntryAllowedWithoutAssignmentOnlyTurnsOn() async {
+        let settings = InMemorySettings()
+        let scheduler = SpyScheduler(authorized: false, grants: true)
+
+        await RequestInitialCleaningReminderUseCase(notificationSettingRepository: settings, cleaningReminderScheduler: scheduler)
+            .execute()
+
+        #expect(settings.isOn == true)
+        #expect(scheduler.scheduleCount == 0)
+    }
+
+    @Test func firstEntryDeniedTurnsOffAndIsNotAskedAgain() async {
+        let settings = InMemorySettings()
+        settings.schedule = area
+        let scheduler = SpyScheduler(authorized: false, grants: false)
+        let request = RequestInitialCleaningReminderUseCase(notificationSettingRepository: settings, cleaningReminderScheduler: scheduler)
+
+        await request.execute()
+        await request.execute()
+
+        #expect(scheduler.requestAuthorizationCount == 1)
         #expect(settings.isOn == false)
+        #expect(scheduler.scheduleCount == 0)
+    }
+
+    @Test(arguments: [true, false])
+    func alreadyDecidedUserIsNotAsked(isOn: Bool) async {
+        let settings = InMemorySettings()
+        settings.isOn = isOn
+        settings.schedule = area
+        let scheduler = SpyScheduler(authorized: false, grants: true)
+
+        await RequestInitialCleaningReminderUseCase(notificationSettingRepository: settings, cleaningReminderScheduler: scheduler)
+            .execute()
+
+        #expect(scheduler.requestAuthorizationCount == 0)
+        #expect(settings.isOn == isOn)
+        #expect(scheduler.scheduleCount == 0)
     }
 }

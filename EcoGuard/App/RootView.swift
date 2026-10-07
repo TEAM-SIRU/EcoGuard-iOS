@@ -21,6 +21,11 @@ struct RootView: View {
             .onChange(of: loginViewModel.state, initial: true) { _, state in
                 homeViewModel = state == .loggedIn ? container.makeHomeViewModel() : nil
             }
+            .task(id: loginViewModel.state) {
+                // 학생이 메인에 들어오면 청소 알림을 정한 적이 없을 때만 권한을 묻는다(교사 화면에서는 묻지 않는다).
+                guard loginViewModel.state == .loggedIn else { return }
+                await container.makeRequestInitialCleaningReminderUseCase()?.execute()
+            }
             .task(id: cleaningReminderSchedule) {
                 // 앱 시작·홈 갱신으로 배정 구역·시각이 바뀌었거나 로그아웃(탈퇴·세션 만료 포함)했을 때만 다시 맞춘다.
                 guard let schedule = cleaningReminderSchedule else { return }

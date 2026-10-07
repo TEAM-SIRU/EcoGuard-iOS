@@ -10,8 +10,10 @@ struct NotificationSettingRepositoryImplTests {
         let repository = NotificationSettingRepositoryImpl(defaults: defaults)
 
         #expect(repository.isCleaningReminderOn())
+        #expect(!repository.hasDecidedCleaningReminder())
 
         repository.setCleaningReminderOn(false)
+        #expect(repository.hasDecidedCleaningReminder())
 
         #expect(!NotificationSettingRepositoryImpl(defaults: defaults).isCleaningReminderOn())
     }

@@ -15,6 +15,7 @@ struct MyPageViewModelTests {
 
         func isCleaningReminderOn() -> Bool { isOn ?? true }
         func setCleaningReminderOn(_ isOn: Bool) { self.isOn = isOn }
+        func hasDecidedCleaningReminder() -> Bool { isOn != nil }
         func cleaningReminderSchedule() -> CleaningReminderSchedule? { schedule }
         func setCleaningReminderSchedule(_ schedule: CleaningReminderSchedule?) { self.schedule = schedule }
     }

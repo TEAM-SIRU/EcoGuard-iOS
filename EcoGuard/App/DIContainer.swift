@@ -139,6 +139,18 @@ final class DIContainer {
         )
     }
 
+    /// 로그인 후 메인에 처음 들어왔을 때 청소 알림 권한을 한 번 묻는다.
+    /// Mock 모드(서버 주소 없음·Mock 전환, UI 테스트 포함)에서는 묻지 않아 nil.
+    func makeRequestInitialCleaningReminderUseCase(
+        notificationSettingRepository: NotificationSettingRepository = NotificationSettingRepositoryImpl()
+    ) -> RequestInitialCleaningReminderUseCase? {
+        guard apiClient != nil else { return nil }
+        return RequestInitialCleaningReminderUseCase(
+            notificationSettingRepository: notificationSettingRepository,
+            cleaningReminderScheduler: cleaningReminderScheduler
+        )
+    }
+
     func makeRecruitmentNoticeViewModel(state: RecruitmentNoticeViewModel.State = .loading) -> RecruitmentNoticeViewModel {
         RecruitmentNoticeViewModel(
             fetchRecruitmentUseCase: FetchRecruitmentUseCase(recruitmentRepository: recruitmentRepository),
