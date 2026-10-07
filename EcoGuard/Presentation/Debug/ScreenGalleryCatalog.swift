@@ -31,7 +31,7 @@ enum ScreenGalleryCatalog {
     // MARK: - ① 탭 셸
 
     private static var shell: ScreenGallerySection {
-        ScreenGallerySection(title: "탭 셸 (Mock 로그인 · 홈 상태)", items: [
+        ScreenGallerySection(title: "홈 · 상태별 (탭 셸 홈 탭으로 열기)", items: [
             shellItem("shell.notSubmitted", "활동 중 · 인증 가능", home: .notSubmitted),
             shellItem("shell.notOpenYet", "활동 중 · 인증 시간 아님(마감 후·시작 전)", home: .notOpenYet),
             shellItem("shell.aiReviewing", "활동 중 · 제출함(AI 검수 중)", home: .aiReviewing),
@@ -378,6 +378,7 @@ enum ScreenGalleryCatalog {
             appealHistoryItem("appeal.historyFailure", "내역 · 조회 실패", scenario: .failure),
             appealHistoryItem("appeal.historyLoading", "내역 · 불러오는 중", scenario: .history, delay: loadingDelay),
             appealResultItem("appeal.result.approved", "결과 · 승인", status: .approved),
+            appealResultItem("appeal.result.approvedWithoutMinutes", "결과 · 승인 · 적립 없음", appeal: MockAppealRepository.Fixture.approvedWithoutMinutes),
             appealResultItem("appeal.result.rejected", "결과 · 반려", status: .rejected),
             appealResultItem("appeal.result.reviewing", "결과 · 검토 중", status: .reviewing)
         ])
@@ -495,6 +496,16 @@ enum ScreenGalleryCatalog {
             let store = container().mockStore
             ScreenGalleryStack { navigator in
                 appealResult(seededAppeal(status, store: store), store: store, navigator: navigator, back: close, close: close)
+            }
+        }
+    }
+
+    /// 내역에 없는 결과를 `appeal` 그대로 보여 준다.
+    private static func appealResultItem(_ id: String, _ title: String, appeal: Appeal) -> ScreenGalleryItem {
+        item(id, title) { close in
+            let store = container().mockStore
+            ScreenGalleryStack { navigator in
+                appealResult(appeal, store: store, navigator: navigator, back: close, close: close)
             }
         }
     }
