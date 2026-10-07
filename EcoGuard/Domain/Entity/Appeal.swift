@@ -24,8 +24,8 @@ struct Appeal: Equatable, Hashable, Identifiable {
     let round: Int
     let submittedAt: Date
     let status: Status
-    /// 승인되어 활동 시간에 더한 분. 승인 전에는 0이다.
-    let earnedMinutes: Int
+    /// 승인되어 활동 시간에 더한 분. 승인 전이거나, 승인됐어도 대상 인증이 이미 승인돼 있어 더하지 않았으면 nil이다.
+    let earnedMinutes: Int?
     /// 반려일 때만 있다.
     let teacherReply: TeacherReply?
     /// 이의신청에 첨부한 사진 주소. 사진은 선택이라 비어 있을 수 있다.

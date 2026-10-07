@@ -62,7 +62,7 @@ struct AppealRepositoryImplTests {
         #expect(log.requests(path: Self.mePath).map(\.httpMethod) == ["GET"])
         #expect(appeals.map(\.id) == ["3", "2", "1"])
         #expect(appeals.map(\.status) == [.reviewing, .rejected, .approved])
-        #expect(appeals.map(\.earnedMinutes) == [0, 0, 10])
+        #expect(appeals.map(\.earnedMinutes) == [nil, nil, 10])
         #expect(appeals[0] == Appeal(
             id: "3",
             verificationID: "7",
@@ -70,7 +70,7 @@ struct AppealRepositoryImplTests {
             round: 2,
             submittedAt: Self.kst(9, 29, 12, 20, 5),
             status: .reviewing,
-            earnedMinutes: 0,
+            earnedMinutes: nil,
             teacherReply: nil,
             photoURLs: [],
             isVerifiedTimeKnown: false
@@ -325,14 +325,26 @@ struct AppealRepositoryImplTests {
 
     // MARK: - 새 필드 매핑
 
-    /// 적립 분은 서버 `awardedMinutes`를 쓰고, 승인인데 값이 없으면 0이다.
-    @Test(arguments: [(Optional(10), 10), (Optional(15), 15), (nil, 0)])
-    func approvedUsesAwardedMinutes(awarded: Int?, expected: Int) async throws {
+    /// 적립 분은 서버 `awardedMinutes`를 쓴다. 승인이어도 이미 승인된 인증이라 적립하지 않았으면 null이고 nil로 둔다.
+    @Test(arguments: [(Optional(10), Optional(10)), (Optional(15), Optional(15)), (nil, nil)])
+    func approvedUsesAwardedMinutes(awarded: Int?, expected: Int?) async throws {
         let repository = Self.makeRepository { _ in
             (200, Self.list(Self.appealJSON(id: 1, status: "APPROVED", awardedMinutes: awarded)))
         }
 
-        #expect(try await repository.fetchAppeals().first?.earnedMinutes == expected)
+        let appeal = try #require(try await repository.fetchAppeals().first)
+        #expect(appeal.status == .approved)
+        #expect(appeal.earnedMinutes == expected)
+    }
+
+    /// 검토 중·반려는 서버가 null을 주고, 값이 오더라도 적립으로 보지 않는다.
+    @Test(arguments: ["PENDING", "REJECTED"])
+    func notApprovedHasNoEarnedMinutes(status: String) async throws {
+        let repository = Self.makeRepository { _ in
+            (200, Self.list(Self.appealJSON(id: 1, status: status, awardedMinutes: 10)))
+        }
+
+        #expect(try await repository.fetchAppeals().first?.earnedMinutes == nil)
     }
 
     /// 반려 답변: 제목이 있으면 제목·본문으로 나누고, 제목이 없으면 본문을 제목으로 쓴다. 공백뿐인 값은 없는 것으로 본다.
