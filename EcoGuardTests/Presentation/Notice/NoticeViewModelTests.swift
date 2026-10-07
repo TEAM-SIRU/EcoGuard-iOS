@@ -53,13 +53,12 @@ struct NoticeViewModelTests {
     }
 
     @Test func cancelledFirstLoadStaysLoadingAndReloads() async {
-        let (viewModel, repository) = makeViewModel(scenarios: [.loaded], delay: .milliseconds(200))
+        let repository = GatedNoticeRepository(scenarios: [.loaded])
+        let viewModel = NoticeViewModel(fetchNoticesUseCase: FetchNoticesUseCase(noticeRepository: repository))
 
         let task = Task { await viewModel.load() }
-        // 고정 대기는 느린 CI에서 조회가 시작되기 전이나 끝난 뒤에 취소할 수 있다. 조회가 시작된 것을 보고 취소한다.
-        while repository.fetchCallCount == 0 {
-            await Task.yield()
-        }
+        // 첫 조회는 취소될 때까지 끝나지 않는다. 조회가 시작된 것을 보고 취소한다.
+        await repository.gate.waitForHeldCall()
         task.cancel()
         await task.value
 
@@ -68,7 +67,7 @@ struct NoticeViewModelTests {
 
         await viewModel.load()
         #expect(viewModel.state == .loaded(Fixture.notices))
-        #expect(repository.fetchCallCount == 2)
+        #expect(repository.gate.callCount == 2)
     }
 
     @Test func cancelledRetryKeepsFailed() async {

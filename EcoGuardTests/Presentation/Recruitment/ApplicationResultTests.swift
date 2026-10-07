@@ -38,23 +38,12 @@ struct ApplicationResultTests {
 
     private func makeViewModel(
         outcome: ApplicationOutcome?,
-        scenario: MockRecruitmentRepository.Scenario,
-        delay: Duration = .zero
+        scenario: MockRecruitmentRepository.Scenario
     ) -> ApplicationResultViewModel {
-        makeViewModelWithRepository(outcome: outcome, scenario: scenario, delay: delay).0
-    }
-
-    private func makeViewModelWithRepository(
-        outcome: ApplicationOutcome?,
-        scenario: MockRecruitmentRepository.Scenario,
-        delay: Duration = .zero
-    ) -> (ApplicationResultViewModel, MockRecruitmentRepository) {
-        let repository = MockRecruitmentRepository(scenario: scenario, delay: delay)
-        let viewModel = ApplicationResultViewModel(
+        ApplicationResultViewModel(
             outcome: outcome,
-            fetchMyApplicationUseCase: FetchMyApplicationUseCase(recruitmentRepository: repository)
+            fetchMyApplicationUseCase: FetchMyApplicationUseCase(recruitmentRepository: MockRecruitmentRepository(scenario: scenario, delay: .zero))
         )
-        return (viewModel, repository)
     }
 
     @Test func outcomeFromSubmissionSkipsLoading() async {
@@ -81,18 +70,20 @@ struct ApplicationResultTests {
 
     /// 화면을 떠나 취소돼도 실패 화면을 띄우지 않고 .loading으로 남아, 다시 나타날 때 `.task`가 다시 불러온다.
     @Test func cancelledLoadStaysLoadingAndReloads() async {
-        let (viewModel, repository) = makeViewModelWithRepository(outcome: nil, scenario: .applied, delay: .milliseconds(300))
+        let repository = GatedRecruitmentRepository(gating: .fetchMyApplication, scenario: .applied)
+        let viewModel = ApplicationResultViewModel(
+            outcome: nil,
+            fetchMyApplicationUseCase: FetchMyApplicationUseCase(recruitmentRepository: repository)
+        )
 
         let load = Task { await viewModel.load() }
-        while repository.fetchMyApplicationCallCount == 0 {
-            await Task.yield()
-        }
+        await repository.gate.waitForHeldCall()
         load.cancel()
         await load.value
         #expect(viewModel.state == .loading)
 
         await viewModel.load()
-        #expect(repository.fetchMyApplicationCallCount == 2)
+        #expect(repository.gate.callCount == 2)
         #expect(viewModel.state == .loaded(.applied(Fixture.application())))
     }
 }

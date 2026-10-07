@@ -38,7 +38,7 @@ final class DIContainer {
             homeRepository: MockHomeRepository(scenario: mockScenario("ECO_MOCK_HOME_SCENARIO") ?? .notSubmitted),
             recruitmentRepository: apiClient.map {
                 RecruitmentRepositoryImpl(apiClient: $0, currentUserRepository: CurrentUserRepositoryImpl(apiClient: $0))
-            } ?? MockRecruitmentRepository(scenario: mockScenario("ECO_MOCK_RECRUITMENT_SCENARIO") ?? .open),
+            } ?? mockRecruitmentRepository(),
             webAdminURL: AppConfig.webAdminURL
         )
     }
@@ -69,6 +69,16 @@ final class DIContainer {
             guard let authorizer else { throw AuthorizationCodeUnavailableError() }
             return try await authorizer.authorizationCode()
         })
+    }
+
+    /// DEBUG에서는 UI 테스트가 신청 기간을 지금으로 옮길 수 있다(`CurrentPeriodRecruitmentRepository`).
+    private static func mockRecruitmentRepository() -> RecruitmentRepository {
+        let mock = MockRecruitmentRepository(scenario: mockScenario("ECO_MOCK_RECRUITMENT_SCENARIO") ?? .open)
+        #if DEBUG
+        return CurrentPeriodRecruitmentRepository.wrappingIfRequested(mock)
+        #else
+        return mock
+        #endif
     }
 
     private static let hasLaunchedKey = "auth.hasLaunchedBefore"

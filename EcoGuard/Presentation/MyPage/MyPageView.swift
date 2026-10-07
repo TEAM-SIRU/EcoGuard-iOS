@@ -9,7 +9,7 @@ struct MyPageView: View {
         var openApplicationResult: () -> Void = {}
         var openAppeals: () -> Void = {}
         var openNotices: () -> Void = {}
-        // TODO: 도움말은 Figma 디자인이 없어 연결하지 않았다(디자인 대기).
+        /// 도움말은 Figma 디자인이 없어(디자인 대기) 셸이 준비 중 토스트를 띄운다.
         var openHelp: () -> Void = {}
     }
 

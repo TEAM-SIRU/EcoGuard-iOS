@@ -317,18 +317,20 @@ struct HomeViewModelTests {
 
     /// 탭을 떠나 취소돼도 실패 화면을 띄우지 않고 .loading으로 남아, 돌아왔을 때 화면의 `.task`가 다시 불러온다.
     @Test func cancelledFirstLoadStaysLoadingAndReloads() async {
-        let (viewModel, repository) = makeViewModel(scenarios: [.notSubmitted], delay: .milliseconds(300))
+        let repository = GatedHomeRepository(base: MockHomeRepository(scenarios: [.notSubmitted], delay: .zero, now: { now }))
+        let viewModel = HomeViewModel(
+            fetchHomeUseCase: FetchHomeUseCase(homeRepository: repository),
+            dismissNoticeUseCase: DismissNoticeUseCase(homeRepository: repository)
+        )
 
         let load = Task { await viewModel.load() }
-        while repository.fetchCallCount == 0 {
-            await Task.yield()
-        }
+        await repository.gate.waitForHeldCall()
         load.cancel()
         await load.value
         #expect(viewModel.state == .loading)
 
         await viewModel.load()
-        #expect(repository.fetchCallCount == 2)
+        #expect(repository.gate.callCount == 2)
         #expect(todayVerification(viewModel) == .open(deadline: Date(timeIntervalSinceReferenceDate: 332)))
     }
 

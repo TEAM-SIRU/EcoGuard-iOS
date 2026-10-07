@@ -34,6 +34,12 @@ final class RecruitmentNoticeViewModel {
         }
     }
 
+    /// 신청 버튼을 다시 그릴 시각(신청 시작·마감). 그 사이 버튼 상태는 `canApply(at:)`가 정한다.
+    var applyButtonRedrawDates: [Date] {
+        guard case .loaded(let detail, _) = state else { return [] }
+        return [detail.startDate, detail.endDate]
+    }
+
     /// 신청 버튼을 켤지. 서버가 신청 가능으로 내려준 경우에만, 마감 시각 전까지 켠다(기기 시간은 다시 조회되기 전 UI 힌트로만 쓴다).
     func canApply(at date: Date) -> Bool {
         guard case .loaded(let detail, _) = state, detail.status == .open else { return false }

@@ -91,6 +91,17 @@ struct RecruitmentNoticeViewModelTests {
         #expect(!viewModel.canApply(at: endDate.addingTimeInterval(60)))
     }
 
+    /// 버튼은 신청 시작·마감 시각에 다시 그린다. 불러오기 전에는 다시 그릴 시각이 없다.
+    @Test func applyButtonRedrawsAtStartAndEnd() async {
+        let detail = MockRecruitmentRepository.Fixture.detail(phase: .open, appliedCount: 4)
+        let (viewModel, _) = makeViewModel(scenarios: [.open])
+        #expect(viewModel.applyButtonRedrawDates.isEmpty)
+
+        await viewModel.load()
+
+        #expect(viewModel.applyButtonRedrawDates == [detail.startDate, detail.endDate])
+    }
+
     @Test(arguments: [MockRecruitmentRepository.Scenario.full, .applied, .upcoming, .ended])
     func cannotApplyUnlessOpen(scenario: MockRecruitmentRepository.Scenario) async {
         let startDate = MockRecruitmentRepository.Fixture.detail(phase: .open, appliedCount: 0).startDate
@@ -146,18 +157,17 @@ struct RecruitmentNoticeViewModelTests {
 
     /// 화면을 떠나 취소돼도 실패 화면을 띄우지 않고 .loading으로 남아, 다시 나타날 때 `.task`가 다시 불러온다.
     @Test func cancelledFirstLoadStaysLoadingAndReloads() async {
-        let (viewModel, repository) = makeViewModel(scenarios: [.open], delay: .milliseconds(300))
+        let repository = GatedRecruitmentRepository(gating: .fetchRecruitment)
+        let viewModel = RecruitmentNoticeViewModel(fetchRecruitmentUseCase: FetchRecruitmentUseCase(recruitmentRepository: repository))
 
         let load = Task { await viewModel.load() }
-        while repository.fetchCallCount == 0 {
-            await Task.yield()
-        }
+        await repository.gate.waitForHeldCall()
         load.cancel()
         await load.value
         #expect(viewModel.state == .loading)
 
         await viewModel.load()
-        #expect(repository.fetchCallCount == 2)
+        #expect(repository.gate.callCount == 2)
         #expect(status(viewModel) == .open)
     }
 

@@ -43,6 +43,11 @@ final class ActivityRecordsViewModel {
         lastCurrentMonth = current
     }
 
+    /// 이번 달을 보고 있는지. 빈 상태에서 인증으로 보낼지 정한다.
+    var isCurrentMonthSelected: Bool {
+        selectedMonth == currentMonth
+    }
+
     /// 오늘이 속한 달. 이후 달은 고를 수 없다.
     var currentMonth: YearMonth {
         Self.month(containing: now())
