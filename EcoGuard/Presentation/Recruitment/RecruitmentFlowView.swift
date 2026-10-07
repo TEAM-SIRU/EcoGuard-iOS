@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 모집 공고 → 신청 → 신청 결과. 화면 이동은 이 기능 안의 `NavigationStack`에서 한다.
-/// 진입점(홈 모집 카드)에서 띄우고, 홈으로·뒤로(첫 화면)는 `onExit`으로 닫는다.
+/// 진입점(홈 모집 카드)에서 띄우고, 뒤로(첫 화면)는 `onExit`, `홈으로`는 `goHome`으로 닫는다.
 struct RecruitmentFlowView: View {
     enum Route: Hashable {
         case apply(Applicant, capacityPerClass: Int)
@@ -10,13 +10,15 @@ struct RecruitmentFlowView: View {
 
     private let container: DIContainer
     private let onExit: () -> Void
+    private let goHome: () -> Void
 
     @State private var path: [Route] = []
     @State private var noticeViewModel: RecruitmentNoticeViewModel
 
-    init(container: DIContainer, onExit: @escaping () -> Void) {
+    init(container: DIContainer, onExit: @escaping () -> Void, goHome: @escaping () -> Void) {
         self.container = container
         self.onExit = onExit
+        self.goHome = goHome
         _noticeViewModel = State(initialValue: container.makeRecruitmentNoticeViewModel())
     }
 
@@ -27,7 +29,8 @@ struct RecruitmentFlowView: View {
                 onApply: { applicant, capacity in
                     path.append(.apply(applicant, capacityPerClass: capacity))
                 },
-                onExit: onExit
+                onExit: onExit,
+                goHome: goHome
             )
             .navigationDestination(for: Route.self) { route in
                 switch route {
@@ -44,7 +47,8 @@ struct RecruitmentFlowView: View {
                 case .result(let outcome):
                     ApplicationResultView(
                         viewModel: container.makeApplicationResultViewModel(outcome: outcome),
-                        onExit: onExit
+                        onBack: onExit,
+                        goHome: goHome
                     )
                 }
             }
@@ -53,5 +57,5 @@ struct RecruitmentFlowView: View {
 }
 
 #Preview {
-    RecruitmentFlowView(container: .preview(), onExit: {})
+    RecruitmentFlowView(container: .preview(), onExit: {}, goHome: {})
 }

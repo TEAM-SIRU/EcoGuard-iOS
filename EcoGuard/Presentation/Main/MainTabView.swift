@@ -258,6 +258,7 @@ struct MainTabView: View {
                 viewModel: cameraViewModel,
                 actions: CameraVerificationView.Actions(
                     close: { viewModel.dismissFlow() },
+                    goHome: { viewModel.dismissFlow(selecting: .home) },
                     openSubmitted: {
                         // 홈이 오늘 제출분을 아직 받지 못했으면(다른 기기에서 제출 등) 다시 조회한 뒤 연다.
                         // 그래도 없으면 이 기기에서 방금 낸 인증 ID로 연다(`verificationSubmitted`).
@@ -276,10 +277,18 @@ struct MainTabView: View {
                 }
             }
         case .recruitment:
-            RecruitmentFlowView(container: container, onExit: { viewModel.dismissFlow() })
+            RecruitmentFlowView(
+                container: container,
+                onExit: { viewModel.dismissFlow() },
+                goHome: { viewModel.dismissFlow(selecting: .home) }
+            )
         case .applicationResult(let resultViewModel):
             NavigationStack {
-                ApplicationResultView(viewModel: resultViewModel, onExit: { viewModel.dismissFlow() })
+                ApplicationResultView(
+                    viewModel: resultViewModel,
+                    onBack: { viewModel.dismissFlow() },
+                    goHome: { viewModel.dismissFlow(selecting: .home) }
+                )
             }
         case .verificationResult(let id, let entry):
             flowStack {

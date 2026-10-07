@@ -5,8 +5,10 @@ import UIKit
 /// 진입점(탭 바 카메라 FAB, 홈 인증 버튼)은 앱 셸(`MainTabView`)이 연결한다.
 struct CameraVerificationView: View {
     struct Actions {
-        /// 인증 흐름을 닫고 홈으로 돌아간다.
+        /// 인증 흐름을 닫고 흐름을 띄운 화면으로 돌아간다(닫기·뒤로·시트).
         var close: () -> Void = {}
+        /// `홈으로`. 인증 흐름을 닫고 홈 탭 첫 화면으로 간다.
+        var goHome: () -> Void = {}
         /// 이미 인증한 날 `제출한 인증 보기`. 오늘 제출한 인증 결과를 연다.
         var openSubmitted: () -> Void = {}
     }
@@ -59,7 +61,7 @@ struct CameraVerificationView: View {
                 primaryTitle: "다시 시도",
                 primaryAction: { await viewModel.load() },
                 back: actions.close,
-                secondaryAction: actions.close
+                secondaryAction: actions.goHome
             )
         case .notAssigned:
             VerificationMessageView(
@@ -68,7 +70,7 @@ struct CameraVerificationView: View {
                 primaryTitle: "다시 시도",
                 primaryAction: { await viewModel.load() },
                 back: actions.close,
-                secondaryAction: actions.close
+                secondaryAction: actions.goHome
             )
         case .guide:
             VerificationGuideView(area: viewModel.session?.area ?? "", back: actions.close) {
@@ -91,10 +93,10 @@ struct CameraVerificationView: View {
                 primaryTitle: "같은 사진 다시 보내기",
                 primaryAction: viewModel.submit,
                 back: viewModel.returnToConfirm,
-                secondaryAction: actions.close
+                secondaryAction: actions.goHome
             )
         case .submitted(let captured, let submittedAt):
-            VerificationSubmittedView(captured: captured, submittedAt: submittedAt, area: viewModel.session?.area, goHome: actions.close)
+            VerificationSubmittedView(captured: captured, submittedAt: submittedAt, area: viewModel.session?.area, goHome: actions.goHome)
         case .timedOut:
             VerificationMessageView(
                 title: "오늘 인증 시간이 끝났어요",
@@ -102,7 +104,7 @@ struct CameraVerificationView: View {
                 primaryTitle: "업로드 상태 확인",
                 primaryAction: viewModel.checkUploadStatus,
                 back: actions.close,
-                secondaryAction: actions.close
+                secondaryAction: actions.goHome
             )
         }
     }

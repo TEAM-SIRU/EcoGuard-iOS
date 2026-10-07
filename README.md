@@ -21,6 +21,7 @@
 - Xcode: Scheme › Edit Scheme › Run › Arguments › Environment Variables에서 `ECO_USE_MOCK`(값 `1`)을 체크한다. DEBUG 빌드에서만 동작한다.
 - 시뮬레이터 명령줄: `SIMCTL_CHILD_ECO_USE_MOCK=1 xcrun simctl launch <기기> com.teamsiru.ecoguard`
 - 테스트 호스트로 실행될 때는 항상 Mock을 써서 실서버·키체인을 건드리지 않는다.
+- Mock 상태 고르기(DEBUG): `ECO_MOCK_HOME_SCENARIO`·`ECO_MOCK_RECRUITMENT_SCENARIO`·`ECO_MOCK_VERIFICATION_SCENARIO`·`ECO_MOCK_VERIFICATION_RESULT_SCENARIO`에 각 Mock `Scenario` 케이스 이름(예: `excluded`, `failure`)을 넣는다. UI 테스트(`EcoGuardUITests`)가 이 값으로 화면 상태를 만든다.
 
 ### 화면 둘러보기 (DEBUG)
 

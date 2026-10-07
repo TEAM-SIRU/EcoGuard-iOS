@@ -18,6 +18,13 @@ struct HomeView: View {
     let viewModel: HomeViewModel
     var actions = Actions()
 
+    /// 활동 제외 화면에서 다시 확인한 결과 토스트. Figma 정의가 없어 다른 토스트와 같은 모양으로 위쪽에 띄운다.
+    @State private var exclusionToast: HomeViewModel.ExclusionCheck?
+    @State private var exclusionToastRequest = 0
+
+    private static let stillExcludedMessage: LocalizedStringResource = "아직 활동에서 제외된 상태예요"
+    private static let exclusionCheckFailedMessage: LocalizedStringResource = "활동 상태를 확인하지 못했어요. 잠시 후 다시 시도해 주세요"
+
     /// 인증 시작·마감 시각과 앱 복귀 재조회는 다른 탭에 있어도 돌도록 셸(`MainTabView`)이 맡는다.
     var body: some View {
         content
@@ -26,6 +33,43 @@ struct HomeView: View {
                 guard !isLoaded else { return }
                 await viewModel.load()
             }
+            .overlay(alignment: .top) {
+                if let exclusionToast {
+                    exclusionToastView(exclusionToast)
+                        .padding(.top, Spacing.sm)
+                        .padding(.horizontal, Spacing.screenHorizontal)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.default, value: exclusionToast)
+            .onChange(of: viewModel.exclusionCheckCount) { old, new in
+                guard new > old, let check = viewModel.exclusionCheck else { return }
+                AccessibilityNotification.Announcement(String(localized: Self.message(for: check))).post()
+                exclusionToast = check
+                exclusionToastRequest += 1
+            }
+            .task(id: exclusionToastRequest) {
+                guard exclusionToastRequest > 0 else { return }
+                // 다시 확인하면 이 작업은 취소되고 새 작업이 시간을 처음부터 센다.
+                guard (try? await Task.sleep(for: EcoToast.displayDuration)) != nil else { return }
+                exclusionToast = nil
+            }
+    }
+
+    private func exclusionToastView(_ check: HomeViewModel.ExclusionCheck) -> some View {
+        switch check {
+        case .stillExcluded:
+            EcoToast(message: Self.message(for: check), icon: nil)
+        case .failed:
+            EcoToast(message: Self.message(for: check))
+        }
+    }
+
+    private static func message(for check: HomeViewModel.ExclusionCheck) -> LocalizedStringResource {
+        switch check {
+        case .stillExcluded: stillExcludedMessage
+        case .failed: exclusionCheckFailedMessage
+        }
     }
 
     private var isLoaded: Bool {
@@ -51,8 +95,9 @@ struct HomeView: View {
                     title: "환경지킴이 활동이 취소됐어요",
                     message: "담당 선생님이 활동에서 제외했어요.\n\n제외 사유\n\(reason)\n\n사유에 대해 궁금하면 담당 선생님께 문의해 주세요.",
                     primaryTitle: "홈으로",
-                    // 이미 홈 탭 첫 화면이라 옮길 곳이 없다. 활동 상태를 다시 확인해 제외가 풀렸으면 홈을 보여 준다.
-                    primaryAction: { await viewModel.load() },
+                    // Figma 문구는 `홈으로`지만 이미 홈 탭 첫 화면이라 옮길 곳이 없다(#77).
+                    // 화면을 둔 채 활동 상태를 다시 확인해 제외가 풀렸으면 홈을, 그대로면 토스트로 결과를 보여 준다.
+                    primaryAction: { await viewModel.recheckExclusion() },
                     secondaryAction: actions.openNotices
                 )
             } else {

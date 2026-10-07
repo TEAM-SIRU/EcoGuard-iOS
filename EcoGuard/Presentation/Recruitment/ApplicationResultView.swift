@@ -4,11 +4,15 @@ import SwiftUI
 /// 대기·반려·구역 배정 완료는 Figma에 프레임이 없어 같은 레이아웃에 문구만 새로 썼다. 결과 화면에서는 신청 화면으로 돌아가지 않는다.
 struct ApplicationResultView: View {
     @State private var viewModel: ApplicationResultViewModel
-    private let onExit: () -> Void
+    /// 뒤로. 결과를 연 흐름을 닫는다.
+    private let onBack: () -> Void
+    /// `홈으로`. 흐름을 닫고 홈 탭 첫 화면으로 간다.
+    private let goHome: () -> Void
 
-    init(viewModel: ApplicationResultViewModel, onExit: @escaping () -> Void) {
+    init(viewModel: ApplicationResultViewModel, onBack: @escaping () -> Void, goHome: @escaping () -> Void) {
         _viewModel = State(initialValue: viewModel)
-        self.onExit = onExit
+        self.onBack = onBack
+        self.goHome = goHome
     }
 
     var body: some View {
@@ -32,16 +36,16 @@ struct ApplicationResultView: View {
             RecruitmentMessageView(
                 title: RecruitmentCopy.Result.notAppliedTitle,
                 message: RecruitmentCopy.Result.notAppliedMessage,
-                onBack: onExit,
-                onExit: onExit
+                onBack: onBack,
+                goHome: goHome
             )
         case .failed:
             RecruitmentMessageView(
                 title: RecruitmentCopy.Result.failedTitle,
                 message: RecruitmentCopy.Result.failedMessage,
                 retry: { await viewModel.load() },
-                onBack: onExit,
-                onExit: onExit
+                onBack: onBack,
+                goHome: goHome
             )
         }
     }
@@ -69,7 +73,7 @@ struct ApplicationResultView: View {
         }
         .safeAreaInset(edge: .bottom) {
             BottomCTA {
-                EcoButton(RecruitmentCopy.Common.home, style: content.isPrimaryAction ? .primary : .secondary, action: onExit)
+                EcoButton(RecruitmentCopy.Common.home, style: content.isPrimaryAction ? .primary : .secondary, action: goHome)
             }
         }
     }
@@ -86,7 +90,7 @@ struct ApplicationResultView: View {
 }
 
 private func resultPreview(_ outcome: ApplicationOutcome?) -> some View {
-    ApplicationResultView(viewModel: DIContainer.preview().makeApplicationResultViewModel(outcome: outcome), onExit: {})
+    ApplicationResultView(viewModel: DIContainer.preview().makeApplicationResultViewModel(outcome: outcome), onBack: {}, goHome: {})
 }
 
 #Preview("승인 · 배정 대기") {

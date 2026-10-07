@@ -6,7 +6,10 @@ import SwiftUI
 struct RecruitmentNoticeView: View {
     let viewModel: RecruitmentNoticeViewModel
     let onApply: (Applicant, Int) -> Void
+    /// 뒤로(나가기). 흐름을 닫는다.
     let onExit: () -> Void
+    /// `홈으로`(공고 없음·조회 실패). 흐름을 닫고 홈 탭 첫 화면으로 간다.
+    let goHome: () -> Void
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -46,7 +49,7 @@ struct RecruitmentNoticeView: View {
                 title: RecruitmentCopy.Notice.emptyTitle,
                 message: RecruitmentCopy.Notice.emptyMessage,
                 onBack: onExit,
-                onExit: onExit
+                goHome: goHome
             )
         case .failed:
             RecruitmentMessageView(
@@ -54,7 +57,7 @@ struct RecruitmentNoticeView: View {
                 message: RecruitmentCopy.Notice.failedMessage,
                 retry: { await viewModel.retry() },
                 onBack: onExit,
-                onExit: onExit
+                goHome: goHome
             )
         }
     }
@@ -180,31 +183,31 @@ private extension RecruitmentStatus {
 }
 
 #Preview("모집 중") {
-    RecruitmentNoticeView(viewModel: DIContainer.preview(recruitmentScenario: .open).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {})
+    RecruitmentNoticeView(viewModel: DIContainer.preview(recruitmentScenario: .open).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {}, goHome: {})
 }
 
 #Preview("마감") {
-    RecruitmentNoticeView(viewModel: DIContainer.preview(recruitmentScenario: .full).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {})
+    RecruitmentNoticeView(viewModel: DIContainer.preview(recruitmentScenario: .full).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {}, goHome: {})
 }
 
 #Preview("이미 신청") {
-    RecruitmentNoticeView(viewModel: DIContainer.preview(recruitmentScenario: .applied).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {})
+    RecruitmentNoticeView(viewModel: DIContainer.preview(recruitmentScenario: .applied).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {}, goHome: {})
 }
 
 #Preview("신청 기간 전") {
-    RecruitmentNoticeView(viewModel: DIContainer.preview(recruitmentScenario: .upcoming).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {})
+    RecruitmentNoticeView(viewModel: DIContainer.preview(recruitmentScenario: .upcoming).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {}, goHome: {})
 }
 
 #Preview("신청 기간 끝") {
-    RecruitmentNoticeView(viewModel: DIContainer.preview(recruitmentScenario: .ended).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {})
+    RecruitmentNoticeView(viewModel: DIContainer.preview(recruitmentScenario: .ended).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {}, goHome: {})
 }
 
 #Preview("공고 없음") {
-    RecruitmentNoticeView(viewModel: DIContainer.preview(recruitmentScenario: .none).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {})
+    RecruitmentNoticeView(viewModel: DIContainer.preview(recruitmentScenario: .none).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {}, goHome: {})
 }
 
 #Preview("조회 실패") {
-    RecruitmentNoticeView(viewModel: DIContainer.preview(recruitmentScenario: .failure).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {})
+    RecruitmentNoticeView(viewModel: DIContainer.preview(recruitmentScenario: .failure).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {}, goHome: {})
 }
 
 #Preview("로딩") {
@@ -213,5 +216,5 @@ private extension RecruitmentStatus {
         homeRepository: MockHomeRepository(),
         recruitmentRepository: MockRecruitmentRepository(delay: .seconds(3600)),
         webAdminURL: nil
-    ).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {})
+    ).makeRecruitmentNoticeViewModel(), onApply: { _, _ in }, onExit: {}, goHome: {})
 }

@@ -125,7 +125,8 @@ enum ScreenGalleryCatalog {
         item(id, title) { close in
             RecruitmentFlowView(
                 container: container(recruitment: scenario, applyOutcomes: applyOutcomes, recruitmentDelay: delay),
-                onExit: close
+                onExit: close,
+                goHome: close
             )
         }
     }
@@ -148,7 +149,8 @@ enum ScreenGalleryCatalog {
                     onFinish: { outcome in
                         navigator.push(ApplicationResultView(
                             viewModel: container.makeApplicationResultViewModel(outcome: outcome),
-                            onExit: close
+                            onBack: close,
+                            goHome: close
                         ))
                     }
                 )
@@ -167,7 +169,8 @@ enum ScreenGalleryCatalog {
             NavigationStack {
                 ApplicationResultView(
                     viewModel: container(recruitment: scenario).makeApplicationResultViewModel(outcome: outcome),
-                    onExit: close
+                    onBack: close,
+                    goHome: close
                 )
             }
         }
@@ -235,7 +238,7 @@ enum ScreenGalleryCatalog {
                 viewModel: container().makeCameraVerificationViewModel(
                     repository: MockVerificationRepository(scenario: scenario, uploadResults: uploadResults, delay: delay)
                 ),
-                actions: CameraVerificationView.Actions(close: close, openSubmitted: close)
+                actions: CameraVerificationView.Actions(close: close, goHome: close, openSubmitted: close)
             )
         }
     }
@@ -251,7 +254,7 @@ enum ScreenGalleryCatalog {
         item(id, title) { close in
             CameraVerificationView(
                 viewModel: cameraViewModel(state: state, sheet: sheet, availability: availability),
-                actions: CameraVerificationView.Actions(close: close, openSubmitted: close)
+                actions: CameraVerificationView.Actions(close: close, goHome: close, openSubmitted: close)
             )
         }
     }

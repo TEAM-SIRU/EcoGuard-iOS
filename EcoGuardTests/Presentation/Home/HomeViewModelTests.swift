@@ -89,6 +89,43 @@ struct HomeViewModelTests {
         #expect(loadedSummary(viewModel)?.status == .excluded(reason: "본인 요청으로 활동을 중단했어요."))
     }
 
+    // MARK: - 활동 제외 화면 `홈으로`(#77)
+
+    @Test func recheckWhileStillExcludedKeepsScreenAndReports() async {
+        let (viewModel, repository) = makeViewModel(scenarios: [.excluded])
+        await viewModel.load()
+
+        await viewModel.recheckExclusion()
+        await viewModel.recheckExclusion()
+
+        #expect(repository.fetchCallCount == 3)
+        #expect(loadedSummary(viewModel)?.status == .excluded(reason: "본인 요청으로 활동을 중단했어요."))
+        #expect(viewModel.exclusionCheck == .stillExcluded)
+        #expect(viewModel.exclusionCheckCount == 2)
+    }
+
+    @Test func recheckAfterExclusionLiftedShowsHomeWithoutReport() async {
+        let (viewModel, _) = makeViewModel(scenarios: [.excluded, .notSubmitted])
+        await viewModel.load()
+
+        await viewModel.recheckExclusion()
+
+        #expect(todayVerification(viewModel) != nil)
+        #expect(viewModel.exclusionCheck == nil)
+        #expect(viewModel.exclusionCheckCount == 0)
+    }
+
+    @Test func recheckFailureKeepsExcludedScreenAndReportsFailure() async {
+        let (viewModel, _) = makeViewModel(scenarios: [.excluded, .failure])
+        await viewModel.load()
+
+        await viewModel.recheckExclusion()
+
+        #expect(loadedSummary(viewModel)?.status == .excluded(reason: "본인 요청으로 활동을 중단했어요."))
+        #expect(viewModel.exclusionCheck == .failed)
+        #expect(viewModel.exclusionCheckCount == 1)
+    }
+
     @Test func approvedScenarioCountsTodayInWeek() async {
         let (viewModel, _) = makeViewModel(scenarios: [.approved])
 
