@@ -80,7 +80,12 @@ struct HomeView: View {
     private var content: some View {
         switch viewModel.state {
         case .loading:
-            HomeLoadingView()
+            // Figma 로딩 프레임(514:253)은 제목을 24 아래 큰 글씨로 두지만, 그러면 불러오기를 마칠 때 제목이 줄어들며
+            // 위로 튀어오른다(#89). 불러온 홈과 같은 상단 바를 그대로 쓴다.
+            VStack(spacing: 0) {
+                topBar
+                HomeLoadingView()
+            }
         case .failed:
             HomeMessageView(
                 title: "홈을 불러오지 못했어요",
