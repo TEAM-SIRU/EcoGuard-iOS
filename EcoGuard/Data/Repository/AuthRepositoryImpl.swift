@@ -15,8 +15,11 @@ final class AuthRepositoryImpl: AuthRepository {
     }
 
     func login() async throws -> UserRole {
-        let code = try await authorizationCode()
-        let response: LoginResponseDTO = try await apiClient.send(.login(authCode: code))
+        try await login(authCode: authorizationCode())
+    }
+
+    func login(authCode: String) async throws -> UserRole {
+        let response: LoginResponseDTO = try await apiClient.send(.login(authCode: authCode))
         guard let role = response.userRole else { throw APIError.decoding }
         // 교사는 앱을 쓰지 않으므로 토큰을 저장하지 않고, 남아 있던 토큰도 지운다(CONVENTION 금지 사항).
         switch role {

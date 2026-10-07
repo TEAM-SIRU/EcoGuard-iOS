@@ -133,4 +133,51 @@ struct LoginViewModelTests {
         #expect(repository.logoutCallCount == 1)
         #expect(viewModel.state == .idle)
     }
+
+    // MARK: - 심사용 로그인(#101)
+
+    @Test(arguments: ["", "   ", " \n "])
+    func reviewLoginWithEmptyCodeDoesNotRequest(code: String) async {
+        let (viewModel, repository) = makeViewModel(outcome: .student)
+
+        await viewModel.login(reviewCode: code)
+
+        #expect(!LoginViewModel.canSubmit(reviewCode: code))
+        #expect(repository.loginCallCount == 0)
+        #expect(viewModel.state == .idle)
+    }
+
+    @Test func reviewLoginSendsTrimmedCodeAndMovesToLoggedIn() async {
+        let (viewModel, repository) = makeViewModel(outcome: .student)
+
+        await viewModel.login(reviewCode: "  review-code \n")
+
+        #expect(repository.receivedAuthCodes == ["review-code"])
+        #expect(viewModel.state == .loggedIn)
+    }
+
+    /// 틀린 코드(서버 401)는 dataGSM 로그인 실패와 같은 실패 안내를 띄운다.
+    @Test func failedReviewLoginMovesToFailed() async {
+        let (viewModel, repository) = makeViewModel(outcome: .failure)
+
+        await viewModel.login(reviewCode: "wrong-code")
+
+        #expect(repository.loginCallCount == 1)
+        #expect(viewModel.state == .failed)
+    }
+
+    @Test func reviewLoginWhileLoadingIsIgnored() async {
+        let (viewModel, repository) = makeViewModel(outcome: .student, delay: .milliseconds(200))
+
+        let firstLogin = Task { await viewModel.login(reviewCode: "review-code") }
+        while viewModel.state != .loading {
+            await Task.yield()
+        }
+        await viewModel.login(reviewCode: "review-code")
+        await viewModel.login()
+
+        await firstLogin.value
+        #expect(repository.loginCallCount == 1)
+        #expect(viewModel.state == .loggedIn)
+    }
 }
