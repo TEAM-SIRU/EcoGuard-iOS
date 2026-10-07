@@ -112,6 +112,11 @@ final class HomeViewModel {
         return cleaning.today.verification != .vacation
     }
 
+    /// 가운데 카메라 버튼의 VoiceOver 힌트. 인증할 수 있으면 nil.
+    var cameraHint: CameraButtonHint? {
+        CameraButtonHint(state: state)
+    }
+
     /// 오늘 제출한 인증. 홈 카드의 `제출한 사진 보기`, 인증 화면의 `제출한 인증 보기`에서 결과 화면을 열 때 쓴다.
     var todaySubmission: TodaySubmission? {
         guard case .loaded(let summary) = state, case .active(let cleaning) = summary.status else { return nil }
