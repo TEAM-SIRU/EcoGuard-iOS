@@ -361,6 +361,12 @@ enum ScreenGalleryCatalog {
             appealFormItem("appeal.formOverLimit", "글자 수 초과", message: String(repeating: "가", count: AppealMessage.maxLength + 1)),
             appealFormItem("appeal.formFailed", "제출 실패", message: message, phase: .failed),
             appealFormItem("appeal.formRetry", "보내기 실패 후 다시 보내기", message: message, submitOutcomes: [.failure, .success]),
+            appealFormItem(
+                "appeal.formReceivedRetry",
+                "보내기 실패(서버는 접수) 후 다시 보내기",
+                message: message,
+                submitOutcomes: [.failureAfterReceived, .success]
+            ),
             item("appeal.submitted", "제출 완료") { close in
                 AppealSubmittedView(appeal: seededAppeal(.reviewing), goHome: close)
             },

@@ -43,7 +43,7 @@ struct MainTabView: View {
                     // 구역을 배정받아 활동 중일 때만 인증할 수 있다 (Figma 모집 기간·배정 대기 프레임은 회색).
                     // 인증 시간이 아니거나 이미 제출한 날도 켠다. Figma `06 인증 불가` 화면에서 카메라 화면이 서버 상태로 막는다.
                     .disabled(!homeViewModel.isCameraAvailable)
-                    .accessibilityHint(homeViewModel.isCameraAvailable ? Text(verbatim: "") : Text("환경지킴이로 활동 중일 때 쓸 수 있어요"))
+                    .accessibilityHint(homeViewModel.cameraHint.map { Text($0.text) } ?? Text(verbatim: ""))
             }
         }
             // 탭 화면에는 글 입력이 없다(입력은 fullScreenCover 흐름 안). dataGSM 로그인 창에서 올린 키보드가 내려가는 중에

@@ -16,6 +16,7 @@ struct NoticeView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.ecoCard)
+        .swipeBackEnabled()
         .task {
             // 불러온 화면이 없으면(처음, 화면을 떠나 취소됨) 다시 불러온다. 실패 화면은 사용자가 다시 시도한다.
             guard viewModel.state == .loading else { return }

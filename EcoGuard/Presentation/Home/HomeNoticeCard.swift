@@ -70,9 +70,13 @@ struct HomeNoticeCard: View {
                     .foregroundStyle(Color.ecoTextCaption)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            // 제목·날짜·NEW를 따로 세 번 읽지 않고 한 번에 읽는다(#92).
+            .accessibilityElement(children: .combine)
+            .accessibilityValue(notice.isNew ? Text("새 공지") : Text(verbatim: ""))
             HStack(spacing: trailingSpacing) {
                 if notice.isNew {
                     EcoTag(title: "NEW", style: .new)
+                        .accessibilityHidden(true)
                 }
                 EcoIconButton(icon: .iconClose, color: .ecoTextCaption, accessibilityLabel: "공지 닫기", action: onDismiss)
             }

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import EcoGuard
 
@@ -368,6 +369,36 @@ struct HomeViewModelTests {
         await viewModel.load()
 
         #expect(viewModel.isCameraAvailable == expected)
+    }
+
+    /// 방학에 "환경지킴이로 활동 중일 때"라고 읽던 힌트를 상태마다 나눈다(#92).
+    @Test(arguments: [
+        (MockHomeRepository.Scenario.notSubmitted, nil),
+        (.notOpenYet, .notOpenYet),
+        (.vacation, .vacation),
+        (.aiReviewing, .alreadySubmitted),
+        (.teacherReviewing, .alreadySubmitted),
+        (.approved, .alreadySubmitted),
+        (.rejected, .alreadySubmitted),
+        (.recruiting, .notGuardian),
+        (.notSelected, .notGuardian),
+        (.notRecruiting, .notGuardian),
+        (.awaitingAssignment, .awaitingAssignment),
+        (.excluded, .excluded),
+        (.failure, .failed)
+    ] as [(MockHomeRepository.Scenario, CameraButtonHint?)])
+    func cameraHintFollowsHomeStatus(scenario: MockHomeRepository.Scenario, expected: CameraButtonHint?) async {
+        let (viewModel, _) = makeViewModel(scenarios: [scenario])
+        #expect(viewModel.cameraHint == .loading)
+
+        await viewModel.load()
+
+        #expect(viewModel.cameraHint == expected)
+    }
+
+    @Test func vacationCameraHintSaysVacation() {
+        #expect(CameraButtonHint.vacation.text == "방학 기간에는 청소 인증을 하지 않아요")
+        #expect(CameraButtonHint.vacation.text != CameraButtonHint.notGuardian.text)
     }
 
     @Test func dismissNoticeWithoutNoticeDoesNothing() async {

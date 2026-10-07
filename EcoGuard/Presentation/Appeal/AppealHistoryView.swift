@@ -21,6 +21,7 @@ struct AppealHistoryView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden()
+        .swipeBackEnabled()
         // 앱으로 돌아올 때도 다시 불러 검토 중이던 이의신청 결과를 갱신한다.
         .task(id: scenePhase) {
             guard scenePhase == .active else { return }
