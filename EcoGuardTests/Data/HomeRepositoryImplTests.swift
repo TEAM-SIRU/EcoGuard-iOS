@@ -19,8 +19,8 @@ struct HomeRepositoryImplTests {
     private static let now = PathStub.date(2026, 9, 29, 9)
 
     private static let assignmentJSON = """
-    {"areaId":3,"areaName":"본관 계단 A","description":null,"cleanTime":"08:00~08:10",
-     "mapCoordinates":{"x":0,"y":0},"members":[{"studentId":1,"studentNumber":"2301","name":"김학생"}]}
+    {"areaId":3,"zoneCode":"main_stair_a","areaName":"본관 계단 A","description":null,"cleanTime":"08:00~08:10",
+     "members":[{"studentId":1,"studentNumber":"2301","name":"김학생"}]}
     """
 
     private static let weeklyJSON = """
@@ -200,7 +200,7 @@ struct HomeRepositoryImplTests {
         let log = RequestLog()
         let repository = try makeRepository(log: log, responses: [
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
-            Path.application: (200, #"{"status":"\#(status)","order":3,"waitingForAssignment":false}"#),
+            Path.application: (200, #"{"recruitmentId":1,"status":"\#(status)","order":3,"waitingForAssignment":false}"#),
             Path.recruitment: (200, Self.recruitmentJSON(status: "CLOSED", alreadyApplied: true))
         ])
 
@@ -208,11 +208,22 @@ struct HomeRepositoryImplTests {
         #expect(log.requests(path: Path.application).count == 1)
     }
 
+    /// 가장 최근 신청이 다른 공고의 것이면 현재 공고 결과로 보지 않는다(지난 공고 미선발을 이번 미선발로 보이지 않는다).
+    @Test func otherRecruitmentApplicationIsNotCurrentResult() async throws {
+        let repository = try makeRepository(responses: [
+            Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
+            Path.application: (200, #"{"recruitmentId":99,"status":"REJECTED","order":9,"waitingForAssignment":false}"#),
+            Path.recruitment: (200, Self.recruitmentJSON(status: "CLOSED", alreadyApplied: true))
+        ])
+
+        #expect(try await repository.fetchHome().status == .awaitingAssignment)
+    }
+
     /// 지난 공고에서 선발되지 않았어도 새 모집이 열리면 모집을 보여 준다.
     @Test func previousRejectionDoesNotHideNewRecruitment() async throws {
         let repository = try makeRepository(responses: [
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
-            Path.application: (200, #"{"status":"REJECTED","order":9,"waitingForAssignment":false}"#),
+            Path.application: (200, #"{"recruitmentId":1,"status":"REJECTED","order":9,"waitingForAssignment":false}"#),
             Path.recruitment: (200, Self.recruitmentJSON(status: "OPEN", alreadyApplied: false))
         ])
 
@@ -232,7 +243,7 @@ struct HomeRepositoryImplTests {
         let log = RequestLog()
         let repository = try makeRepository(log: log, responses: [
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
-            Path.application: (200, #"{"status":"REJECTED","order":9,"waitingForAssignment":false}"#),
+            Path.application: (200, #"{"recruitmentId":1,"status":"REJECTED","order":9,"waitingForAssignment":false}"#),
             Path.recruitment: (statusCode, recruitmentJSON)
         ])
 

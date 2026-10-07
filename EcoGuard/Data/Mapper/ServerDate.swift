@@ -1,6 +1,6 @@
 import Foundation
 
-/// 서버(Spring `LocalDate`·`LocalDateTime`) 날짜 문자열. 시간대 표기가 없어 KST로 읽는다.
+/// 서버(Spring `LocalDate`·`LocalDateTime`) 날짜 문자열. 시간대 표기가 없고 서버가 시간대를 KST로 고정해(서버 #20) KST로 읽는다.
 nonisolated enum ServerDate {
     static let timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
 

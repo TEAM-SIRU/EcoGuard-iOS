@@ -37,9 +37,9 @@ struct MyPageRepositoryImplTests {
         let log = RequestLog()
         let repository = makeRepository(log: log, responses: [
             Path.activity: (200, Self.activityJSON),
-            Path.assignment: (200, #"{"areaId":3,"areaName":"본관 계단 A","description":null,"cleanTime":null,"mapCoordinates":{"x":0,"y":0},"members":[]}"#),
+            Path.assignment: (200, #"{"areaId":3,"areaName":"본관 계단 A","description":null,"cleanTime":null,"members":[],"zoneCode":"main_stair_a"}"#),
             Path.recruitment: (200, HomeRepositoryImplTests.recruitmentJSON(status: "CLOSED", alreadyApplied: true)),
-            Path.application: (200, #"{"status":"APPROVED","order":2,"appliedAt":"2026-09-01T08:00:00","waitingForAssignment":false}"#)
+            Path.application: (200, #"{"recruitmentId":1,"status":"APPROVED","order":2,"appliedAt":"2026-09-01T08:00:00","waitingForAssignment":false}"#)
         ])
 
         let summary = try await repository.fetchMyPage()
@@ -77,12 +77,27 @@ struct MyPageRepositoryImplTests {
             Path.activity: (200, Self.activityJSON),
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
             Path.recruitment: (200, HomeRepositoryImplTests.recruitmentJSON(status: "OPEN", alreadyApplied: true)),
-            Path.application: (200, #"{"status":"\#(status)","order":2,"appliedAt":"2026-09-01T08:00:00","waitingForAssignment":false}"#)
+            Path.application: (200, #"{"recruitmentId":1,"status":"\#(status)","order":2,"appliedAt":"2026-09-01T08:00:00","waitingForAssignment":false}"#)
         ])
 
         let summary = try await repository.fetchMyPage()
 
         #expect(summary.profile.isGuardian == isGuardian)
+        #expect(summary.hasApplied)
+    }
+
+    /// 현재 공고에 신청했어도 가장 최근 신청이 다른 공고의 것이면 그 결과로 환경지킴이를 정하지 않는다.
+    @Test func otherRecruitmentApplicationIsNotGuardian() async throws {
+        let repository = makeRepository(responses: [
+            Path.activity: (200, Self.activityJSON),
+            Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
+            Path.recruitment: (200, HomeRepositoryImplTests.recruitmentJSON(status: "OPEN", alreadyApplied: true)),
+            Path.application: (200, #"{"recruitmentId":99,"status":"APPROVED","order":2,"appliedAt":"2026-03-02T08:00:00","waitingForAssignment":false}"#)
+        ])
+
+        let summary = try await repository.fetchMyPage()
+
+        #expect(summary.profile.isGuardian == false)
         #expect(summary.hasApplied)
     }
 
@@ -97,7 +112,7 @@ struct MyPageRepositoryImplTests {
             Path.activity: (200, Self.activityJSON),
             Path.assignment: (404, PathStub.error("NO_ASSIGNMENT")),
             Path.recruitment: (statusCode, recruitmentJSON),
-            Path.application: (200, #"{"status":"PENDING","order":2,"appliedAt":"2026-03-02T08:00:00","waitingForAssignment":false}"#)
+            Path.application: (200, #"{"recruitmentId":1,"status":"PENDING","order":2,"appliedAt":"2026-03-02T08:00:00","waitingForAssignment":false}"#)
         ])
 
         let summary = try await repository.fetchMyPage()

@@ -134,7 +134,7 @@ struct CleaningAreaViewModelTests {
 
     /// 내 이름을 모르면(실제 서버, #55 전) 나를 따로 표시하지 않고 서버 순서 그대로 보여 준다.
     @Test func membersWithoutMyNameKeepOrder() {
-        let area = MyCleaningArea(range: "", description: "", startMinute: 0, endMinute: 0, memberNames: ["김서연", "이도윤"], myName: nil)
+        let area = MyCleaningArea(zoneCode: nil, range: "", description: "", startMinute: 0, endMinute: 0, memberNames: ["김서연", "이도윤"], myName: nil)
         #expect(CleaningAreaFormatter.members(area) == "김서연 · 이도윤")
     }
 

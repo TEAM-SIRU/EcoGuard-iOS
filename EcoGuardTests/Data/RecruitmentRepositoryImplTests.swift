@@ -50,8 +50,12 @@ struct RecruitmentRepositoryImplTests {
         """.utf8)
     }
 
-    private nonisolated static func myApplicationJSON(status: String = "APPROVED", waitingForAssignment: Bool = true) -> Data {
-        Data(#"{"status":"\#(status)","order":4,"appliedAt":"2026-09-01T12:34:00","waitingForAssignment":\#(waitingForAssignment)}"#.utf8)
+    private nonisolated static func myApplicationJSON(
+        recruitmentID: Int = 7,
+        status: String = "APPROVED",
+        waitingForAssignment: Bool = true
+    ) -> Data {
+        Data(#"{"recruitmentId":\#(recruitmentID),"status":"\#(status)","order":4,"appliedAt":"2026-09-01T12:34:00","waitingForAssignment":\#(waitingForAssignment)}"#.utf8)
     }
 
     private nonisolated static func errorJSON(_ code: String) -> Data {
@@ -249,7 +253,7 @@ struct RecruitmentRepositoryImplTests {
 
     /// 신청 시각은 서버 값이라 읽을 수 없으면 지어내지 않고 실패로 둔다.
     @Test func unreadableAppliedAtIsDecodingError() async throws {
-        let json = Data(#"{"status":"APPROVED","order":4,"appliedAt":"어제","waitingForAssignment":true}"#.utf8)
+        let json = Data(#"{"recruitmentId":7,"status":"APPROVED","order":4,"appliedAt":"어제","waitingForAssignment":true}"#.utf8)
         let repository = makeRepository(responses: [
             Self.currentPath: (200, Self.currentJSON(alreadyApplied: true)),
             Self.myApplicationPath: (200, json),
@@ -290,7 +294,7 @@ extension RecruitmentRepositoryImplTests {
 
     /// 409 이미 신청인데 보여 줄 신청이 없으면 마감으로 알려 같은 실패를 되풀이하지 않는다.
     @Test(arguments: [
-        (200, Data(#"{"status":"REJECTED","order":7,"appliedAt":"2026-09-01T12:34:00","waitingForAssignment":false}"#.utf8)),
+        (200, Data(#"{"recruitmentId":7,"status":"REJECTED","order":7,"appliedAt":"2026-09-01T12:34:00","waitingForAssignment":false}"#.utf8)),
         (404, Data(#"{"code":"NO_APPLICATION","message":"메시지"}"#.utf8)),
     ])
     func alreadyAppliedWithoutApplicationIsFull(statusCode: Int, json: Data) async throws {
@@ -320,6 +324,17 @@ extension RecruitmentRepositoryImplTests {
         #expect(try await repository.fetchMyApplication() == nil)
         #expect(try await repository.fetchRecruitment()?.myApplication == nil)
         #expect(log.requests(path: Self.myApplicationPath).isEmpty)
+    }
+
+    /// 가장 최근 신청이 다른 공고의 것이면 현재 공고의 신청으로 보지 않는다.
+    @Test func otherRecruitmentApplicationIsNotMyApplication() async throws {
+        let repository = makeRepository(responses: [
+            Self.currentPath: (200, Self.currentJSON(alreadyApplied: true)),
+            Self.myApplicationPath: (200, Self.myApplicationJSON(recruitmentID: 3)),
+        ])
+
+        #expect(try await repository.fetchMyApplication() == nil)
+        #expect(try await repository.fetchRecruitment()?.myApplication == nil)
     }
 
     @Test func noCurrentRecruitmentHasNoMyApplication() async throws {

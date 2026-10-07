@@ -30,10 +30,10 @@ struct CleaningAreaRepositoryImplTests {
         )
     }
 
-    private static func assignmentJSON(cleanTime: String = #""07:20~08:10""#) -> String {
+    /// 서버 #24 이후 실제 응답 형태. 좌표 없이 `zoneCode`가 온다.
+    private static func assignmentJSON(cleanTime: String = #""07:20~08:10""#, zoneCode: String = #""zoneCode":"main_stair_a","#) -> String {
         """
-        {"areaId":3,"areaName":"본관 계단 A","description":"1층→4층","cleanTime":\(cleanTime),
-         "mapCoordinates":{"x":0.0,"y":0.0},
+        {"areaId":3,\(zoneCode)"areaName":"본관 계단 A","description":"1층→4층","cleanTime":\(cleanTime),
          "members":[{"studentId":1,"studentNumber":"2301","name":"김서연"},{"studentId":2,"studentNumber":null,"name":"이도윤"}]}
         """
     }
@@ -53,6 +53,7 @@ struct CleaningAreaRepositoryImplTests {
             return
         }
         #expect(area == MyCleaningArea(
+            zoneCode: .mainStairA,
             range: "본관 계단 A",
             description: "1층→4층",
             startMinute: 7 * 60 + 20,
@@ -77,6 +78,30 @@ struct CleaningAreaRepositoryImplTests {
             return
         }
         #expect(area.myName == nil)
+    }
+
+    /// 앱이 모르는 구역 코드도 실패하지 않고 그대로 둔다. 코드가 없어도 구역은 보여 준다.
+    @Test(arguments: [
+        (#""zoneCode":"annex_corridor_f9","#, CleaningZoneCode(rawValue: "annex_corridor_f9")),
+        (#""zoneCode":null,"#, nil),
+        ("", nil),
+    ] as [(String, CleaningZoneCode?)])
+    func zoneCodeIsKeptAsReceived(zoneCode: String, expected: CleaningZoneCode?) async throws {
+        let repository = makeRepository(statusCode: 200, json: Self.assignmentJSON(zoneCode: zoneCode))
+
+        guard case .assigned(_, _, let area) = try await repository.fetchCleaningArea() else {
+            Issue.record("배정 상태여야 한다")
+            return
+        }
+        #expect(area.zoneCode == expected)
+    }
+
+    /// 서버 구역 시드의 18개 코드를 모두 상수로 둔다.
+    @Test func knownZoneCodesMatchServerSeed() {
+        #expect(CleaningZoneCode.all.count == 18)
+        #expect(Set(CleaningZoneCode.all).count == 18)
+        #expect(CleaningZoneCode.all.first?.rawValue == "main_stair_a")
+        #expect(CleaningZoneCode.all.last?.rawValue == "connector_f3")
     }
 
     @Test func noAssignmentIsUnassigned() async throws {

@@ -48,6 +48,8 @@ extension MockCleaningAreaRepository {
         static let assigned = CleaningAreaSummary.assigned(floors: floors, myFloorID: "2F", area: area)
 
         static let area = MyCleaningArea(
+            // Figma 문구는 서버 구역 시드에 없는 구역이다.
+            zoneCode: nil,
             range: "2-1반 앞부터 중앙 계단 앞까지",
             description: "바닥을 쓸고 창틀 먼지를 닦아요",
             startMinute: 8 * 60,

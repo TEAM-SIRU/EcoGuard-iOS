@@ -54,8 +54,10 @@ nonisolated enum HomeDTO {
         }
     }
 
-    /// `GET /applications/me`. 신청한 적이 없으면 404 `NO_APPLICATION`.
+    /// `GET /applications/me`. 공고와 상관없이 가장 최근 신청이다. 신청한 적이 없으면 404 `NO_APPLICATION`.
     nonisolated struct Application: Decodable, Sendable {
+        /// 이 신청의 공고. 현재 공고의 신청인지 이것으로 본다.
+        let recruitmentId: Int64
         let status: ApplicationStatus
         let order: Int64
         /// 승인됐지만 아직 구역을 배정받지 않았다.
