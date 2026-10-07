@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>환경지킴이 개인정보 처리방침</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --text: #1f2421;
+    --muted: #5f6762;
+    --line: #e3e7e4;
+    --accent: #3f9e3a;
+    --mark-bg: #fff4cc;
+    --mark-text: #6b4e00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151816;
+      --text: #e8ece9;
+      --muted: #a0a8a3;
+      --line: #2c322e;
+      --accent: #6cc767;
+      --mark-bg: #3a3112;
+      --mark-text: #f2d98a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 24px; line-height: 1.35; margin: 8px 0 4px; }
+  h2 { font-size: 18px; margin: 36px 0 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+  p, li { margin: 6px 0; }
+  ul, ol { padding-left: 20px; }
+  .meta { color: var(--muted); font-size: 14px; }
+  .draft {
+    margin: 16px 0 8px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--mark-bg);
+    color: var(--mark-text);
+    font-size: 14px;
+  }
+  .todo {
+    background: var(--mark-bg);
+    color: var(--mark-text);
+    padding: 0 4px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: color-mix(in srgb, var(--line) 50%, transparent); }
+  nav ol { color: var(--muted); font-size: 14px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>환경지킴이 개인정보 처리방침</h1>
+  <p class="meta">시행일: <span class="todo">[시행일]</span></p>
+  <p class="draft">초안입니다. <span class="todo">[확인 필요]</span> 또는 <span class="todo">[...]</span>로 표시한 곳은 앱·서버 코드에서 확인되지 않아 비워 둔 내용이며, 게시 전에 담당자가 채우고 검토해야 합니다. 법률 자문을 거치지 않았습니다.</p>
+
+  <p>환경지킴이(이하 "앱")는 학교 환경지킴이 활동(청소 구역 배정, 청소 인증, 봉사 시간 관리)을 돕는 앱입니다. 앱을 운영하는 팀(이하 "운영자")은 이용자의 개인정보를 아래와 같이 처리합니다.</p>
+
+  <nav>
+    <ol>
+      <li>수집하는 개인정보 항목</li>
+      <li>개인정보의 이용 목적</li>
+      <li>개인정보 처리의 위탁 및 제3자 제공</li>
+      <li>보관 기간 및 파기</li>
+      <li>이용자의 권리와 행사 방법</li>
+      <li>기기에 저장되는 정보와 권한</li>
+      <li>개인정보 보호 조치</li>
+      <li>문의처</li>
+      <li>방침의 변경</li>
+    </ol>
+  </nav>
+
+  <h2>1. 수집하는 개인정보 항목</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>구분</th><th>항목</th><th>수집 방법</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>로그인(학생)</td>
+          <td>이름, 이메일, 학번, 학년, 반, dataGSM 계정 식별자</td>
+          <td>dataGSM 로그인 시 dataGSM에서 받아 저장</td>
+        </tr>
+        <tr>
+          <td>청소 인증</td>
+          <td>청소 구역을 촬영한 사진, 인증 날짜, 검수 결과(승인·반려·확인 중과 사유)</td>
+          <td>앱 카메라로 직접 촬영해 제출</td>
+        </tr>
+        <tr>
+          <td>이의신청</td>
+          <td>이의신청 내용, 첨부 사진(최대 3장), 교사의 답변과 인정 시간</td>
+          <td>이용자가 직접 입력·촬영해 제출</td>
+        </tr>
+        <tr>
+          <td>활동 기록</td>
+          <td>청소 구역 배정, 모집 신청 내용, 인증·봉사 시간 기록</td>
+          <td>앱 이용 과정에서 생성</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>교사 계정으로 로그인하는 경우의 수집 항목은 <span class="todo">[확인 필요]</span> (서버는 학생·교사 모두 이름과 이메일을 저장하고, 학번·학년·반은 학생에게만 있습니다).</p>
+  <p>이 외에 서버 접속 기록(IP 주소 등)을 수집·보관하는지는 <span class="todo">[확인 필요]</span>입니다.</p>
+  <p>앱에는 별도의 분석·광고 도구를 넣지 않았습니다(앱 소스에서 확인).</p>
+
+  <h2>2. 개인정보의 이용 목적</h2>
+  <ul>
+    <li>이용자 확인과 로그인 유지</li>
+    <li>환경지킴이 모집 신청, 청소 구역 배정과 활동 관리</li>
+    <li>청소 인증 사진의 검수(AI 자동 검수와 교사 확인)와 결과 안내</li>
+    <li>이의신청 접수와 처리 결과 안내</li>
+    <li>봉사(활동) 시간 산정과 기록 관리</li>
+    <li>청소 시간 알림 제공(기기 안에서 예약하는 알림)</li>
+  </ul>
+
+  <h2>3. 개인정보 처리의 위탁 및 제3자 제공</h2>
+  <p><strong>AI 사진 검수(Google Gemini API).</strong> 청소 인증으로 제출한 사진은 자동 검수를 위해 Google의 Gemini API로 전송됩니다. 서버 코드에서 확인되는 전송 내용은 다음과 같습니다.</p>
+  <ul>
+    <li>전송: 인증 사진 파일, 청소 구역 이름과 설명, 검수 지시문</li>
+    <li>전송하지 않음: 이름, 학번, 이메일 등 이용자 식별 정보(요청 본문에 포함하지 않음)</li>
+    <li>사람은 평가하지 않도록 지시하지만, 사진에 사람이 찍힐 수는 있습니다. 사람이 찍힌 사진의 처리 안내: <span class="todo">[확인 필요]</span></li>
+  </ul>
+  <p>Google이 전송받은 사진을 보관하는 기간, 모델 학습에 쓰는지 여부, 처리 국가는 사용 중인 Gemini API 요금제와 약관에 따르며 코드로는 확인되지 않습니다. <span class="todo">[확인 필요]</span></p>
+  <p>AI가 통과로 판단한 경우만 자동 승인되며, 그 밖의 경우(미통과, 오류, 대기 초과 등)는 교사 확인으로 넘어갑니다.</p>
+  <p><strong>인증 방식(dataGSM).</strong> 로그인은 dataGSM OAuth로 이루어지며 비밀번호는 앱과 서버에 전달되지 않습니다. dataGSM에서 받는 항목은 위 1항과 같습니다.</p>
+  <p>서버 호스팅·저장소 업체: <span class="todo">[확인 필요: 위탁 업체명, 위탁 업무, 서버 위치]</span></p>
+  <p>위 경우 외에 개인정보를 제3자에게 판매하거나 제공하지 않습니다. 다만 법령에 근거한 요청이 있는 경우는 예외입니다. <span class="todo">[확인 필요]</span></p>
+
+  <h2>4. 보관 기간 및 파기</h2>
+  <ul>
+    <li><strong>회원 탈퇴 시.</strong> 이름은 "탈퇴한 사용자"로, 이메일은 식별할 수 없는 임의 값으로 바뀌고, 학번·학년·반은 삭제되며, dataGSM 계정 식별자는 실제 계정과 연결되지 않는 값으로 바뀝니다. 모든 로그인 토큰이 무효화되고, 청소 구역 배정과 모집 신청 내용은 삭제됩니다.</li>
+    <li><strong>탈퇴 후에도 남는 기록.</strong> 청소 인증, 이의신청, 봉사 시간 기록은 학교 기록이므로 익명화된 상태로 남습니다. 이 기록에 연결된 사진 파일을 탈퇴 시 삭제하는 로직은 서버 코드에서 확인되지 않습니다. <span class="todo">[확인 필요: 사진 파일 처리 방침]</span></li>
+    <li><strong>사진 보관 기간.</strong> 서버 코드에는 사진을 일정 기간 뒤 자동 삭제하는 기능이 없습니다(제출 도중 실패한 경우에만 삭제). 보관 기간: <span class="todo">[확인 필요]</span></li>
+    <li><strong>인증·이의신청·봉사 시간 기록 보관 기간:</strong> <span class="todo">[확인 필요]</span></li>
+    <li><strong>파기 방법.</strong> 데이터베이스 기록과 서버에 저장된 사진 파일의 파기 절차: <span class="todo">[확인 필요]</span></li>
+  </ul>
+  <p>앱 안에서 탈퇴를 요청하는 화면은 현재 확인되지 않습니다(서버에는 탈퇴 기능이 있음). 탈퇴 요청 방법: <span class="todo">[확인 필요]</span></p>
+
+  <h2>5. 이용자의 권리와 행사 방법</h2>
+  <p>이용자(만 14세 미만인 경우 법정대리인 포함)는 자신의 개인정보에 대해 열람, 정정, 삭제(탈퇴), 처리 정지를 요청할 수 있습니다. 열람·정정·삭제 요청은 아래 문의처로 연락해 주세요. 요청 처리 기한: <span class="todo">[확인 필요]</span></p>
+  <p>만 14세 미만 이용자의 법정대리인 동의 절차: <span class="todo">[확인 필요]</span></p>
+
+  <h2>6. 기기에 저장되는 정보와 권한</h2>
+  <ul>
+    <li><strong>로그인 토큰:</strong> 기기의 Keychain에 저장하며, 이 기기에서만 접근할 수 있는 설정입니다. 로그아웃하거나 세션이 만료되면 지웁니다.</li>
+    <li><strong>사용자 요약:</strong> 이름, 학번, 학년, 반, 사용자 번호를 앱 저장소(UserDefaults)에 저장하고 로그아웃할 때 지웁니다.</li>
+    <li><strong>설정:</strong> 청소 알림 사용 여부와 알림 예약에 쓰는 구역 이름·시각, 닫은 공지 목록을 기기에 저장합니다.</li>
+    <li><strong>카메라:</strong> 청소 인증과 이의신청 사진을 촬영하는 데만 사용합니다. 갤러리 사진은 쓰지 않습니다.</li>
+    <li><strong>알림:</strong> 청소 시간 알림은 기기 안에서 예약하며, 허용하지 않아도 앱을 쓸 수 있습니다.</li>
+  </ul>
+
+  <h2>7. 개인정보 보호 조치</h2>
+  <ul>
+    <li>앱은 https 주소의 서버와만 통신하도록 설정됩니다(앱 설정 코드 확인). <span class="todo">[확인 필요: 운영 서버 인증서·설정]</span></li>
+    <li>로그인 토큰은 유효 시간이 있으며(기본 접근 토큰 2시간, 갱신 토큰 7일), 탈퇴·로그아웃 시 무효화할 수 있습니다.</li>
+    <li>서버에 저장된 사진은 파일 주소(무작위 파일명)로 제공되며 별도의 로그인 확인 없이 주소로 열람됩니다. 접근 통제 보완 계획: <span class="todo">[확인 필요]</span></li>
+    <li>그 밖의 접근 권한 관리, 백업, 암호화 저장 여부: <span class="todo">[확인 필요]</span></li>
+  </ul>
+
+  <h2>8. 문의처</h2>
+  <p>개인정보 보호 담당자: <span class="todo">[담당자 이름]</span><br>
+  이메일: <span class="todo">[담당자 이메일 입력]</span><br>
+  운영자(학교·팀) 정보: <span class="todo">[확인 필요]</span></p>
+
+  <h2>9. 방침의 변경</h2>
+  <p>이 방침을 바꾸면 시행 전에 앱 또는 이 페이지에서 알립니다. 변경 이력은 아래에 적습니다.</p>
+  <ul>
+    <li><span class="todo">[시행일]</span> 최초 시행</li>
+  </ul>
+</main>
+</body>
+</html>
