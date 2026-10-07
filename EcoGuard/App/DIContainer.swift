@@ -38,7 +38,11 @@ final class DIContainer {
         // 모집 공고·신청·결과 화면이 같은 저장소를 쓴다(신청할 공고 ID를 들고 있다). `AuthSession`은 로그인 저장소와 같다.
         let apiClient = (authRepository as? AuthRepositoryImpl)?.apiClient
         let recruitmentScenario: MockRecruitmentRepository.Scenario = mockScenario("ECO_MOCK_RECRUITMENT_SCENARIO") ?? .open
-        let mockStore = MockStore(homeScenario: mockScenario("ECO_MOCK_HOME_SCENARIO") ?? .notSubmitted, recruitmentScenario: recruitmentScenario)
+        let mockStore = MockStore(
+            homeScenario: mockScenario("ECO_MOCK_HOME_SCENARIO") ?? .notSubmitted,
+            recruitmentScenario: recruitmentScenario,
+            zoneCode: mockZoneCode ?? MockCleaningAreaRepository.Fixture.zoneCode
+        )
         return DIContainer(
             authRepository: authRepository,
             homeRepository: MockHomeRepository(store: mockStore),
@@ -88,6 +92,15 @@ final class DIContainer {
         return Scenario.allCases.first { "\($0)" == name }
         #else
         return nil
+        #endif
+    }
+
+    /// Mock 배정 구역. DEBUG 빌드에서 환경 변수(`ECO_MOCK_ZONE_CODE=main_stair_a`처럼 서버 구역 코드)로 고른다.
+    private static var mockZoneCode: CleaningZoneCode? {
+        #if DEBUG
+        ProcessInfo.processInfo.environment["ECO_MOCK_ZONE_CODE"].map { CleaningZoneCode(rawValue: $0) }
+        #else
+        nil
         #endif
     }
 

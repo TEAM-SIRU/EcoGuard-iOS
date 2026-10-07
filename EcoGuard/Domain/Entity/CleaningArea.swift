@@ -14,7 +14,9 @@ struct FloorPlanCell: Hashable, Identifiable {
     let id: String
     let name: String
     let kind: Kind
-    /// 한 줄 안에서 차지하는 비율. Figma 복도는 2, 나머지는 1.
+    /// 이 칸이 속한 서버 청소 구역. 청소하지 않는 칸은 nil.
+    let zoneCode: CleaningZoneCode?
+    /// 한 줄 안에서 차지하는 비율.
     let span: Int
 }
 
@@ -84,7 +86,7 @@ struct MyCleaningArea: Hashable {
 
 /// 청소 구역 화면 데이터.
 enum CleaningAreaSummary: Hashable {
-    /// 구역이 배정됐다. `myFloorID`는 내 구역이 있는 층이다.
+    /// 구역이 배정됐다. `myFloorID`는 내 구역이 있는 가장 낮은 층이다(도면에 없는 구역이면 첫 층).
     case assigned(floors: [FloorPlan], myFloorID: String, area: MyCleaningArea)
     /// 아직 배정된 구역이 없다.
     case unassigned

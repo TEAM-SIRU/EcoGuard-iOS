@@ -61,10 +61,13 @@ struct CleaningAreaRepositoryImplTests {
             memberNames: ["김서연", "이도윤"],
             myName: "이도윤"
         ))
-        // 서버에 도면이 없어 앱 도면을 쓰고, 어느 칸이 내 구역인지 몰라 `.mine` 칸을 두지 않는다.
-        #expect(floors.map(\.id) == MockCleaningAreaRepository.Fixture.floors.map(\.id))
-        #expect(myFloorID == floors.first?.id)
-        #expect(!floors.flatMap { $0.rows.flatMap { $0 } }.contains { $0.kind == .mine })
+        // 서버에 도면이 없어 앱 도면을 쓰고, 계단 A 칸을 1~4층 모두 내 구역으로 표시한다.
+        #expect(floors.map(\.id) == SchoolFloorPlan.floors.map(\.id))
+        #expect(myFloorID == "1F")
+        for floor in floors {
+            let mine = floor.rows.joined().filter { $0.kind == .mine }
+            #expect(mine.map(\.zoneCode) == [.mainStairA], "\(floor.name)")
+        }
     }
 
     /// 내 정보를 받지 못했거나 구성원에 내 ID가 없으면 나를 따로 표시하지 않는다(구역은 보여 준다).
@@ -80,7 +83,7 @@ struct CleaningAreaRepositoryImplTests {
         #expect(area.myName == nil)
     }
 
-    /// 앱이 모르는 구역 코드도 실패하지 않고 그대로 둔다. 코드가 없어도 구역은 보여 준다.
+    /// 앱이 모르는 구역 코드도 실패하지 않고 그대로 둔다. 코드가 없어도 구역은 보여 주고, 도면은 하이라이트 없이 첫 층을 연다.
     @Test(arguments: [
         (#""zoneCode":"annex_corridor_f9","#, CleaningZoneCode(rawValue: "annex_corridor_f9")),
         (#""zoneCode":null,"#, nil),
@@ -89,11 +92,13 @@ struct CleaningAreaRepositoryImplTests {
     func zoneCodeIsKeptAsReceived(zoneCode: String, expected: CleaningZoneCode?) async throws {
         let repository = makeRepository(statusCode: 200, json: Self.assignmentJSON(zoneCode: zoneCode))
 
-        guard case .assigned(_, _, let area) = try await repository.fetchCleaningArea() else {
+        guard case .assigned(let floors, let myFloorID, let area) = try await repository.fetchCleaningArea() else {
             Issue.record("배정 상태여야 한다")
             return
         }
         #expect(area.zoneCode == expected)
+        #expect(floors == SchoolFloorPlan.floors)
+        #expect(myFloorID == "1F")
     }
 
     /// 서버 구역 시드의 18개 코드를 모두 상수로 둔다.

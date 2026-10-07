@@ -16,17 +16,22 @@ final class MockStore {
     private(set) var todaySubmittedAt: Date?
     /// 이번 실행에서 보낸 이의신청(최신순).
     private(set) var submittedAppeals: [Appeal] = []
+    /// 활동 중일 때 배정된 청소 구역.
+    let zoneCode: CleaningZoneCode
 
     /// - Parameters:
     ///   - homeScenario: 홈 상태. 활동 중·배정 대기·활동 제외면 이미 신청한 학생이다.
     ///   - recruitmentScenario: `.applied`면 홈 상태와 상관없이 신청한 학생이다.
+    ///   - zoneCode: 활동 중일 때 배정된 청소 구역.
     init(
         homeScenario: MockHomeRepository.Scenario = .notSubmitted,
         recruitmentScenario: MockRecruitmentRepository.Scenario = .open,
+        zoneCode: CleaningZoneCode = MockCleaningAreaRepository.Fixture.zoneCode,
         now: @escaping () -> Date = Date.init
     ) {
         self.now = now
         self.homeScenario = homeScenario
+        self.zoneCode = zoneCode
         if homeScenario.hasApplied || recruitmentScenario == .applied {
             application = RecruitmentApplication(
                 order: Self.seededApplicationOrder,
