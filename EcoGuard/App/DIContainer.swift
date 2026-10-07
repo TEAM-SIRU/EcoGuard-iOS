@@ -11,6 +11,8 @@ final class DIContainer {
     private let hadStoredSessionAtLaunch: Bool
     private let homeRepository: HomeRepository
     private let recruitmentRepository: RecruitmentRepository
+    /// Mock 저장소들이 같이 쓰는 상태(오늘 날짜·기록·신청·제출). 화면별 확장도 Mock을 만들 때 넘긴다.
+    let mockStore: MockStore
     /// 실제 서버 저장소가 같이 쓴다. 로그인 저장소와 같은 `AuthSession`이라 토큰 재발급이 한 번만 일어난다.
     /// 서버 주소가 없으면(로그인이 Mock) nil이고 저장소는 Mock을 쓴다. 화면별 확장에서도 써서 `private`이 아니다.
     lazy var apiClient: APIClient? = (authRepository as? AuthRepositoryImpl)?.apiClient
@@ -19,13 +21,15 @@ final class DIContainer {
         authRepository: AuthRepository,
         homeRepository: HomeRepository,
         recruitmentRepository: RecruitmentRepository,
-        webAdminURL: URL?
+        webAdminURL: URL?,
+        mockStore: MockStore = MockStore()
     ) {
         self.authRepository = authRepository
         self.hadStoredSessionAtLaunch = authRepository.hasStoredSession()
         self.homeRepository = homeRepository
         self.recruitmentRepository = recruitmentRepository
         self.webAdminURL = webAdminURL
+        self.mockStore = mockStore
     }
 
     /// 서버 주소(`ECO_API_HOST`)가 비어 있거나 Mock 전환(`AppConfig.usesMockRepositories`)이 켜져 있으면 Mock을 쓴다.
@@ -33,13 +37,16 @@ final class DIContainer {
         let authRepository = makeAuthRepository(apiBaseURL: AppConfig.usesMockRepositories ? nil : AppConfig.apiBaseURL)
         // 모집 공고·신청·결과 화면이 같은 저장소를 쓴다(신청할 공고 ID를 들고 있다). `AuthSession`은 로그인 저장소와 같다.
         let apiClient = (authRepository as? AuthRepositoryImpl)?.apiClient
+        let recruitmentScenario: MockRecruitmentRepository.Scenario = mockScenario("ECO_MOCK_RECRUITMENT_SCENARIO") ?? .open
+        let mockStore = MockStore(homeScenario: mockScenario("ECO_MOCK_HOME_SCENARIO") ?? .notSubmitted, recruitmentScenario: recruitmentScenario)
         return DIContainer(
             authRepository: authRepository,
-            homeRepository: MockHomeRepository(scenario: mockScenario("ECO_MOCK_HOME_SCENARIO") ?? .notSubmitted),
+            homeRepository: MockHomeRepository(store: mockStore),
             recruitmentRepository: apiClient.map {
                 RecruitmentRepositoryImpl(apiClient: $0, currentUserRepository: CurrentUserRepositoryImpl(apiClient: $0))
-            } ?? MockRecruitmentRepository(scenario: mockScenario("ECO_MOCK_RECRUITMENT_SCENARIO") ?? .open),
-            webAdminURL: AppConfig.webAdminURL
+            } ?? MockRecruitmentRepository(scenario: recruitmentScenario, store: mockStore),
+            webAdminURL: AppConfig.webAdminURL,
+            mockStore: mockStore
         )
     }
 

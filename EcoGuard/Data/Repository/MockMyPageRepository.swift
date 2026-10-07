@@ -12,6 +12,8 @@ final class MockMyPageRepository: MyPageRepository {
 
     private var scenarios: [Scenario]
     private let delay: Duration
+    /// 있으면 `.guardian`을 다른 Mock의 상태·기록으로 만든다(`MockStore`).
+    private let store: MockStore?
     private(set) var fetchCallCount = 0
 
     /// 호출마다 `scenarios`를 앞에서부터 하나씩 쓰고, 마지막 상태는 이후 호출에도 계속 쓴다.
@@ -19,6 +21,14 @@ final class MockMyPageRepository: MyPageRepository {
         precondition(!scenarios.isEmpty, "scenarios는 비어 있을 수 없다")
         self.scenarios = scenarios
         self.delay = delay
+        self.store = nil
+    }
+
+    /// 다른 Mock과 상태를 같이 쓴다. `.guardian`이면 신청 여부·구역·이번 달 승인이 홈·활동 기록과 같다.
+    init(store: MockStore, scenario: Scenario = .guardian, delay: Duration = .seconds(1)) {
+        self.scenarios = [scenario]
+        self.delay = delay
+        self.store = store
     }
 
     convenience init(scenario: Scenario = .guardian, delay: Duration = .seconds(1)) {
@@ -30,7 +40,7 @@ final class MockMyPageRepository: MyPageRepository {
         let scenario = scenarios.count > 1 ? scenarios.removeFirst() : scenarios[0]
         try await Task.sleep(for: delay)
         switch scenario {
-        case .guardian: return Fixture.guardian
+        case .guardian: return store.map { Fixture.summary(store: $0) } ?? Fixture.guardian
         case .notApplied: return Fixture.notApplied
         case .failure: throw FetchFailedError()
         }
@@ -39,6 +49,18 @@ final class MockMyPageRepository: MyPageRepository {
 
 extension MockMyPageRepository {
     enum Fixture {
+        /// `store`의 신청·배정 상태와 이번 달 기록으로 만든 내 정보.
+        static func summary(store: MockStore) -> MyPageSummary {
+            let isGuardian = store.homeScenario.isActive || store.homeScenario == .awaitingAssignment
+            return MyPageSummary(
+                profile: UserProfile(name: guardian.profile.name, grade: guardian.profile.grade, classNumber: guardian.profile.classNumber, isGuardian: isGuardian),
+                monthlyApprovedCount: store.monthlyApprovedCount,
+                monthlyActivityMinutes: store.monthlyActivityMinutes,
+                cleaningAreaName: store.homeScenario.isActive ? guardian.cleaningAreaName : nil,
+                hasApplied: store.application != nil
+            )
+        }
+
         static let guardian = MyPageSummary(
             profile: UserProfile(name: "최민준", grade: 2, classNumber: 3, isGuardian: true),
             monthlyApprovedCount: 7,

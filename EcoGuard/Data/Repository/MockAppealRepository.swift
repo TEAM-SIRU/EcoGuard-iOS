@@ -26,6 +26,8 @@ final class MockAppealRepository: AppealRepository {
     private var remainingFetchFailures: Int
     /// 접수된 이의신청. 키는 `requestID`.
     private var received: [String: Appeal] = [:]
+    /// 있으면 내역을 활동 기록에 맞춰 만들고, 보낸 이의신청을 다른 화면(내역)과 같이 쓴다(`MockStore`).
+    private let store: MockStore?
     private(set) var fetchCallCount = 0
     private(set) var statusCheckCallCount = 0
     private(set) var submitCallCount = 0
@@ -34,12 +36,15 @@ final class MockAppealRepository: AppealRepository {
     /// - Parameters:
     ///   - submitOutcomes: 제출 결과를 차례로 쓴다. 다 쓰면 마지막 결과를 계속 쓴다.
     ///   - fetchFailuresBeforeSuccess: 내역 조회가 처음 몇 번 실패한 뒤 `scenario` 결과를 돌려준다.
+    ///   - store: 주면 `.history`는 활동 기록에 맞춘 내역 + 보낸 이의신청, `.empty`는 보낸 이의신청만이다.
     init(
         scenario: Scenario = .history,
         submitOutcomes: [SubmitOutcome] = [.success],
         fetchFailuresBeforeSuccess: Int = 0,
-        delay: Duration = .seconds(1)
+        delay: Duration = .seconds(1),
+        store: MockStore? = nil
     ) {
+        self.store = store
         self.scenario = scenario
         self.submitOutcomes = submitOutcomes
         self.remainingFetchFailures = fetchFailuresBeforeSuccess
@@ -54,6 +59,8 @@ final class MockAppealRepository: AppealRepository {
             throw RequestFailedError()
         }
         switch scenario {
+        case .history where store != nil: return store?.appeals ?? []
+        case .empty where store != nil: return store?.submittedAppeals ?? []
         case .history: return receivedNewestFirst + Fixture.history
         case .empty: return receivedNewestFirst
         case .failure: throw RequestFailedError()
@@ -74,7 +81,10 @@ final class MockAppealRepository: AppealRepository {
         if outcome == .failure {
             throw RequestFailedError()
         }
-        let appeal = received[draft.requestID] ?? Fixture.submitted(draft, round: round(for: draft.verificationID))
+        if received[draft.requestID] == nil, let pending = store?.pendingAppeal(for: draft.verificationID) {
+            throw AppealError.alreadyPending(pending)
+        }
+        let appeal = received[draft.requestID] ?? store?.recordAppeal(draft) ?? Fixture.submitted(draft, round: round(for: draft.verificationID))
         received[draft.requestID] = appeal
         if outcome == .failureAfterReceived {
             throw RequestFailedError()

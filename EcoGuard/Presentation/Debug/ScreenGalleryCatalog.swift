@@ -101,12 +101,8 @@ enum ScreenGalleryCatalog {
             recruitmentApply("recruitment.applyRetry", "신청서 · 실패 후 재시도", applyOutcomes: [.failure, .approved]),
             recruitmentApply("recruitment.applyFull", "신청서 · 신청 중 정원 초과", applyOutcomes: [.full]),
             recruitmentApply("recruitment.applyNotInPeriod", "신청서 · 신청 중 기간 종료", applyOutcomes: [.notInPeriod]),
-            applicationResult("recruitment.result.applied", "신청 결과 · 승인(배정 대기)", outcome: .applied(MockRecruitmentRepository.Fixture.application())),
-            applicationResult(
-                "recruitment.result.assigned",
-                "신청 결과 · 승인(배정 완료)",
-                outcome: .applied(MockRecruitmentRepository.Fixture.application(isAreaAssigned: true))
-            ),
+            applicationResult("recruitment.result.applied", "신청 결과 · 승인(배정 대기)", outcome: .applied(seededApplication(isAreaAssigned: false))),
+            applicationResult("recruitment.result.assigned", "신청 결과 · 승인(배정 완료)", outcome: .applied(seededApplication(isAreaAssigned: true))),
             applicationResult("recruitment.result.full", "신청 결과 · 신청 중 마감", outcome: .closedWhileApplying(reason: .full)),
             applicationResult("recruitment.result.periodEnded", "신청 결과 · 신청 중 기간 종료", outcome: .closedWhileApplying(reason: .periodEnded)),
             applicationResult("recruitment.result.fetched", "신청 결과 · 내 신청 불러오기", scenario: .applied),
@@ -124,22 +120,21 @@ enum ScreenGalleryCatalog {
     ) -> ScreenGalleryItem {
         item(id, title) { close in
             RecruitmentFlowView(
-                container: container(recruitment: scenario, applyOutcomes: applyOutcomes, recruitmentDelay: delay),
+                container: container(home: .recruiting, recruitment: scenario, applyOutcomes: applyOutcomes, recruitmentDelay: delay),
                 onExit: close,
                 goHome: close
             )
         }
     }
 
-    /// 신청서부터 시작한다. Mock 공고는 신청 기간(2026년 9월 1~4일)이 지나 공고 화면의 `신청하기`가 꺼져 있어서,
-    /// `RecruitmentFlowView`처럼 신청서 → 결과를 이어 붙인다.
+    /// 신청서부터 시작해 `RecruitmentFlowView`처럼 신청서 → 결과를 이어 붙인다(공고부터는 `recruitment.open`).
     private static func recruitmentApply(
         _ id: String,
         _ title: String,
         applyOutcomes: [MockRecruitmentRepository.ApplyOutcome] = [.approved]
     ) -> ScreenGalleryItem {
         item(id, title) { close in
-            let container = container(applyOutcomes: applyOutcomes)
+            let container = container(home: .recruiting, applyOutcomes: applyOutcomes)
             ScreenGalleryStack { navigator in
                 RecruitmentApplyView(
                     viewModel: container.makeRecruitmentApplyViewModel(
@@ -158,6 +153,12 @@ enum ScreenGalleryCatalog {
         }
     }
 
+    /// 이미 신청한 학생의 신청(오늘 기준 공고 기간). `MockStore`가 만든 값과 같다.
+    private static func seededApplication(isAreaAssigned: Bool) -> RecruitmentApplication {
+        let application = MockStore(homeScenario: .awaitingAssignment).application ?? MockRecruitmentRepository.Fixture.application()
+        return RecruitmentApplication(order: application.order, appliedAt: application.appliedAt, isAreaAssigned: isAreaAssigned)
+    }
+
     /// `outcome`이 nil이면 Mock 저장소(`scenario`)에서 내 신청을 불러온다.
     private static func applicationResult(
         _ id: String,
@@ -168,7 +169,7 @@ enum ScreenGalleryCatalog {
         item(id, title) { close in
             NavigationStack {
                 ApplicationResultView(
-                    viewModel: container(recruitment: scenario).makeApplicationResultViewModel(outcome: outcome),
+                    viewModel: container(home: .recruiting, recruitment: scenario).makeApplicationResultViewModel(outcome: outcome),
                     onBack: close,
                     goHome: close
                 )
@@ -234,9 +235,10 @@ enum ScreenGalleryCatalog {
         delay: Duration = mockDelay
     ) -> ScreenGalleryItem {
         item(id, title) { close in
+            let container = container()
             CameraVerificationView(
-                viewModel: container().makeCameraVerificationViewModel(
-                    repository: MockVerificationRepository(scenario: scenario, uploadResults: uploadResults, delay: delay)
+                viewModel: container.makeCameraVerificationViewModel(
+                    repository: MockVerificationRepository(scenario: scenario, uploadResults: uploadResults, delay: delay, store: container.mockStore)
                 ),
                 actions: CameraVerificationView.Actions(close: close, goHome: close, openSubmitted: close)
             )
@@ -313,20 +315,39 @@ enum ScreenGalleryCatalog {
         delay: Duration = mockDelay
     ) -> ScreenGalleryItem {
         item(id, title) { close in
+            // 오늘 낸 인증의 결과로 연다. 홈 상태를 결과에 맞춰 두어 이의신청 대상 날짜도 오늘 인증과 같다.
+            let container = container(home: homeScenario(for: scenario))
             ScreenGalleryStack { navigator in
                 VerificationResultView(
-                    viewModel: container().makeVerificationResultViewModel(
-                        resultID: MockVerificationResultRepository.Fixture.id,
-                        repository: MockVerificationResultRepository(scenario: scenario, delay: delay)
+                    viewModel: container.makeVerificationResultViewModel(
+                        resultID: container.mockStore.todayVerificationID,
+                        repository: MockVerificationResultRepository.matchingOtherMocks(scenario: scenario, delay: delay, store: container.mockStore)
                     ),
                     entry: entry,
                     close: close,
                     goHome: close,
                     appeal: { result in
-                        navigator.push(appealForm(target: AppealTarget(result: result), navigator: navigator, back: navigator.pop, close: close))
+                        navigator.push(appealForm(
+                            target: AppealTarget(result: result),
+                            store: container.mockStore,
+                            navigator: navigator,
+                            back: navigator.pop,
+                            close: close
+                        ))
                     }
                 )
             }
+        }
+    }
+
+    /// 인증 결과 상태에 맞는 홈(오늘 인증) 상태.
+    private static func homeScenario(for scenario: MockVerificationResultRepository.Scenario) -> MockHomeRepository.Scenario {
+        switch scenario {
+        case .processing: .aiReviewing
+        case .manualReview: .teacherReviewing
+        case .approved: .approved
+        case .rejected: .rejected
+        case .failure: .notSubmitted
         }
     }
 
@@ -341,19 +362,24 @@ enum ScreenGalleryCatalog {
             appealFormItem("appeal.formFailed", "제출 실패", message: message, phase: .failed),
             appealFormItem("appeal.formRetry", "보내기 실패 후 다시 보내기", message: message, submitOutcomes: [.failure, .success]),
             item("appeal.submitted", "제출 완료") { close in
-                AppealSubmittedView(appeal: MockAppealRepository.Fixture.reviewing, goHome: close)
+                AppealSubmittedView(appeal: seededAppeal(.reviewing), goHome: close)
             },
             item("appeal.submittedFromHistory", "제출 완료 · 내역에서 열기") { close in
-                AppealSubmittedView(appeal: MockAppealRepository.Fixture.reviewing, back: close, goHome: close)
+                AppealSubmittedView(appeal: seededAppeal(.reviewing), back: close, goHome: close)
             },
             appealHistoryItem("appeal.history", "내역", scenario: .history),
             appealHistoryItem("appeal.historyEmpty", "내역 · 빈 목록", scenario: .empty),
             appealHistoryItem("appeal.historyFailure", "내역 · 조회 실패", scenario: .failure),
             appealHistoryItem("appeal.historyLoading", "내역 · 불러오는 중", scenario: .history, delay: loadingDelay),
-            appealResultItem("appeal.result.approved", "결과 · 승인", appeal: MockAppealRepository.Fixture.approved),
-            appealResultItem("appeal.result.rejected", "결과 · 반려", appeal: MockAppealRepository.Fixture.rejected),
-            appealResultItem("appeal.result.reviewing", "결과 · 검토 중", appeal: MockAppealRepository.Fixture.reviewing)
+            appealResultItem("appeal.result.approved", "결과 · 승인", status: .approved),
+            appealResultItem("appeal.result.rejected", "결과 · 반려", status: .rejected),
+            appealResultItem("appeal.result.reviewing", "결과 · 검토 중", status: .reviewing)
         ])
+    }
+
+    /// 활동 기록에 맞춘 이의신청 내역(`MockStore.appeals`)에서 `status`인 것.
+    private static func seededAppeal(_ status: Appeal.Status, store: MockStore = MockStore()) -> Appeal {
+        store.appeals.first { $0.status == status } ?? MockAppealRepository.Fixture.reviewing
     }
 
     private static func appealFormItem(
@@ -365,9 +391,17 @@ enum ScreenGalleryCatalog {
         submitOutcomes: [MockAppealRepository.SubmitOutcome] = [.success]
     ) -> ScreenGalleryItem {
         item(id, title) { close in
+            let store = container().mockStore
             ScreenGalleryStack { navigator in
                 appealForm(
-                    viewModel: appealFormViewModel(message: message, photoCount: photoCount, phase: phase, submitOutcomes: submitOutcomes),
+                    viewModel: appealFormViewModel(
+                        target: store.appealTarget,
+                        store: store,
+                        message: message,
+                        photoCount: photoCount,
+                        phase: phase,
+                        submitOutcomes: submitOutcomes
+                    ),
                     navigator: navigator,
                     back: close,
                     close: close
@@ -377,7 +411,8 @@ enum ScreenGalleryCatalog {
     }
 
     private static func appealFormViewModel(
-        target: AppealTarget = MockAppealRepository.Fixture.target,
+        target: AppealTarget,
+        store: MockStore,
         message: String = "",
         photoCount: Int = 0,
         phase: AppealFormViewModel.Phase = .editing,
@@ -385,7 +420,7 @@ enum ScreenGalleryCatalog {
     ) -> AppealFormViewModel {
         let viewModel = container().makeAppealFormViewModel(
             target: target,
-            repository: MockAppealRepository(submitOutcomes: submitOutcomes, delay: mockDelay),
+            repository: MockAppealRepository(submitOutcomes: submitOutcomes, delay: mockDelay, store: store),
             phase: phase
         )
         viewModel.message = message
@@ -399,11 +434,12 @@ enum ScreenGalleryCatalog {
     /// 이의신청 작성. 보내면 완료 화면을 같은 스택에 쌓는다.
     private static func appealForm(
         target: AppealTarget,
+        store: MockStore,
         navigator: ScreenGalleryNavigator,
         back: @escaping () -> Void,
         close: @escaping () -> Void
     ) -> some View {
-        appealForm(viewModel: appealFormViewModel(target: target), navigator: navigator, back: back, close: close)
+        appealForm(viewModel: appealFormViewModel(target: target, store: store), navigator: navigator, back: back, close: close)
     }
 
     private static func appealForm(
@@ -433,28 +469,33 @@ enum ScreenGalleryCatalog {
         delay: Duration = mockDelay
     ) -> ScreenGalleryItem {
         item(id, title) { close in
+            let container = container()
             ScreenGalleryStack { navigator in
                 AppealHistoryView(
-                    viewModel: container().makeAppealHistoryViewModel(repository: MockAppealRepository(scenario: scenario, delay: delay)),
+                    viewModel: container.makeAppealHistoryViewModel(
+                        repository: MockAppealRepository(scenario: scenario, delay: delay, store: container.mockStore)
+                    ),
                     back: close,
                     openResult: { appeal in
-                        navigator.push(appealResult(appeal, navigator: navigator, back: navigator.pop, close: close))
+                        navigator.push(appealResult(appeal, store: container.mockStore, navigator: navigator, back: navigator.pop, close: close))
                     }
                 )
             }
         }
     }
 
-    private static func appealResultItem(_ id: String, _ title: String, appeal: Appeal) -> ScreenGalleryItem {
+    private static func appealResultItem(_ id: String, _ title: String, status: Appeal.Status) -> ScreenGalleryItem {
         item(id, title) { close in
+            let store = container().mockStore
             ScreenGalleryStack { navigator in
-                appealResult(appeal, navigator: navigator, back: close, close: close)
+                appealResult(seededAppeal(status, store: store), store: store, navigator: navigator, back: close, close: close)
             }
         }
     }
 
     private static func appealResult(
         _ appeal: Appeal,
+        store: MockStore,
         navigator: ScreenGalleryNavigator,
         back: @escaping () -> Void,
         close: @escaping () -> Void
@@ -463,7 +504,7 @@ enum ScreenGalleryCatalog {
             appeal: appeal,
             back: back,
             appealAgain: { target in
-                navigator.push(appealForm(target: target, navigator: navigator, back: navigator.pop, close: close))
+                navigator.push(appealForm(target: target, store: store, navigator: navigator, back: navigator.pop, close: close))
             },
             showActivity: close,
             goHome: close
@@ -550,8 +591,9 @@ enum ScreenGalleryCatalog {
         let defaults = UserDefaults(suiteName: "screenGallery.myPage") ?? .standard
         let settings = NotificationSettingRepositoryImpl(defaults: defaults)
         settings.setCleaningReminderOn(isCleaningReminderOn)
-        return container(authDelay: logoutDelay).makeMyPageViewModel(
-            repository: MockMyPageRepository(scenario: scenario, delay: delay),
+        let container = container(authDelay: logoutDelay)
+        return container.makeMyPageViewModel(
+            repository: MockMyPageRepository(store: container.mockStore, scenario: scenario, delay: delay),
             notificationSettingRepository: settings,
             onLoggedOut: onLoggedOut
         )
@@ -566,7 +608,7 @@ enum ScreenGalleryCatalog {
             areaItem("area.failure", "구역 · 조회 실패", scenario: .failure),
             areaItem("area.loading", "구역 · 불러오는 중", scenario: .assigned, delay: loadingDelay),
             recordsItem("records.current", "기록 · 이번 달", scenario: .records),
-            recordsItem("records.pastMonth", "기록 · 지난 달(Figma 9월)", scenario: .records, month: MockActivityRepository.Fixture.month),
+            recordsItem("records.pastMonth", "기록 · 지난 달", scenario: .records, month: previousMonth),
             recordsItem("records.empty", "기록 · 빈 상태", scenario: .empty),
             recordsItem("records.failure", "기록 · 조회 실패", scenario: .failure),
             recordsItem("records.loading", "기록 · 불러오는 중", scenario: .records, delay: loadingDelay)
@@ -601,12 +643,21 @@ enum ScreenGalleryCatalog {
         }
     }
 
+    /// 오늘(기기 시계)이 속한 달의 전 달. Mock 기록은 이번 달과 전 달에 있다.
+    private static var previousMonth: YearMonth {
+        let current = MockStore().currentMonth
+        return current.month == 1 ? YearMonth(year: current.year - 1, month: 12) : YearMonth(year: current.year, month: current.month - 1)
+    }
+
     private static func recordsViewModel(
         scenario: MockActivityRepository.Scenario,
         month: YearMonth?,
         delay: Duration
     ) -> ActivityRecordsViewModel {
-        let viewModel = container().makeActivityRecordsViewModel(repository: MockActivityRepository(scenario: scenario, delay: delay))
+        let container = container()
+        let viewModel = container.makeActivityRecordsViewModel(
+            repository: MockActivityRepository(store: container.mockStore, scenario: scenario, delay: delay)
+        )
         if let month {
             viewModel.selectMonth(month)
         }
@@ -665,6 +716,7 @@ enum ScreenGalleryCatalog {
 
     /// 실서버 설정과 상관없이 Mock 저장소만 쓰는 컨테이너. 로그인 저장소가 Mock이라 `apiClient`가 nil이 되어
     /// 화면별 확장(`DIContainer+X`)도 모두 Mock 저장소를 만든다.
+    /// 항목마다 `MockStore`를 하나 두어, 그 항목에서 이어지는 화면(탭·결과·이의신청)의 날짜·기록·신청이 서로 맞는다.
     private static func container(
         authOutcome: MockAuthRepository.Outcome = .student,
         authDelay: Duration = mockDelay,
@@ -674,11 +726,13 @@ enum ScreenGalleryCatalog {
         applyOutcomes: [MockRecruitmentRepository.ApplyOutcome] = [.approved],
         recruitmentDelay: Duration = mockDelay
     ) -> DIContainer {
-        DIContainer(
+        let store = MockStore(homeScenario: home, recruitmentScenario: recruitment)
+        return DIContainer(
             authRepository: MockAuthRepository(outcome: authOutcome, delay: authDelay),
-            homeRepository: MockHomeRepository(scenario: home, delay: homeDelay),
-            recruitmentRepository: MockRecruitmentRepository(scenario: recruitment, applyOutcomes: applyOutcomes, delay: recruitmentDelay),
-            webAdminURL: nil
+            homeRepository: MockHomeRepository(store: store, delay: homeDelay),
+            recruitmentRepository: MockRecruitmentRepository(scenario: recruitment, applyOutcomes: applyOutcomes, delay: recruitmentDelay, store: store),
+            webAdminURL: nil,
+            mockStore: store
         )
     }
 }

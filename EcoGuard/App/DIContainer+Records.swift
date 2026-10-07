@@ -10,7 +10,7 @@ extension DIContainer {
         repository: ActivityRepository? = nil,
         now: @escaping () -> Date = Date.init
     ) -> ActivityRecordsViewModel {
-        let repository: ActivityRepository = repository ?? apiClient.map { ActivityRepositoryImpl(apiClient: $0) } ?? MockActivityRepository()
+        let repository: ActivityRepository = repository ?? apiClient.map { ActivityRepositoryImpl(apiClient: $0) } ?? MockActivityRepository(store: mockStore)
         return ActivityRecordsViewModel(
             fetchActivityMonthUseCase: FetchActivityMonthUseCase(activityRepository: repository),
             earliestMonth: Self.activityRecordsEarliestMonth,

@@ -40,13 +40,17 @@ final class MockVerificationResultRepository: VerificationResultRepository {
     }
 
     /// 서버 없이 앱을 돌릴 때 쓴다. 홈·활동 기록 Mock이 내려 준 ID면 그 상태(검수 중·승인·반려 등)의 결과를,
-    /// 모르는 ID면 `scenario` 결과를 돌려준다.
+    /// 모르는 ID면 `scenario` 결과를 돌려준다. `store`를 주면 다른 Mock과 같이 쓰는 기록(오늘 제출 포함)에서 먼저 찾는다.
     static func matchingOtherMocks(
         scenario: Scenario = .approved,
         delay: Duration = .seconds(1),
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        store: MockStore? = nil
     ) -> MockVerificationResultRepository {
         MockVerificationResultRepository(scenario: scenario, delay: delay) { id in
+            if let record = store?.submittedRecord(verificationID: id) {
+                return Fixture.result(id: id, status: record.status, submittedAt: record.submittedAt)
+            }
             if let status = MockHomeRepository.Fixture.resultStatus(forSubmissionID: id) {
                 return Fixture.result(id: id, status: status, submittedAt: MockHomeRepository.Fixture.submittedAt)
             }
