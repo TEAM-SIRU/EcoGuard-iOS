@@ -53,7 +53,8 @@ enum CameraButtonHint: Equatable {
         case .notGuardian: "환경지킴이로 활동 중일 때 쓸 수 있어요"
         case .awaitingAssignment: "청소 구역을 배정받으면 쓸 수 있어요"
         case .excluded: "활동에서 제외되어 쓸 수 없어요"
-        case .vacation: "\(VerificationClosedCopy.vacationMessage)"
+        // 인증 화면의 방학 안내(`VerificationClosedCopy.vacationMessage`)와 같은 문구.
+        case .vacation: "방학 기간에는 청소 인증을 하지 않아요"
         case .notOpenYet: "지금은 인증 시간이 아니에요"
         case .alreadySubmitted: "오늘은 이미 인증했어요"
         }
