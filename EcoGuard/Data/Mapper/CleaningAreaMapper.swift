@@ -4,12 +4,13 @@ extension CleaningWindow {
 }
 
 extension MyAssignmentResponseDTO {
-    /// 도면(층·칸)은 서버에 없어 `floors`(앱이 가진 도면)를 받는다. 내 구역이 어느 칸인지도 알 수 없어 `.mine` 칸은 두지 않는다.
+    /// 도면(층·칸)은 서버에 없어 `floors`(앱이 가진 도면)를 받는다. `zoneCode`는 받지만 앱 도면 칸과 아직 잇지 않아 `.mine` 칸은 두지 않는다.
     /// 구성원 중 `myUserID`(내 정보의 사용자 ID)인 학생을 나로 표시한다. 청소 시간이 없거나 읽을 수 없으면 기본값을 쓴다.
     func toDomain(floors: [FloorPlan], myUserID: String?) -> CleaningAreaSummary {
         let window = cleanTime.flatMap { ServerDate.minuteRange($0) }
             .map { CleaningWindow(startMinute: $0.start, endMinute: $0.end) } ?? .serverDefault
         let area = MyCleaningArea(
+            zoneCode: zoneCode.map(CleaningZoneCode.init(rawValue:)),
             range: areaName,
             description: description ?? "",
             startMinute: window.startMinute,

@@ -54,8 +54,10 @@ nonisolated struct ApplyResponseDTO: Decodable, Sendable {
     let appliedAt: String
 }
 
-/// `GET /applications/me`.
+/// `GET /applications/me`. 공고와 상관없이 가장 최근 신청이다.
 nonisolated struct ApplicationStatusResponseDTO: Decodable, Sendable {
+    /// 이 신청의 공고. 현재 공고의 신청인지 이것으로 본다.
+    let recruitmentId: Int64
     let status: ApplicationStatusDTO
     let order: Int
     /// 신청 시각. `2026-09-01T08:00:00`

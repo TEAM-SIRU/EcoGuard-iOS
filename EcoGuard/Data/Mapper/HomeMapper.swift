@@ -46,7 +46,7 @@ nonisolated enum HomeMapper {
         )
     }
 
-    /// 구역 배정 전. #56 모집 저장소와 같이 현재 공고에 신청했을 때(`alreadyApplied`)만 내 신청을 본다(지난 공고 신청으로 판단하지 않는다).
+    /// 구역 배정 전. 모집 저장소와 같이 현재 공고에 한 신청(`recruitmentId`가 같음)만 내 신청으로 본다(지난 공고 신청으로 판단하지 않는다).
     /// - 공고 없음, 또는 신청하지 않았고 모집 기간이 아님 → 모집 없음
     /// - 신청하지 않았고 모집 중 → 모집
     /// - 신청함: 미선발 → 미선발, 그 밖 → 배정 대기. 서버 #16부터 신청하면 바로 승인되고 교사 확정이 없어
@@ -60,7 +60,8 @@ nonisolated enum HomeMapper {
         guard recruitment.alreadyApplied else {
             return recruitment.periodStatus == .open ? .recruiting(recruitment.toDomain()) : .notRecruiting
         }
-        return application?.status == .rejected ? .notSelected : .awaitingAssignment
+        let isRejected = application.map { $0.recruitmentId == recruitment.recruitmentId && $0.status == .rejected } == true
+        return isRejected ? .notSelected : .awaitingAssignment
     }
 
     /// Figma `Recent section` 3건.

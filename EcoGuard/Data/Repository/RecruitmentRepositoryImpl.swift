@@ -3,7 +3,7 @@ import Foundation
 /// 서버 모집·신청. 신청 API가 공고 ID를 받으므로 마지막으로 조회한 공고 ID를 들고 있는다.
 ///
 /// `GET /applications/me`는 공고와 상관없이 가장 최근 신청을 준다. 지난 모집의 신청을 이번 결과로 보이지 않게
-/// 현재 공고의 `alreadyApplied`가 true일 때만 쓴다.
+/// 신청의 `recruitmentId`가 현재 공고일 때만 쓴다. 현재 공고에 신청하지 않았으면(`alreadyApplied`) 부르지 않는다.
 final class RecruitmentRepositoryImpl: RecruitmentRepository {
     private let apiClient: APIClient
     private let currentUserRepository: CurrentUserRepository
@@ -17,7 +17,7 @@ final class RecruitmentRepositoryImpl: RecruitmentRepository {
     func fetchRecruitment() async throws -> RecruitmentDetail? {
         guard let response = try await fetchCurrent() else { return nil }
         // 공고에는 신청 여부만 있어 순서·배정 여부는 내 신청에서 받는다.
-        let myApplication = response.alreadyApplied ? try await fetchLatestApplication() : nil
+        let myApplication = response.alreadyApplied ? try await fetchApplication(recruitmentID: response.recruitmentId) : nil
         return try response.toDomain(myApplication: myApplication)
     }
 
@@ -38,16 +38,16 @@ final class RecruitmentRepositoryImpl: RecruitmentRepository {
             // 방금 조회한 공고면 다시 조회하지 않는다.
             let refreshed = try await fetchCurrent()
             guard refreshed?.recruitmentId == recruitmentID else { throw RecruitmentError.notInPeriod }
-            throw try await recruitmentError(for: error)
+            throw try await recruitmentError(for: error, recruitmentID: recruitmentID)
         } catch let error as APIError {
-            throw try await recruitmentError(for: error)
+            throw try await recruitmentError(for: error, recruitmentID: recruitmentID)
         }
     }
 
     /// 현재 공고에 한 신청. 현재 공고가 없거나 신청하지 않았으면 nil.
     func fetchMyApplication() async throws -> RecruitmentApplication? {
         guard let current = try await fetchCurrent(), current.alreadyApplied else { return nil }
-        return try await fetchLatestApplication()
+        return try await fetchApplication(recruitmentID: current.recruitmentId)
     }
 
     /// 현재 공고. 없으면 nil. 신청에 쓸 공고 ID를 갱신한다.
@@ -62,11 +62,11 @@ final class RecruitmentRepositoryImpl: RecruitmentRepository {
         }
     }
 
-    /// 가장 최근 신청. 현재 공고에 신청한 것이 확인됐을 때만 부른다. 미선발(이전 데이터)이면 nil.
-    // TODO: 서버가 `recruitmentId`를 내려주면 현재 공고의 신청인지 직접 확인한다(서버 요청 목록).
-    private func fetchLatestApplication() async throws -> RecruitmentApplication? {
+    /// `recruitmentID` 공고에 한 내 신청. 가장 최근 신청이 다른 공고의 것이거나 미선발(이전 데이터)이면 nil.
+    private func fetchApplication(recruitmentID: Int64) async throws -> RecruitmentApplication? {
         do {
             let response: ApplicationStatusResponseDTO = try await apiClient.send(.myApplication)
+            guard response.recruitmentId == recruitmentID else { return nil }
             return try response.toDomain()
         } catch let error as APIError where error == .server(statusCode: 404, code: "NO_APPLICATION") {
             return nil
@@ -99,7 +99,7 @@ final class RecruitmentRepositoryImpl: RecruitmentRepository {
     }
 
     /// 서버 `ErrorCode` → `RecruitmentError`. 해당하지 않으면 원래 에러를 그대로 던진다.
-    private func recruitmentError(for error: APIError) async throws -> Error {
+    private func recruitmentError(for error: APIError, recruitmentID: Int64) async throws -> Error {
         switch error {
         case .server(statusCode: 400, code: "OUT_OF_PERIOD"):
             return RecruitmentError.notInPeriod
@@ -108,7 +108,7 @@ final class RecruitmentRepositoryImpl: RecruitmentRepository {
         case .server(statusCode: 409, code: "ALREADY_APPLIED"):
             // 화면이 기존 신청을 보여 주므로 내 신청을 받아 함께 넘긴다.
             // 보여 줄 신청이 없으면(반려 등) 다시 신청할 수 없으므로 마감으로 알린다. 같은 실패를 반복하지 않게 한다.
-            guard let application = try await fetchLatestApplication() else { return RecruitmentError.full }
+            guard let application = try await fetchApplication(recruitmentID: recruitmentID) else { return RecruitmentError.full }
             return RecruitmentError.alreadyApplied(application)
         default:
             return error
