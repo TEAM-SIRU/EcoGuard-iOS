@@ -7,7 +7,10 @@ extension DIContainer {
     ) -> CameraVerificationViewModel {
         let repository = repository ?? apiClient.map {
             VerificationRepositoryImpl(apiClient: $0)
-        } ?? MockVerificationRepository(scenario: Self.mockScenario("ECO_MOCK_VERIFICATION_SCENARIO") ?? .open)
+        } ?? MockVerificationRepository(
+            scenario: Self.mockScenario("ECO_MOCK_VERIFICATION_SCENARIO") ?? .open,
+            store: mockStore
+        )
         let (camera, permission) = makeCamera()
         return CameraVerificationViewModel(
             fetchSessionUseCase: FetchVerificationSessionUseCase(verificationRepository: repository),

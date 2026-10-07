@@ -2,7 +2,7 @@ import Foundation
 
 extension DIContainer {
     /// 이의신청 작성·제출 실패.
-    /// 실제 저장소는 접수 여부를 서버 내역으로 확인하므로 작성·내역이 각자 저장소를 만들어도 된다.
+    /// 실제 저장소는 접수 여부를 서버 내역으로 확인하므로 작성·내역이 각자 저장소를 만들어도 된다(Mock은 `mockStore`로 내역을 같이 쓴다).
     func makeAppealFormViewModel(
         target: AppealTarget,
         repository: AppealRepository? = nil,
@@ -29,6 +29,6 @@ extension DIContainer {
     }
 
     private func makeAppealRepository() -> AppealRepository {
-        apiClient.map { AppealRepositoryImpl(apiClient: $0) } ?? MockAppealRepository()
+        apiClient.map { AppealRepositoryImpl(apiClient: $0) } ?? MockAppealRepository(store: mockStore)
     }
 }

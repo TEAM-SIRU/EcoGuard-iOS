@@ -10,13 +10,12 @@ final class QAFixesUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    /// 신청 기간이 지금을 포함하는 공고는 `신청하기`가 켜져 있다. 신청 기간은 `ECO_MOCK_RECRUITMENT_PERIOD`로 지금 기준으로 옮긴다.
+    /// 신청 기간이 지금을 포함하는 공고(Mock 공고 기간은 오늘 기준 진행 중)는 `신청하기`가 켜져 있다.
     func testOpenRecruitmentEnablesApply() {
         let app = XCUIApplication()
         app.launchEnvironment["ECO_USE_MOCK"] = "1"
         app.launchEnvironment["ECO_MOCK_HOME_SCENARIO"] = "recruiting"
         app.launchEnvironment["ECO_MOCK_RECRUITMENT_SCENARIO"] = "open"
-        app.launchEnvironment["ECO_MOCK_RECRUITMENT_PERIOD"] = "current"
         app.launch()
         tap(app.buttons["DataGSM으로 로그인"])
         tap(app.buttons["모집 공고 보기"])

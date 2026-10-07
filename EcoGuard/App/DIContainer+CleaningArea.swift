@@ -5,7 +5,7 @@ extension DIContainer {
     func makeCleaningAreaViewModel(
         repository: CleaningAreaRepository? = nil
     ) -> CleaningAreaViewModel {
-        let repository = repository ?? apiClient.map { CleaningAreaRepositoryImpl(apiClient: $0, currentUserRepository: currentUserRepository) } ?? MockCleaningAreaRepository()
+        let repository = repository ?? apiClient.map { CleaningAreaRepositoryImpl(apiClient: $0, currentUserRepository: currentUserRepository) } ?? MockCleaningAreaRepository(store: mockStore)
         return CleaningAreaViewModel(fetchCleaningAreaUseCase: FetchCleaningAreaUseCase(cleaningAreaRepository: repository))
     }
 }
