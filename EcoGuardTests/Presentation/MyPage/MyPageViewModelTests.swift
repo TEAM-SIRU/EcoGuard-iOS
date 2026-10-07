@@ -11,16 +11,39 @@ struct MyPageViewModelTests {
     /// 메모리에만 값을 두는 설정 저장소. 저장한 적이 없으면 켠 상태다.
     private final class InMemoryNotificationSettingRepository: NotificationSettingRepository {
         private var isOn: Bool?
+        private var schedule: CleaningReminderSchedule?
 
         func isCleaningReminderOn() -> Bool { isOn ?? true }
         func setCleaningReminderOn(_ isOn: Bool) { self.isOn = isOn }
+        func cleaningReminderSchedule() -> CleaningReminderSchedule? { schedule }
+        func setCleaningReminderSchedule(_ schedule: CleaningReminderSchedule?) { self.schedule = schedule }
+    }
+
+    /// 알림 권한 상태만 바꿔 쓰는 스케줄러.
+    private final class StubScheduler: CleaningReminderScheduler {
+        var authorized: Bool
+        var grants: Bool
+
+        init(authorized: Bool = true, grants: Bool = true) {
+            self.authorized = authorized
+            self.grants = grants
+        }
+
+        func isAuthorized() async -> Bool { authorized }
+        func requestAuthorization() async -> Bool {
+            authorized = authorized || grants
+            return authorized
+        }
+        func schedule(_ schedule: CleaningReminderSchedule) async {}
+        func cancel() {}
     }
 
     private func makeViewModel(
         scenarios: [MockMyPageRepository.Scenario] = [.guardian],
         logoutDelay: Duration = .zero,
         logoutFails: Bool = false,
-        settings: NotificationSettingRepository? = nil
+        settings: NotificationSettingRepository? = nil,
+        scheduler: CleaningReminderScheduler? = nil
     ) -> (MyPageViewModel, MockAuthRepository, MockMyPageRepository, LogoutSpy) {
         let authRepository = MockAuthRepository(delay: logoutDelay, logoutFails: logoutFails)
         let myPageRepository = MockMyPageRepository(scenarios: scenarios, delay: .zero)
@@ -29,7 +52,8 @@ struct MyPageViewModelTests {
             authRepository: authRepository,
             homeRepository: MockHomeRepository(delay: .zero),
             recruitmentRepository: MockRecruitmentRepository(delay: .zero),
-            webAdminURL: nil
+            webAdminURL: nil,
+            cleaningReminderScheduler: scheduler ?? StubScheduler()
         )
         let viewModel = container.makeMyPageViewModel(
             repository: myPageRepository,
@@ -64,16 +88,55 @@ struct MyPageViewModelTests {
         #expect(viewModel.isCleaningReminderOn)
     }
 
-    @Test func cleaningReminderChoiceIsKeptForNextVisit() {
+    @Test func cleaningReminderChoiceIsKeptForNextVisit() async {
         let settings = InMemoryNotificationSettingRepository()
         let (first, _, _, _) = makeViewModel(settings: settings)
 
-        first.setCleaningReminder(false)
+        await first.setCleaningReminder(false)
         let (second, _, _, _) = makeViewModel(settings: settings)
 
         #expect(!first.isCleaningReminderOn)
         #expect(!second.isCleaningReminderOn)
         #expect(!settings.isCleaningReminderOn())
+    }
+
+    @Test func turningOnWhenPermissionAllowedKeepsSwitchOn() async {
+        let settings = InMemoryNotificationSettingRepository()
+        settings.setCleaningReminderOn(false)
+        let (viewModel, _, _, _) = makeViewModel(settings: settings, scheduler: StubScheduler(authorized: false, grants: true))
+
+        await viewModel.setCleaningReminder(true)
+
+        #expect(viewModel.isCleaningReminderOn)
+        #expect(!viewModel.isNotificationDeniedPresented)
+    }
+
+    @Test func turningOnWhenPermissionDeniedStaysOffAndShowsSettingsGuide() async {
+        let settings = InMemoryNotificationSettingRepository()
+        settings.setCleaningReminderOn(false)
+        let (viewModel, _, _, _) = makeViewModel(settings: settings, scheduler: StubScheduler(authorized: false, grants: false))
+
+        await viewModel.setCleaningReminder(true)
+
+        #expect(!viewModel.isCleaningReminderOn)
+        #expect(!settings.isCleaningReminderOn())
+        #expect(viewModel.isNotificationDeniedPresented)
+
+        viewModel.dismissNotificationDenied()
+        #expect(!viewModel.isNotificationDeniedPresented)
+    }
+
+    /// 설정 앱에서 알림을 끄고 돌아오면 스위치도 꺼진다.
+    @Test func refreshTurnsSwitchOffWhenPermissionRevoked() async {
+        let scheduler = StubScheduler()
+        let (viewModel, _, _, _) = makeViewModel(scheduler: scheduler)
+        await viewModel.load()
+        #expect(viewModel.isCleaningReminderOn)
+
+        scheduler.authorized = false
+        await viewModel.refresh()
+
+        #expect(!viewModel.isCleaningReminderOn)
     }
 
     @Test func requestLogoutShowsConfirm() {

@@ -13,8 +13,14 @@ extension DIContainer {
         return MyPageViewModel(
             fetchMyPageUseCase: FetchMyPageUseCase(myPageRepository: repository),
             logoutUseCase: LogoutUseCase(authRepository: authRepository),
-            fetchCleaningReminderUseCase: FetchCleaningReminderUseCase(notificationSettingRepository: notificationSettingRepository),
-            updateCleaningReminderUseCase: UpdateCleaningReminderUseCase(notificationSettingRepository: notificationSettingRepository),
+            fetchCleaningReminderUseCase: FetchCleaningReminderUseCase(
+                notificationSettingRepository: notificationSettingRepository,
+                cleaningReminderScheduler: cleaningReminderScheduler
+            ),
+            updateCleaningReminderUseCase: UpdateCleaningReminderUseCase(
+                notificationSettingRepository: notificationSettingRepository,
+                cleaningReminderScheduler: cleaningReminderScheduler
+            ),
             onLoggedOut: onLoggedOut
         )
     }
