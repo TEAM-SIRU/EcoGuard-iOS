@@ -372,6 +372,7 @@ enum ScreenGalleryCatalog {
             appealHistoryItem("appeal.historyFailure", "내역 · 조회 실패", scenario: .failure),
             appealHistoryItem("appeal.historyLoading", "내역 · 불러오는 중", scenario: .history, delay: loadingDelay),
             appealResultItem("appeal.result.approved", "결과 · 승인", status: .approved),
+            appealResultItem("appeal.result.approvedWithoutMinutes", "결과 · 승인 · 적립 없음", appeal: MockAppealRepository.Fixture.approvedWithoutMinutes),
             appealResultItem("appeal.result.rejected", "결과 · 반려", status: .rejected),
             appealResultItem("appeal.result.reviewing", "결과 · 검토 중", status: .reviewing)
         ])
@@ -489,6 +490,16 @@ enum ScreenGalleryCatalog {
             let store = container().mockStore
             ScreenGalleryStack { navigator in
                 appealResult(seededAppeal(status, store: store), store: store, navigator: navigator, back: close, close: close)
+            }
+        }
+    }
+
+    /// 내역에 없는 결과를 `appeal` 그대로 보여 준다.
+    private static func appealResultItem(_ id: String, _ title: String, appeal: Appeal) -> ScreenGalleryItem {
+        item(id, title) { close in
+            let store = container().mockStore
+            ScreenGalleryStack { navigator in
+                appealResult(appeal, store: store, navigator: navigator, back: close, close: close)
             }
         }
     }

@@ -26,7 +26,7 @@ struct AppealResultView: View {
             VerificationMessageView(
                 title: "이의신청이 승인됐어요",
                 highlight: AppealFormatter.earned(appeal),
-                message: LocalizedStringKey(approvedMessage),
+                message: LocalizedStringKey(AppealFormatter.approvedMessage(appeal)),
                 primaryTitle: "활동 기록 보기",
                 primaryAction: { showActivity() },
                 back: back,
@@ -40,10 +40,6 @@ struct AppealResultView: View {
                 goHome: goHome
             )
         }
-    }
-
-    private var approvedMessage: String {
-        "\(AppealFormatter.resultSubtitle(appeal))\n\n선생님이 청소한 내용을 확인했어요.\n활동 기록에 \(appeal.earnedMinutes)분이 추가됐어요."
     }
 }
 

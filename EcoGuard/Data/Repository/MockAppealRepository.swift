@@ -128,7 +128,7 @@ extension MockAppealRepository {
             round: 2,
             submittedAt: submittedAt,
             status: .reviewing,
-            earnedMinutes: 0,
+            earnedMinutes: nil,
             teacherReply: nil,
             photoURLs: []
         )
@@ -141,7 +141,7 @@ extension MockAppealRepository {
             round: 1,
             submittedAt: date(month: 9, day: 22, hour: 13, minute: 2),
             status: .rejected,
-            earnedMinutes: 0,
+            earnedMinutes: nil,
             teacherReply: .init(
                 title: "사진에 구역 표지판이 보이지 않아요",
                 message: "표지판이 보이게 다시 찍어 주세요. 08:10 이후에도 이의신청용 촬영은 가능해요."
@@ -162,6 +162,19 @@ extension MockAppealRepository {
             photoURLs: []
         )
 
+        /// 1차 · 승인 · 적립 없음. 이의신청을 검토하는 사이 대상 인증이 이미 승인돼 분을 더하지 않았다.
+        static let approvedWithoutMinutes = Appeal(
+            id: "appeal-0",
+            verificationID: approvedVerificationID,
+            verifiedAt: approvedVerifiedAt,
+            round: 1,
+            submittedAt: date(month: 9, day: 21, hour: 12, minute: 40),
+            status: .approved,
+            earnedMinutes: nil,
+            teacherReply: nil,
+            photoURLs: []
+        )
+
         static let history = [reviewing, rejected, approved]
 
         static func submitted(_ draft: AppealDraft, round: Int) -> Appeal {
@@ -172,7 +185,7 @@ extension MockAppealRepository {
                 round: round,
                 submittedAt: submittedAt,
                 status: .reviewing,
-                earnedMinutes: 0,
+                earnedMinutes: nil,
                 teacherReply: nil,
                 photoURLs: []
             )
