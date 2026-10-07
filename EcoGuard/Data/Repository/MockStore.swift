@@ -376,7 +376,7 @@ final class MockStore {
             round: round,
             submittedAt: now(),
             status: .reviewing,
-            earnedMinutes: 0,
+            earnedMinutes: nil,
             teacherReply: nil,
             photoURLs: []
         )
