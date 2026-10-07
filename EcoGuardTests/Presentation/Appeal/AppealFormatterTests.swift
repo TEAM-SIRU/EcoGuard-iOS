@@ -26,6 +26,21 @@ struct AppealFormatterTests {
         #expect(AppealFormatter.resultSubtitle(Fixture.rejected) == "9월 22일(화) 인증 · 1차 이의신청")
         #expect(AppealFormatter.resultSubtitle(Fixture.approved) == "9월 21일(월) 인증 · 1차 이의신청")
         #expect(AppealFormatter.earned(Fixture.approved) == "+10분")
+        #expect(AppealFormatter.approvedMessage(Fixture.approved) == "9월 21일(월) 인증 · 1차 이의신청\n\n선생님이 청소한 내용을 확인했어요.\n활동 기록에 10분이 추가됐어요.")
+    }
+
+    /// 승인됐지만 대상 인증이 이미 승인돼 적립하지 않았으면 분을 보이지 않는다.
+    @Test func approvedWithoutMinutesShowsNoEarnedText() {
+        let appeal = Fixture.approvedWithoutMinutes
+
+        #expect(AppealFormatter.earned(appeal) == nil)
+        #expect(AppealFormatter.historySubtitle(appeal) == "1차 · 9월 21일(월) 12:40 보냄")
+        #expect(AppealFormatter.approvedMessage(appeal) == "9월 21일(월) 인증 · 1차 이의신청\n\n선생님이 청소한 내용을 확인했어요.")
+    }
+
+    @Test func rejectedShowsNoEarnedText() {
+        #expect(AppealFormatter.earned(Fixture.rejected) == nil)
+        #expect(AppealFormatter.earned(Fixture.reviewing) == nil)
     }
 
     @Test func retryTargetUsesTeacherReplyAsReason() {
