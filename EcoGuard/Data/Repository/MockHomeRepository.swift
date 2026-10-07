@@ -23,6 +23,8 @@ final class MockHomeRepository: HomeRepository {
     private var scenarios: [Scenario]
     private let delay: Duration
     private let now: () -> Date
+    /// 있으면 상태·기록을 다른 Mock과 같이 쓴다(`MockStore`). 이때 `scenarios`는 쓰지 않는다.
+    private let store: MockStore?
     private var dismissedNoticeIDs: Set<String> = []
     private(set) var fetchCallCount = 0
     private(set) var dismissedNoticeIDHistory: [String] = []
@@ -33,6 +35,15 @@ final class MockHomeRepository: HomeRepository {
         self.scenarios = scenarios
         self.delay = delay
         self.now = now
+        self.store = nil
+    }
+
+    /// 다른 Mock과 상태를 같이 쓴다. 홈 상태는 `store`가 정한다.
+    init(store: MockStore, delay: Duration = .seconds(1)) {
+        self.scenarios = [store.homeScenario]
+        self.delay = delay
+        self.now = store.now
+        self.store = store
     }
 
     convenience init(scenario: Scenario = .notSubmitted, delay: Duration = .seconds(1), now: @escaping () -> Date = Date.init) {
@@ -43,7 +54,8 @@ final class MockHomeRepository: HomeRepository {
         fetchCallCount += 1
         let scenario = scenarios.count > 1 ? scenarios.removeFirst() : scenarios[0]
         try await Task.sleep(for: delay)
-        guard let summary = Fixture.summary(for: scenario, now: now()) else {
+        let summary = if let store { Fixture.summary(store: store) } else { Fixture.summary(for: scenario, now: now()) }
+        guard let summary else {
             throw FetchFailedError()
         }
         guard let notice = summary.notice, !dismissedNoticeIDs.contains(notice.id) else {
@@ -121,6 +133,21 @@ extension MockHomeRepository {
             case .failure:
                 nil
             }
+        }
+
+        /// `store`의 상태·기록으로 만든 홈. 활동 중이면 오늘 카드·이번 주·최근 기록이 활동 기록과 같다.
+        static func summary(store: MockStore) -> HomeSummary? {
+            let scenario = store.homeScenario
+            guard let verification = store.todayVerification(deadline: store.now().addingTimeInterval(remainingUntilDeadline)) else {
+                return summary(for: scenario, now: store.now())
+            }
+            let submission = store.todayResult.map { TodaySubmission(id: store.todayVerificationID, submittedAt: $0.submittedAt) }
+            let cleaning = ActiveCleaning(
+                today: TodayCleaning(area: area, window: window, verification: verification, submission: submission),
+                week: store.week,
+                recentRecords: store.recentCleaningRecords
+            )
+            return HomeSummary(status: .active(cleaning), notice: scenario == .notSubmitted ? notice : nil)
         }
 
         private static func active(_ verification: TodayVerification, isTodayCompleted: Bool = false, notice: Notice? = nil) -> HomeSummary {

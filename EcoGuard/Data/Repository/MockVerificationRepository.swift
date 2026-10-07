@@ -25,6 +25,8 @@ final class MockVerificationRepository: VerificationRepository {
     private let delay: Duration
     private let now: () -> Date
     private let deadline: Date
+    /// 있으면 `.open`일 때 오늘 상태(제출 여부·인증 시간·방학·배정)를 홈과 같이 쓰고, 제출을 `store`에 남긴다.
+    private let store: MockStore?
     /// 마감 전에 보내기 시작한 사진. 마감 후 유예 시간까지 같은 사진의 재시도는 받는다.
     private var startedPhotoIDs: Set<UUID> = []
     private var acceptedSubmission: (photoID: UUID, submission: VerificationSubmission)?
@@ -37,7 +39,8 @@ final class MockVerificationRepository: VerificationRepository {
         uploadResults: [UploadResult] = [.success],
         delay: Duration = .seconds(1),
         now: @escaping () -> Date = Date.init,
-        deadline: Date? = nil
+        deadline: Date? = nil,
+        store: MockStore? = nil
     ) {
         precondition(!uploadResults.isEmpty, "uploadResults는 비어 있을 수 없다")
         self.scenario = scenario
@@ -45,6 +48,7 @@ final class MockVerificationRepository: VerificationRepository {
         self.delay = delay
         self.now = now
         self.deadline = deadline ?? now().addingTimeInterval(Fixture.remainingUntilDeadline)
+        self.store = store
     }
 
     func fetchSession() async throws -> VerificationSession {
@@ -55,6 +59,8 @@ final class MockVerificationRepository: VerificationRepository {
             return Fixture.session(.alreadySubmitted(submittedAt: acceptedSubmission.submission.submittedAt, status: .processing), serverNow: serverNow)
         }
         switch scenario {
+        case .open where store != nil:
+            return try Fixture.session(store: store, deadline: deadline, serverNow: serverNow)
         case .open:
             return Fixture.session(serverNow < deadline ? .open(deadline: deadline) : .outsideWindow(.outsideHours), serverNow: serverNow)
         case .outsideWindow:
@@ -82,6 +88,9 @@ final class MockVerificationRepository: VerificationRepository {
         if scenario == .alreadySubmitted {
             throw VerificationError.alreadySubmitted(submittedAt: Fixture.submittedAt, status: .processing)
         }
+        if scenario == .open, let store, case .alreadySubmitted(let submittedAt, let status) = try Fixture.session(store: store, deadline: deadline, serverNow: now()).availability {
+            throw VerificationError.alreadySubmitted(submittedAt: submittedAt, status: status)
+        }
         if scenario == .vacation {
             throw VerificationError.vacation
         }
@@ -96,6 +105,7 @@ final class MockVerificationRepository: VerificationRepository {
         case .success:
             let submission = VerificationSubmission(submittedAt: now())
             acceptedSubmission = (photo.id, submission)
+            store?.recordVerificationSubmitted(at: submission.submittedAt)
             return submission
         case .networkFailure:
             throw UploadFailedError()
@@ -116,6 +126,21 @@ extension MockVerificationRepository {
             calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
             return calendar.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 8, minute: 4)) ?? .distantPast
         }()
+
+        /// `store`의 오늘 상태로 만든 인증 정보. 구역을 배정받지 않았으면 `VerificationError.notAssigned`.
+        static func session(store: MockStore?, deadline: Date, serverNow: Date) throws -> VerificationSession {
+            guard let store else { return session(.open(deadline: deadline), serverNow: serverNow) }
+            guard store.homeScenario.isActive else { throw VerificationError.notAssigned }
+            if let today = store.todayResult {
+                return session(.alreadySubmitted(submittedAt: today.submittedAt, status: today.status), serverNow: serverNow)
+            }
+            let availability: VerificationAvailability = switch store.homeScenario {
+            case .notOpenYet: .outsideWindow(.outsideHours)
+            case .vacation: .outsideWindow(.vacation)
+            default: serverNow < deadline ? .open(deadline: deadline) : .outsideWindow(.outsideHours)
+            }
+            return session(availability, serverNow: serverNow)
+        }
 
         static func session(_ availability: VerificationAvailability, serverNow: Date) -> VerificationSession {
             VerificationSession(area: area, window: window, availability: availability, serverNow: serverNow)

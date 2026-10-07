@@ -25,6 +25,11 @@ final class MockCleaningAreaRepository: CleaningAreaRepository {
         self.init(scenarios: [scenario], delay: delay)
     }
 
+    /// 다른 Mock과 상태를 같이 쓴다. 홈이 활동 중일 때만 구역이 배정돼 있다.
+    convenience init(store: MockStore, delay: Duration = .seconds(1)) {
+        self.init(scenarios: [store.homeScenario.isActive ? .assigned : .unassigned], delay: delay)
+    }
+
     func fetchCleaningArea() async throws -> CleaningAreaSummary {
         fetchCallCount += 1
         let scenario = scenarios.count > 1 ? scenarios.removeFirst() : scenarios[0]

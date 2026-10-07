@@ -16,6 +16,8 @@ final class MockActivityRepository: ActivityRepository {
     private var scenarios: [Scenario]
     private let delay: Duration
     private let now: () -> Date
+    /// 있으면 `.records`의 기록을 다른 Mock과 같이 쓴다(`MockStore`).
+    private let store: MockStore?
     private(set) var requestedMonths: [YearMonth] = []
 
     /// 호출마다 `scenarios`를 앞에서부터 하나씩 쓰고, 마지막 상태는 이후 호출에도 계속 쓴다.
@@ -24,6 +26,15 @@ final class MockActivityRepository: ActivityRepository {
         self.scenarios = scenarios
         self.delay = delay
         self.now = now
+        self.store = nil
+    }
+
+    /// 다른 Mock과 기록을 같이 쓴다. `.records`면 홈·마이페이지·이의신청과 같은 기록을 돌려준다.
+    init(store: MockStore, scenario: Scenario = .records, delay: Duration = .seconds(1)) {
+        self.scenarios = [scenario]
+        self.delay = delay
+        self.now = store.now
+        self.store = store
     }
 
     convenience init(scenario: Scenario = .records, delay: Duration = .seconds(1), now: @escaping () -> Date = Date.init) {
@@ -36,6 +47,8 @@ final class MockActivityRepository: ActivityRepository {
         let scenario = scenarios.count > 1 ? scenarios.removeFirst() : scenarios[0]
         try await Task.sleep(for: delay)
         switch scenario {
+        case .records where store != nil:
+            return ActivityMonth(month: requested, records: store?.records(in: requested) ?? [], holidays: [])
         case .records where requested == Fixture.month:
             return ActivityMonth(month: requested, records: Fixture.records, holidays: Fixture.holidays)
         case .records where Fixture.recentMonths(now: now()).contains(requested):
