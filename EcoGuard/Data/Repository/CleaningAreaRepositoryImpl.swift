@@ -4,11 +4,10 @@ final class CleaningAreaRepositoryImpl: CleaningAreaRepository {
     private let floors: [FloorPlan]
     private let currentUserRepository: CurrentUserRepository
 
-    // TODO: 서버가 도면을 내려주면 Mock 도면을 뺀다(서버 요청 목록).
     init(
         apiClient: APIClient,
         currentUserRepository: CurrentUserRepository,
-        floors: [FloorPlan] = MockCleaningAreaRepository.Fixture.floors
+        floors: [FloorPlan] = SchoolFloorPlan.floors
     ) {
         self.apiClient = apiClient
         self.currentUserRepository = currentUserRepository

@@ -25,6 +25,17 @@ struct CleaningAreaViewModelTests {
         #expect(viewModel.selectedFloor?.rows.flatMap { $0 }.contains { $0.kind == .mine } == true)
     }
 
+    /// Mock도 실제 도면을 쓰고, 함께 쓰는 Mock 상태의 배정 구역을 내 구역으로 표시한다.
+    @Test func mockStoreZoneOpensItsLowestFloor() async {
+        let repository = MockCleaningAreaRepository(store: MockStore(zoneCode: .mainCorridorF4), delay: .zero)
+        let viewModel = CleaningAreaViewModel(fetchCleaningAreaUseCase: FetchCleaningAreaUseCase(cleaningAreaRepository: repository))
+
+        await viewModel.load()
+
+        #expect(viewModel.selectedFloor?.id == "4F")
+        #expect(viewModel.selectedFloor?.rows.joined().filter { $0.kind == .mine }.map(\.zoneCode) == [.mainCorridorF4])
+    }
+
     @Test func unassignedHasNoFloor() async {
         let (viewModel, _) = makeViewModel(scenarios: [.unassigned])
 
