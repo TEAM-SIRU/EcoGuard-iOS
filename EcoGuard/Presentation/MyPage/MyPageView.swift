@@ -103,13 +103,19 @@ struct MyPageView: View {
     private var profileSection: some View {
         switch viewModel.state {
         case .loading:
-            VStack(spacing: Spacing.md) {
-                EcoSkeleton(kind: .row)
-                EcoSkeleton(kind: .row)
-            }
-            .padding(.horizontal, Spacing.screenHorizontal)
-            .padding(.top, Spacing.lg)
-            .padding(.bottom, Spacing.xl)
+            // 불러온 프로필과 같은 높이를 차지해야 불러온 뒤 아래 메뉴가 밀려 내려가지 않는다(#89).
+            // 글자 크기를 따라가도록 빈 프로필을 숨겨 높이를 잡고, 스켈레톤은 그 위에 얹는다.
+            profileContent(initials: " ", name: " ", caption: " ", approvedCount: " ", activityTime: " ")
+                .hidden()
+                .overlay(alignment: .top) {
+                    VStack(spacing: Spacing.md) {
+                        EcoSkeleton(kind: .row)
+                        EcoSkeleton(kind: .row)
+                    }
+                }
+                .padding(.horizontal, Spacing.screenHorizontal)
+                .padding(.top, Spacing.lg)
+                .padding(.bottom, Spacing.xl)
         case .failed:
             VStack(alignment: .leading, spacing: Spacing.md) {
                 Text("내 정보를 불러오지 못했어요")
@@ -122,20 +128,26 @@ struct MyPageView: View {
             .padding(.top, Spacing.lg)
             .padding(.bottom, Spacing.xl)
         case .loaded(let summary):
-            VStack(spacing: Spacing.xl) {
-                EcoProfileHeader(
-                    initials: MyPageFormatter.initials(of: summary.profile.name),
-                    name: summary.profile.name,
-                    caption: MyPageFormatter.affiliation(of: summary.profile)
-                )
-                HStack(spacing: Spacing.sm) {
-                    statTile(title: "이번 달 승인", value: MyPageFormatter.count(summary.monthlyApprovedCount))
-                    statTile(title: "활동 시간", value: MyPageFormatter.minutes(summary.monthlyActivityMinutes))
-                }
-            }
+            profileContent(
+                initials: MyPageFormatter.initials(of: summary.profile.name),
+                name: summary.profile.name,
+                caption: MyPageFormatter.affiliation(of: summary.profile),
+                approvedCount: MyPageFormatter.count(summary.monthlyApprovedCount),
+                activityTime: MyPageFormatter.minutes(summary.monthlyActivityMinutes)
+            )
             .padding(.horizontal, Spacing.screenHorizontal)
             .padding(.top, Spacing.lg)
             .padding(.bottom, Spacing.xl)
+        }
+    }
+
+    private func profileContent(initials: String, name: String, caption: String, approvedCount: String, activityTime: String) -> some View {
+        VStack(spacing: Spacing.xl) {
+            EcoProfileHeader(initials: initials, name: name, caption: caption)
+            HStack(spacing: Spacing.sm) {
+                statTile(title: "이번 달 승인", value: approvedCount)
+                statTile(title: "활동 시간", value: activityTime)
+            }
         }
     }
 
