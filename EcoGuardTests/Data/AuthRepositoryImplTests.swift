@@ -68,6 +68,36 @@ struct AuthRepositoryImplTests {
         #expect(body == ["authCode": "code"])
     }
 
+    /// 심사용 코드는 dataGSM 인가를 거치지 않고 그대로 보내며, 성공하면 일반 로그인처럼 토큰을 저장한다.
+    @Test func reviewCodeLoginSkipsOAuthAndStoresTokens() async throws {
+        let log = RequestLog()
+        let store = InMemoryTokenStore()
+        let repository = makeRepository(store: store, authorizationCode: { throw AuthError.cancelled }) { request in
+            log.append(request)
+            return (200, Self.loginJSON(role: "STUDENT"))
+        }
+
+        #expect(try await repository.login(authCode: "review-code") == .student)
+        #expect(store.current == AuthTokens(accessToken: "a1", refreshToken: "r1"))
+        let request = try #require(log.requests.first)
+        #expect(request.url?.path == "/api/v1/auth/login")
+        let body = try JSONDecoder().decode([String: String].self, from: try #require(request.bodyData))
+        #expect(body == ["authCode": "review-code"])
+    }
+
+    /// 틀린 심사용 코드는 서버가 401 `OAUTH_FAILED`로 막는다. 토큰을 저장하지 않고 에러를 던진다.
+    @Test func wrongReviewCodeThrowsWithoutStoringTokens() async throws {
+        let store = InMemoryTokenStore()
+        let repository = makeRepository(store: store) { _ in
+            (401, Data(#"{"code":"OAUTH_FAILED","message":"failed"}"#.utf8))
+        }
+
+        await #expect(throws: (any Error).self) {
+            try await repository.login(authCode: "wrong-code")
+        }
+        #expect(store.current == nil)
+    }
+
     /// 이전 세션 토큰이 남아 있어도 교사로 로그인하면 지운다.
     @Test func teacherLoginDoesNotStoreTokens() async throws {
         let store = InMemoryTokenStore(Self.tokens)

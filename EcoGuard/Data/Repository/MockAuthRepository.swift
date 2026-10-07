@@ -14,6 +14,8 @@ final class MockAuthRepository: AuthRepository {
     private let delay: Duration
     private let logoutFails: Bool
     private(set) var loginCallCount = 0
+    /// `login(authCode:)`로 받은 코드. 심사용 로그인이 코드를 그대로 넘기는지 확인한다.
+    private(set) var receivedAuthCodes: [String] = []
     private(set) var logoutCallCount = 0
 
     /// 호출마다 `outcomes`를 앞에서부터 하나씩 쓰고, 마지막 결과는 이후 호출에도 계속 쓴다.
@@ -43,6 +45,12 @@ final class MockAuthRepository: AuthRepository {
         case .cancelled:
             throw AuthError.cancelled
         }
+    }
+
+    /// 코드 내용은 보지 않고 `login()`과 같은 결과를 돌려준다(Mock 모드의 심사용 로그인은 기본값이면 성공).
+    func login(authCode: String) async throws -> UserRole {
+        receivedAuthCodes.append(authCode)
+        return try await login()
     }
 
     func logout() async throws {

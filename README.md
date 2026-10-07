@@ -23,6 +23,12 @@
 - 테스트 호스트로 실행될 때는 항상 Mock을 써서 실서버·키체인을 건드리지 않는다.
 - Mock 상태 고르기(DEBUG): `ECO_MOCK_HOME_SCENARIO`·`ECO_MOCK_RECRUITMENT_SCENARIO`·`ECO_MOCK_VERIFICATION_SCENARIO`·`ECO_MOCK_VERIFICATION_RESULT_SCENARIO`에 각 Mock `Scenario` 케이스 이름(예: `excluded`, `failure`)을 넣는다. UI 테스트(`EcoGuardUITests`)가 이 값으로 화면 상태를 만든다.
 
+### 심사용 로그인 (App Review 메모)
+
+- 심사자: 로그인 화면의 로고(또는 `환경지킴이`)를 2초 길게 누른다 → `심사용 로그인` 창에 전달받은 코드를 입력하고 `로그인`을 누른다. VoiceOver에서는 `환경지킴이` 제목의 동작 `심사용 로그인`으로 연다.
+- 코드는 앱에 들어 있지 않다. 서버 `DEMO_ACCOUNT_ENABLED`·`DEMO_ACCOUNT_AUTH_CODE` 값을 App Store Connect 심사 메모로만 전달한다. 틀리면 일반 로그인 실패 안내가 뜬다.
+- 코드는 dataGSM을 거치지 않고 `POST /api/v1/auth/login`의 `authCode`로 보내며, 이후 흐름(토큰 저장·메인 진입)은 일반 로그인과 같다. Release 빌드에도 들어간다.
+
 ### 화면 둘러보기 (DEBUG)
 
 - Debug 빌드 로그인 화면 위쪽 `화면 둘러보기` 버튼으로 탭 셸(홈 상태별)·각 흐름·상태 화면을 목록에서 연다. 서버 설정과 상관없이 Mock 저장소만 쓰며, Release 빌드에는 들어가지 않는다(`#if DEBUG`).

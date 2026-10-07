@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import os
 
@@ -25,10 +26,25 @@ final class LoginViewModel {
     }
 
     func login() async {
+        await login { try await self.loginUseCase.execute() }
+    }
+
+    /// 심사용 데모 코드로 로그인한다. 앞뒤 공백을 떼고 비어 있으면 요청하지 않는다. 성공·실패 처리는 `login()`과 같다.
+    func login(reviewCode: String) async {
+        guard Self.canSubmit(reviewCode: reviewCode) else { return }
+        let code = reviewCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        await login { try await self.loginUseCase.execute(authCode: code) }
+    }
+
+    static func canSubmit(reviewCode: String) -> Bool {
+        !reviewCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func login(_ request: () async throws -> UserRole) async {
         guard state != .loading else { return }
         state = .loading
         do {
-            switch try await loginUseCase.execute() {
+            switch try await request() {
             case .student:
                 state = .loggedIn
             case .teacher:
