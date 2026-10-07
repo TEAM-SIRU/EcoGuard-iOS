@@ -215,7 +215,9 @@ private struct ActivityRecordsLoadingView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, Spacing.screenHorizontal)
-        .padding(.top, Spacing.xxl)
+        // 제목은 불러온 화면(`07 활동 기록` 240:3)과 같은 자리에 둔다. Figma 로딩 프레임(514:303)대로 24를 띄우면
+        // 불러오기를 마칠 때 제목과 화면 전체가 위로 튀어오른다(#89).
+        .padding(.top, Spacing.lg)
         .accessibilityElement(children: .combine)
     }
 }
