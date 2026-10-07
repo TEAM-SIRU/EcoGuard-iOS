@@ -68,6 +68,9 @@ struct MyPageView: View {
                 .menuButton(action: actions.openHelp)
                 sectionDivider
                 logoutButton
+                #if DEBUG
+                ScreenGalleryMenuRow()
+                #endif
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

@@ -31,7 +31,7 @@ enum ScreenGalleryCatalog {
     // MARK: - ① 탭 셸
 
     private static var shell: ScreenGallerySection {
-        ScreenGallerySection(title: "탭 셸 (Mock 로그인 · 홈 상태)", items: [
+        ScreenGallerySection(title: "홈 · 상태별 (탭 셸 홈 탭으로 열기)", items: [
             shellItem("shell.notSubmitted", "활동 중 · 인증 가능", home: .notSubmitted),
             shellItem("shell.notOpenYet", "활동 중 · 인증 시간 아님(마감 후·시작 전)", home: .notOpenYet),
             shellItem("shell.aiReviewing", "활동 중 · 제출함(AI 검수 중)", home: .aiReviewing),
