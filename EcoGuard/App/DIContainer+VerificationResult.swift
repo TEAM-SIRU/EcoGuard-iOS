@@ -7,7 +7,7 @@ extension DIContainer {
         repository: VerificationResultRepository? = nil
     ) -> VerificationResultViewModel {
         let repository = repository ?? apiClient.map { VerificationResultRepositoryImpl(apiClient: $0) }
-            ?? MockVerificationResultRepository.matchingOtherMocks()
+            ?? MockVerificationResultRepository.matchingOtherMocks(scenario: Self.mockScenario("ECO_MOCK_VERIFICATION_RESULT_SCENARIO") ?? .approved)
         return VerificationResultViewModel(
             resultID: resultID,
             fetchResultUseCase: FetchVerificationResultUseCase(verificationResultRepository: repository)

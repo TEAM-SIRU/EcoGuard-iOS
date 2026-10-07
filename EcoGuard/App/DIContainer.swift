@@ -35,10 +35,10 @@ final class DIContainer {
         let apiClient = (authRepository as? AuthRepositoryImpl)?.apiClient
         return DIContainer(
             authRepository: authRepository,
-            homeRepository: MockHomeRepository(),
+            homeRepository: MockHomeRepository(scenario: mockScenario("ECO_MOCK_HOME_SCENARIO") ?? .notSubmitted),
             recruitmentRepository: apiClient.map {
                 RecruitmentRepositoryImpl(apiClient: $0, currentUserRepository: CurrentUserRepositoryImpl(apiClient: $0))
-            } ?? MockRecruitmentRepository(),
+            } ?? MockRecruitmentRepository(scenario: mockScenario("ECO_MOCK_RECRUITMENT_SCENARIO") ?? .open),
             webAdminURL: AppConfig.webAdminURL
         )
     }
@@ -72,6 +72,17 @@ final class DIContainer {
     }
 
     private static let hasLaunchedKey = "auth.hasLaunchedBefore"
+
+    /// Mock 저장소가 돌려줄 상태. UI 테스트가 DEBUG 빌드에서 환경 변수(`ECO_MOCK_HOME_SCENARIO=excluded`처럼 케이스 이름)로 고른다.
+    /// 값이 없거나 Release 빌드면 nil이고 각 Mock의 기본 상태를 쓴다.
+    static func mockScenario<Scenario: CaseIterable>(_ key: String) -> Scenario? {
+        #if DEBUG
+        let name = ProcessInfo.processInfo.environment[key]
+        return Scenario.allCases.first { "\($0)" == name }
+        #else
+        return nil
+        #endif
+    }
 
     /// `state`를 주지 않으면 앱 시작 때 저장된 토큰이 있었을 경우 로그인 유지(`.loggedIn`)로 시작한다.
     /// 교사는 토큰을 저장하지 않으므로 저장된 토큰은 학생 세션이다.

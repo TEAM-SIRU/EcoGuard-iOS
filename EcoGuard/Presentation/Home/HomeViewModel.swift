@@ -11,7 +11,16 @@ final class HomeViewModel {
         case failed
     }
 
+    /// 활동 제외 화면에서 다시 확인한 결과. 제외가 풀렸으면 홈이 바뀌어 따로 알리지 않는다.
+    enum ExclusionCheck: Equatable {
+        case stillExcluded
+        case failed
+    }
+
     private(set) var state: State
+    private(set) var exclusionCheck: ExclusionCheck?
+    /// 다시 확인해 결과를 알릴 때마다 오른다. 같은 결과가 이어져도 화면이 다시 알린다.
+    private(set) var exclusionCheckCount = 0
 
     private let fetchHomeUseCase: FetchHomeUseCase
     private let dismissNoticeUseCase: DismissNoticeUseCase
@@ -70,6 +79,25 @@ final class HomeViewModel {
 
     func retry() async {
         await load()
+    }
+
+    /// 활동 제외 화면의 `홈으로`. 이미 홈 탭 첫 화면이라 옮길 곳이 없어 화면을 둔 채 활동 상태를 다시 조회한다.
+    /// 제외가 풀렸으면 홈을 보여 주고, 그대로이거나 조회에 실패하면 화면이 알리도록 결과를 남긴다.
+    func recheckExclusion() async {
+        guard !isFetching else { return }
+        isFetching = true
+        defer { isFetching = false }
+        do {
+            let summary = try await fetchHomeUseCase.execute()
+            state = .loaded(summary)
+            guard case .excluded = summary.status else { return }
+            exclusionCheck = .stillExcluded
+        } catch {
+            guard !Task.isCancelled else { return }
+            logError(error)
+            exclusionCheck = .failed
+        }
+        exclusionCheckCount += 1
     }
 
     /// 재조회 시각이 지났으면 다시 조회한다. 다른 탭에 있다가 홈으로 돌아올 때 쓴다.

@@ -40,6 +40,17 @@
                ReferencedContainer = "container:EcoGuard.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "E00000000000000000001003"
+               BuildableName = "EcoGuardUITests.xctest"
+               BlueprintName = "EcoGuardUITests"
+               ReferencedContainer = "container:EcoGuard.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

@@ -114,6 +114,31 @@ struct MainTabViewModelTests {
         #expect(viewModel.homePath.isEmpty)
     }
 
+    /// 카메라 버튼은 모든 탭에서, 신청 결과는 전체 탭에서도 띄운다. `홈으로`는 띄운 탭과 상관없이 홈 첫 화면으로 간다(#77).
+    @Test(arguments: [MainTab.area, .records, .myPage])
+    func goHomeFromEveryFlowSelectsHomeRoot(from tab: MainTab) {
+        let flows: [MainTabViewModel.Flow] = [
+            .camera(DIContainer.preview().makeCameraVerificationViewModel()),
+            .recruitment,
+            .applicationResult(DIContainer.preview().makeApplicationResultViewModel()),
+            .verificationResult(id: rejectedResultID, entry: .history),
+            .appealResult(MockAppealRepository.Fixture.reviewing)
+        ]
+        for flow in flows {
+            let viewModel = MainTabViewModel()
+            viewModel.openNotices()
+            viewModel.select(tab)
+            viewModel.present(flow)
+
+            viewModel.dismissFlow(selecting: .home)
+
+            #expect(viewModel.presentedFlow == nil, "\(flow.id)")
+            #expect(viewModel.flowPath.isEmpty, "\(flow.id)")
+            #expect(viewModel.selectedTab == .home, "\(flow.id)")
+            #expect(viewModel.homePath.isEmpty, "\(flow.id)")
+        }
+    }
+
     @Test func closingFlowWithoutTabKeepsHomePath() {
         let viewModel = MainTabViewModel()
         viewModel.openNotices()

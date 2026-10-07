@@ -7,7 +7,8 @@ struct RecruitmentMessageView: View {
     /// 있으면 primary 버튼(예: 다시 시도)을 홈으로 위에 둔다.
     var retry: (() async -> Void)?
     let onBack: () -> Void
-    let onExit: () -> Void
+    /// `홈으로`. 흐름을 닫고 홈 탭 첫 화면으로 간다.
+    let goHome: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,7 +33,7 @@ struct RecruitmentMessageView: View {
                             await retry()
                         }
                     }
-                    EcoButton(RecruitmentCopy.Common.home, style: retry == nil ? .primary : .secondary, action: onExit)
+                    EcoButton(RecruitmentCopy.Common.home, style: retry == nil ? .primary : .secondary, action: goHome)
                 }
             }
         }
@@ -45,6 +46,6 @@ struct RecruitmentMessageView: View {
         message: RecruitmentCopy.Notice.failedMessage,
         retry: {},
         onBack: {},
-        onExit: {}
+        goHome: {}
     )
 }
