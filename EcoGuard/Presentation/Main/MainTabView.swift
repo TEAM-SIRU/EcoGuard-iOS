@@ -20,12 +20,12 @@ struct MainTabView: View {
     @State private var noticeViewModel: NoticeViewModel?
     @State private var appealHistoryViewModel: AppealHistoryViewModel?
 
-    /// 오늘 제출한 인증을 찾지 못했다는 토스트.
-    @State private var isShowingSubmissionToast = false
+    /// 셸 위쪽에 띄운 토스트.
+    @State private var toast: ShellToast?
+    /// 토스트를 내리는 대기. 새 토스트가 오면 취소하고 처음부터 센다.
+    @State private var toastDismissal: Task<Void, Never>?
 
     @Environment(\.scenePhase) private var scenePhase
-
-    private static let submissionUnavailableMessage: LocalizedStringResource = "제출한 인증을 불러오지 못했어요. 잠시 후 다시 확인해 주세요"
 
     var body: some View {
         // 탭 바는 `safeAreaInset`이 아니라 아래에 쌓는다. 홈·전체 탭의 NavigationStack은 바깥에서 더한 safe area를 받지 않아
@@ -105,22 +105,23 @@ struct MainTabView: View {
                     appealHistoryViewModel = nil
                 }
             }
-            // Figma 정의가 없어 다른 실패 토스트와 같은 모양으로 위쪽에 띄운다.
             .overlay(alignment: .top) {
-                if isShowingSubmissionToast {
-                    EcoToast(message: Self.submissionUnavailableMessage)
+                if let toast {
+                    EcoToast(message: toast.message)
                         .padding(.top, Spacing.sm)
                         .padding(.horizontal, Spacing.screenHorizontal)
                         .transition(.opacity)
                 }
             }
-            .animation(.default, value: isShowingSubmissionToast)
-            .task(id: viewModel.submissionUnavailableCount) {
-                guard viewModel.submissionUnavailableCount > 0 else { return }
-                AccessibilityNotification.Announcement(String(localized: Self.submissionUnavailableMessage)).post()
-                isShowingSubmissionToast = true
-                guard (try? await Task.sleep(for: EcoToast.displayDuration)) != nil else { return }
-                isShowingSubmissionToast = false
+            .animation(.default, value: toast)
+            // `.task(id:)`는 흐름을 닫고 셸이 다시 나타날 때 지난 횟수로 다시 돌아 토스트가 또 뜰 수 있어, 횟수가 늘 때만 띄운다.
+            .onChange(of: viewModel.submissionUnavailableCount) { old, new in
+                guard new > old else { return }
+                show(.submissionUnavailable)
+            }
+            .onChange(of: viewModel.helpUnavailableCount) { old, new in
+                guard new > old else { return }
+                show(.helpUnavailable)
             }
             // 흐름을 닫으면 홈 상태(인증 결과, 가입 상태), 활동 기록(오늘 제출분), 마이페이지(이번 달 승인·신청 결과),
             // 이의신청 내역(새로 보낸 이의신청)이 바뀌었을 수 있어 다시 조회한다.
@@ -205,7 +206,8 @@ struct MainTabView: View {
                     openNotices: {
                         noticeViewModel = container.makeNoticeViewModel()
                         viewModel.push(.notices)
-                    }
+                    },
+                    openHelp: { viewModel.openHelp() }
                 )
             )
         } destination: { route in
@@ -373,6 +375,17 @@ struct MainTabView: View {
         viewModel.present(.applicationResult(container.makeApplicationResultViewModel()))
     }
 
+    /// 토스트를 정해진 시간 동안 띄운다. 그 사이 다시 띄우면 새 토스트로 바꾸고 처음부터 센다.
+    private func show(_ toast: ShellToast) {
+        AccessibilityNotification.Announcement(String(localized: toast.message)).post()
+        self.toast = toast
+        toastDismissal?.cancel()
+        toastDismissal = Task {
+            guard (try? await Task.sleep(for: EcoToast.displayDuration)) != nil else { return }
+            self.toast = nil
+        }
+    }
+
     private func refreshAfterFlow() {
         Task { await homeViewModel.refresh() }
         if let activityRecordsViewModel {
@@ -383,6 +396,21 @@ struct MainTabView: View {
         }
         if let appealHistoryViewModel {
             Task { await appealHistoryViewModel.refresh() }
+        }
+    }
+}
+
+/// 셸 위쪽 토스트. Figma 정의가 없어 다른 실패 토스트와 같은 모양으로 띄운다.
+private enum ShellToast {
+    /// 오늘 제출한 인증을 찾지 못했다.
+    case submissionUnavailable
+    /// 도움말 디자인 대기. 문구는 기획 확인 전 임시다.
+    case helpUnavailable
+
+    var message: LocalizedStringResource {
+        switch self {
+        case .submissionUnavailable: "제출한 인증을 불러오지 못했어요. 잠시 후 다시 확인해 주세요"
+        case .helpUnavailable: "도움말은 준비 중이에요"
         }
     }
 }

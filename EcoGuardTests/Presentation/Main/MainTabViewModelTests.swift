@@ -373,6 +373,19 @@ struct MainTabViewModelTests {
         #expect(viewModel.submissionUnavailableCount == 1)
     }
 
+    /// 도움말은 디자인 대기라 누를 때마다 준비 중 토스트를 띄우고 화면은 옮기지 않는다.
+    @Test func helpCountsEachTapWithoutNavigating() {
+        let viewModel = MainTabViewModel(selectedTab: .myPage)
+
+        viewModel.openHelp()
+        viewModel.openHelp()
+
+        #expect(viewModel.helpUnavailableCount == 2)
+        #expect(viewModel.selectedTab == .myPage)
+        #expect(viewModel.myPagePath.isEmpty)
+        #expect(viewModel.presentedFlow == nil)
+    }
+
     @Test func todaySubmissionOpensResultFromSheet() {
         let viewModel = MainTabViewModel()
         viewModel.present(.camera(DIContainer.preview().makeCameraVerificationViewModel()))

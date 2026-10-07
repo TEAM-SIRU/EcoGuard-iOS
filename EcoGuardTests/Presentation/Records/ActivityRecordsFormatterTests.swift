@@ -101,6 +101,14 @@ struct ActivityRecordsFormatterTests {
         #expect(ActivityRecordsFormatter.totalTitle(YearMonth(year: 2025, month: 12), current: current) == "2025년 12월 활동 시간")
     }
 
+    /// 지난 달 빈 상태는 인증하라고 권하지 않는다.
+    @Test func emptyMessageInvitesVerificationOnlyForCurrentMonth() {
+        let current = YearMonth(year: 2026, month: 10)
+
+        #expect(ActivityRecordsFormatter.emptyMessage(current, current: current) == "청소를 인증하면 여기에 쌓여요")
+        #expect(ActivityRecordsFormatter.emptyMessage(YearMonth(year: 2026, month: 3), current: current) == "이 달에는 인증 기록이 없어요")
+    }
+
     @Test func detailPerResultMatchesFigma() {
         let submitted = date(day: 29, hour: 8, minute: 4)
 

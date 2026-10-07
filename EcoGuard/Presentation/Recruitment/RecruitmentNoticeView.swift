@@ -133,12 +133,13 @@ struct RecruitmentNoticeView: View {
         .safeAreaInset(edge: .bottom) {
             if let button = buttonTitle(for: status) {
                 BottomCTA {
-                    // 마감 시각이 지나면 다시 조회되기 전이라도 버튼을 끈다.
-                    TimelineView(.explicit([detail.endDate])) { context in
+                    // 신청 시작·마감 시각에 다시 그려, 마감이 지나면 다시 조회되기 전이라도 버튼을 끈다.
+                    // 판정은 현재 시각으로 한다. 첫 렌더의 `context.date`는 지금이 아니라 일정의 첫 시각(마감)이라 항상 꺼졌다(#81).
+                    TimelineView(.explicit(viewModel.applyButtonRedrawDates)) { _ in
                         EcoButton(button) {
                             onApply(applicant, recruitment.capacityPerClass)
                         }
-                        .disabled(!viewModel.canApply(at: context.date))
+                        .disabled(!viewModel.canApply(at: .now))
                     }
                 }
                 .background(Color.ecoCard)

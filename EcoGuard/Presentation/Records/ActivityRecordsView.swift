@@ -45,6 +45,16 @@ struct ActivityRecordsView: View {
         }
     }
 
+    /// 제목과 월 선택. 기록·빈 상태·조회 실패가 같은 자리에 둔다.
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            title
+                .padding(.top, Spacing.lg)
+                .padding(.bottom, Spacing.xl)
+            monthButton
+        }
+    }
+
     private var title: some View {
         Text("활동 기록")
             .ecoFont(.title1)
@@ -87,10 +97,7 @@ struct ActivityRecordsView: View {
 
     private func loadedContent(_ month: ActivityMonth) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            title
-                .padding(.top, Spacing.lg)
-                .padding(.bottom, Spacing.xl)
-            monthButton
+            header
             EcoStatSummary(
                 title: ActivityRecordsFormatter.totalTitle(viewModel.selectedMonth, current: viewModel.currentMonth),
                 value: ActivityRecordsFormatter.minutes(month.totalMinutes),
@@ -109,8 +116,11 @@ struct ActivityRecordsView: View {
                 EcoEmptyState(
                     icon: .iconListHero,
                     title: "\(ActivityRecordsFormatter.emptyTitle(viewModel.selectedMonth, current: viewModel.currentMonth))",
-                    message: "청소를 인증하면 여기에 쌓여요",
-                    action: actions.verify.map { verify in .init(title: "청소 인증하러 가기", size: .wide, perform: verify) }
+                    message: "\(ActivityRecordsFormatter.emptyMessage(viewModel.selectedMonth, current: viewModel.currentMonth))",
+                    // 지난 달은 지금 인증해도 쌓이지 않아 이번 달에만 인증으로 보낸다.
+                    action: viewModel.isCurrentMonthSelected
+                        ? actions.verify.map { verify in .init(title: "청소 인증하러 가기", size: .wide, perform: verify) }
+                        : nil
                 )
             } else {
                 ForEach(Array(viewModel.sections.enumerated()), id: \.element.id) { index, section in
@@ -172,14 +182,11 @@ struct ActivityRecordsView: View {
         }
     }
 
-    /// 제목만 위에 두고 안내를 가운데에 놓는다.
+    /// 제목·월 선택은 기록 화면과 같은 자리에 두고 안내를 가운데에 놓는다.
+    /// 다른 달은 불러올 수 있을 수 있어 실패 화면에서도 달을 바꿀 수 있게 둔다.
     private var failedView: some View {
         VStack(alignment: .leading, spacing: 0) {
-            title
-                .padding(.top, Spacing.sm)
-                .padding(.bottom, Spacing.xl)
-            // 다른 달은 불러올 수 있을 수 있어 실패 화면에서도 달을 바꿀 수 있게 둔다.
-            monthButton
+            header
             EcoEmptyState(
                 icon: .iconMapHero,
                 title: "기록을 불러오지 못했어요",

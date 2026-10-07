@@ -54,6 +54,8 @@ final class MainTabViewModel {
     var flowPath: [FlowRoute] = []
     /// 오늘 제출한 인증을 찾지 못해 안내한 횟수. 바뀔 때마다 화면이 토스트를 띄운다.
     private(set) var submissionUnavailableCount = 0
+    /// 준비 중인 도움말을 누른 횟수. 바뀔 때마다 화면이 토스트를 띄운다.
+    private(set) var helpUnavailableCount = 0
     /// 이 기기에서 방금 낸 인증(서버 ID가 있을 때만). 홈이 오늘 제출분을 아직 받지 못했을 때 대신 연다.
     private var recentSubmission: TodaySubmission?
     private let now: () -> Date
@@ -102,6 +104,11 @@ final class MainTabViewModel {
     func present(_ flow: Flow) {
         flowPath = []
         presentedFlow = flow
+    }
+
+    /// 전체 탭의 `도움말`. 디자인이 나오기 전까지 준비 중이라고 안내한다.
+    func openHelp() {
+        helpUnavailableCount += 1
     }
 
     /// 활동 기록 행. 그날 제출한 인증의 결과를 연다. 미제출이라 인증이 없으면 열지 않는다.

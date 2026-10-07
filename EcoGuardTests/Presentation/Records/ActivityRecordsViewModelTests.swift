@@ -66,6 +66,16 @@ struct ActivityRecordsViewModelTests {
         #expect(MockActivityRepository.Fixture.records.filter { $0.result != .approved }.allSatisfy { $0.earnedMinutes == 0 })
     }
 
+    /// 빈 상태의 인증 버튼은 이번 달에만 둔다.
+    @Test func onlyCurrentMonthIsCurrentMonthSelected() {
+        let (viewModel, _) = makeViewModel(scenarios: [.empty])
+        #expect(viewModel.isCurrentMonthSelected)
+
+        viewModel.selectMonth(august)
+
+        #expect(!viewModel.isCurrentMonthSelected)
+    }
+
     @Test func selectingMonthRefetchesThatMonth() async throws {
         let (viewModel, repository) = makeViewModel(scenarios: [.records])
         await viewModel.load()
@@ -194,18 +204,24 @@ struct ActivityRecordsViewModelTests {
 
     /// 탭을 떠나 취소되면 .loading으로 남아 돌아왔을 때 화면의 `.task`가 다시 불러온다.
     @Test func cancelledFirstLoadStaysLoadingForReload() async {
-        let (viewModel, repository) = makeViewModel(scenarios: [.records], delay: .milliseconds(300))
+        let today = MockActivityRepository.Fixture.today
+        let base = MockActivityRepository(scenarios: [.records], delay: .zero, now: { today })
+        let repository = GatedActivityRepository(base: base)
+        let viewModel = ActivityRecordsViewModel(
+            fetchActivityMonthUseCase: FetchActivityMonthUseCase(activityRepository: repository),
+            earliestMonth: YearMonth(year: 2026, month: 3),
+            now: { today }
+        )
 
         let load = Task { await viewModel.load() }
-        while repository.requestedMonths.isEmpty {
-            await Task.yield()
-        }
+        await repository.gate.waitForHeldCall()
         load.cancel()
         await load.value
         #expect(viewModel.state == .loading)
 
         await viewModel.load()
-        #expect(repository.requestedMonths == [september, september])
+        #expect(repository.gate.callCount == 2)
+        #expect(base.requestedMonths == [september])
         #expect(loadedMonth(viewModel)?.month == september)
     }
 

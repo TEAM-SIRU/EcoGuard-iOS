@@ -108,6 +108,11 @@ enum ActivityRecordsFormatter {
         String(localized: "\(monthName(month, current: current)) 기록이 아직 없어요")
     }
 
+    /// 빈 달 안내. 이번 달은 인증하면 쌓인다고, 지난 달은 기록이 없다고만 알린다. 지난 달 문구는 기획 확인 전 임시다.
+    static func emptyMessage(_ month: YearMonth, current: YearMonth) -> String {
+        month == current ? String(localized: "청소를 인증하면 여기에 쌓여요") : String(localized: "이 달에는 인증 기록이 없어요")
+    }
+
     /// 다른 해의 달은 연도를 붙인다("2025년 12월").
     private static func monthName(_ month: YearMonth, current: YearMonth) -> String {
         if month == current { return String(localized: "이번 달") }
