@@ -140,7 +140,16 @@ struct CleaningAreaViewModelTests {
 
     @Test func membersPutMeLast() {
         #expect(CleaningAreaFormatter.members(Fixture.area) == "김서연 · 이도윤 · 나(최민준)")
-        #expect(CleaningAreaFormatter.window(Fixture.area) == "08:00 – 08:10")
+        #expect(CleaningAreaFormatter.window(Fixture.area) == "07:20 – 08:10")
+    }
+
+    /// Mock 구역 이름·설명이 도면의 내 구역과 맞는다. 18개 구역 모두 이름이 있다.
+    @Test func mockAreaFollowsZoneCode() {
+        #expect(Set(Fixture.zones.keys) == Set(CleaningZoneCode.all))
+        let area = Fixture.area(zoneCode: .mainStairA)
+        #expect(area.range == "본관 계단 A")
+        #expect(area.description == "1층→4층, 1층 현관 제외")
+        #expect(area.zoneCode == .mainStairA)
     }
 
     /// 내 이름을 모르면(실제 서버, #55 전) 나를 따로 표시하지 않고 서버 순서 그대로 보여 준다.
