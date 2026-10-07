@@ -16,6 +16,8 @@ struct MyPageView: View {
     let viewModel: MyPageViewModel
     var actions = Actions()
 
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
@@ -31,9 +33,26 @@ struct MyPageView: View {
                 .menuButton(action: actions.openApplicationResult)
                 EcoToggleRow(
                     title: "청소 알림",
-                    isOn: Binding(get: { viewModel.isCleaningReminderOn }, set: viewModel.setCleaningReminder),
+                    isOn: Binding(
+                        get: { viewModel.isCleaningReminderOn },
+                        set: { isOn in Task { await viewModel.setCleaningReminder(isOn) } }
+                    ),
                     horizontalPadding: Spacing.screenHorizontal
                 )
+                // 로그아웃 확인 팝업과 같은 뷰에 두 개를 겹쳐 걸지 않도록 스위치 행에 건다.
+                .ecoDialog(isPresented: notificationDeniedBinding, onCancel: viewModel.dismissNotificationDenied) {
+                    EcoDialog(
+                        LocalizedStringKey(CleaningReminderCopy.Denied.title),
+                        message: LocalizedStringKey(CleaningReminderCopy.Denied.message)
+                    ) {
+                        EcoButton(LocalizedStringKey(CleaningReminderCopy.Denied.cancel), style: .secondary, action: viewModel.dismissNotificationDenied)
+                        EcoButton(LocalizedStringKey(CleaningReminderCopy.Denied.openSettings)) {
+                            viewModel.dismissNotificationDenied()
+                            guard let url = URL(string: UIApplication.openNotificationSettingsURLString) else { return }
+                            openURL(url)
+                        }
+                    }
+                }
                 EcoListRow(icon: nil, title: "이의신청 내역", horizontalPadding: Spacing.screenHorizontal) {
                     EcoListRowDisclosure()
                 }
@@ -173,6 +192,15 @@ struct MyPageView: View {
             get: { viewModel.isLogoutConfirmPresented },
             set: { isPresented in
                 if !isPresented { viewModel.cancelLogout() }
+            }
+        )
+    }
+
+    private var notificationDeniedBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.isNotificationDeniedPresented },
+            set: { isPresented in
+                if !isPresented { viewModel.dismissNotificationDenied() }
             }
         )
     }

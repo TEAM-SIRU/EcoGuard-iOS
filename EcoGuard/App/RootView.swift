@@ -21,12 +21,30 @@ struct RootView: View {
             .onChange(of: loginViewModel.state, initial: true) { _, state in
                 homeViewModel = state == .loggedIn ? container.makeHomeViewModel() : nil
             }
+            .task(id: loginViewModel.state) {
+                // 학생이 메인에 들어오면 청소 알림을 정한 적이 없을 때만 권한을 묻는다(교사 화면에서는 묻지 않는다).
+                guard loginViewModel.state == .loggedIn else { return }
+                await container.makeRequestInitialCleaningReminderUseCase()?.execute()
+            }
+            .task(id: cleaningReminderSchedule) {
+                // 앱 시작·홈 갱신으로 배정 구역·시각이 바뀌었거나 로그아웃(탈퇴·세션 만료 포함)했을 때만 다시 맞춘다.
+                guard let schedule = cleaningReminderSchedule else { return }
+                await container.makeSyncCleaningReminderUseCase().execute(schedule: schedule)
+            }
             .task {
                 // 토큰 재발급이 실패하면 저장소가 토큰을 지운 뒤 알린다. 마이페이지 로그아웃과 같은 경로로 로그인 화면에 돌린다.
                 for await _ in container.authRepository.sessionExpirations() {
                     loginViewModel.didLogOut()
                 }
             }
+    }
+
+    /// 청소 알림을 맞출 배정 구역·시각. 로그인 화면·교사 화면이면 `.some(nil)`(해제),
+    /// 홈을 아직 불러오지 못했거나 실패했으면 nil(지금 예약을 그대로 둔다).
+    private var cleaningReminderSchedule: CleaningReminderSchedule?? {
+        guard loginViewModel.state == .loggedIn else { return .some(nil) }
+        guard case .loaded(let summary) = homeViewModel?.state else { return nil }
+        return .some(summary.status.cleaningReminderSchedule)
     }
 
     @ViewBuilder

@@ -13,6 +13,8 @@ final class DIContainer {
     private let recruitmentRepository: RecruitmentRepository
     /// Mock 저장소들이 같이 쓰는 상태(오늘 날짜·기록·신청·제출). 화면별 확장도 Mock을 만들 때 넘긴다.
     let mockStore: MockStore
+    /// 기기 청소 알림. 마이페이지 스위치와 앱 셸(배정 구역이 바뀔 때, 로그아웃)이 같이 쓴다.
+    let cleaningReminderScheduler: CleaningReminderScheduler
     /// 실제 서버 저장소가 같이 쓴다. 로그인 저장소와 같은 `AuthSession`이라 토큰 재발급이 한 번만 일어난다.
     /// 서버 주소가 없으면(로그인이 Mock) nil이고 저장소는 Mock을 쓴다. 화면별 확장에서도 써서 `private`이 아니다.
     lazy var apiClient: APIClient? = (authRepository as? AuthRepositoryImpl)?.apiClient
@@ -22,7 +24,8 @@ final class DIContainer {
         homeRepository: HomeRepository,
         recruitmentRepository: RecruitmentRepository,
         webAdminURL: URL?,
-        mockStore: MockStore = MockStore()
+        mockStore: MockStore = MockStore(),
+        cleaningReminderScheduler: CleaningReminderScheduler = MockCleaningReminderScheduler()
     ) {
         self.authRepository = authRepository
         self.hadStoredSessionAtLaunch = authRepository.hasStoredSession()
@@ -30,6 +33,7 @@ final class DIContainer {
         self.recruitmentRepository = recruitmentRepository
         self.webAdminURL = webAdminURL
         self.mockStore = mockStore
+        self.cleaningReminderScheduler = cleaningReminderScheduler
     }
 
     /// 서버 주소(`ECO_API_HOST`)가 비어 있거나 Mock 전환(`AppConfig.usesMockRepositories`)이 켜져 있으면 Mock을 쓴다.
@@ -50,7 +54,9 @@ final class DIContainer {
                 RecruitmentRepositoryImpl(apiClient: $0, currentUserRepository: CurrentUserRepositoryImpl(apiClient: $0))
             } ?? MockRecruitmentRepository(scenario: recruitmentScenario, store: mockStore),
             webAdminURL: AppConfig.webAdminURL,
-            mockStore: mockStore
+            mockStore: mockStore,
+            // 로컬 알림은 서버와 상관없어 Mock 모드에서도 실제로 건다.
+            cleaningReminderScheduler: CleaningReminderSchedulerImpl()
         )
     }
 
@@ -120,6 +126,28 @@ final class DIContainer {
             fetchHomeUseCase: FetchHomeUseCase(homeRepository: homeRepository),
             dismissNoticeUseCase: DismissNoticeUseCase(homeRepository: homeRepository),
             state: state
+        )
+    }
+
+    /// 배정 구역·시각이 바뀌거나 로그아웃했을 때 앱 셸(`RootView`)이 청소 알림을 다시 맞춘다.
+    func makeSyncCleaningReminderUseCase(
+        notificationSettingRepository: NotificationSettingRepository = NotificationSettingRepositoryImpl()
+    ) -> SyncCleaningReminderUseCase {
+        SyncCleaningReminderUseCase(
+            notificationSettingRepository: notificationSettingRepository,
+            cleaningReminderScheduler: cleaningReminderScheduler
+        )
+    }
+
+    /// 로그인 후 메인에 처음 들어왔을 때 청소 알림 권한을 한 번 묻는다.
+    /// Mock 모드(서버 주소 없음·Mock 전환, UI 테스트 포함)에서는 묻지 않아 nil.
+    func makeRequestInitialCleaningReminderUseCase(
+        notificationSettingRepository: NotificationSettingRepository = NotificationSettingRepositoryImpl()
+    ) -> RequestInitialCleaningReminderUseCase? {
+        guard apiClient != nil else { return nil }
+        return RequestInitialCleaningReminderUseCase(
+            notificationSettingRepository: notificationSettingRepository,
+            cleaningReminderScheduler: cleaningReminderScheduler
         )
     }
 

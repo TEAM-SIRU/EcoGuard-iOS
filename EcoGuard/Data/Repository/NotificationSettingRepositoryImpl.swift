@@ -4,6 +4,8 @@ import Foundation
 final class NotificationSettingRepositoryImpl: NotificationSettingRepository {
     private enum Key {
         static let cleaningReminder = "notification.cleaningReminder"
+        static let scheduleAreaName = "notification.cleaningReminder.areaName"
+        static let scheduleStartMinute = "notification.cleaningReminder.startMinute"
     }
 
     private let defaults: UserDefaults
@@ -19,5 +21,25 @@ final class NotificationSettingRepositoryImpl: NotificationSettingRepository {
 
     func setCleaningReminderOn(_ isOn: Bool) {
         defaults.set(isOn, forKey: Key.cleaningReminder)
+    }
+
+    func hasDecidedCleaningReminder() -> Bool {
+        defaults.object(forKey: Key.cleaningReminder) != nil
+    }
+
+    func cleaningReminderSchedule() -> CleaningReminderSchedule? {
+        guard let areaName = defaults.string(forKey: Key.scheduleAreaName),
+              let startMinute = defaults.object(forKey: Key.scheduleStartMinute) as? Int else { return nil }
+        return CleaningReminderSchedule(areaName: areaName, startMinute: startMinute)
+    }
+
+    func setCleaningReminderSchedule(_ schedule: CleaningReminderSchedule?) {
+        guard let schedule else {
+            defaults.removeObject(forKey: Key.scheduleAreaName)
+            defaults.removeObject(forKey: Key.scheduleStartMinute)
+            return
+        }
+        defaults.set(schedule.areaName, forKey: Key.scheduleAreaName)
+        defaults.set(schedule.startMinute, forKey: Key.scheduleStartMinute)
     }
 }
