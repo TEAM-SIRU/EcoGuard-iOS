@@ -137,6 +137,11 @@ private struct ScreenGalleryEntryModifier: ViewModifier {
                     entryButton
                 }
             }
+            // 로그인 유지 상태에서는 로그인 화면이 나오지 않아 기기 흔들기·마이페이지 행으로도 연다.
+            .onReceive(NotificationCenter.default.publisher(for: .screenGalleryRequested)) { _ in
+                guard launch == nil else { return }
+                launch = ScreenGalleryLaunch()
+            }
             .fullScreenCover(item: $launch) { launch in
                 ScreenGalleryView(initialItemID: launch.initialItemID) { self.launch = nil }
             }
@@ -154,6 +159,35 @@ private struct ScreenGalleryEntryModifier: ViewModifier {
                 .background(Color.ecoPrimary, in: Capsule())
         }
         .padding(.top, Spacing.sm)
+    }
+}
+
+extension Notification.Name {
+    /// 화면 모음을 열어 달라는 요청. 앱 루트(`RootView`)의 `screenGallery(showsEntryButton:)`가 받아서 띄운다.
+    static let screenGalleryRequested = Notification.Name("ScreenGalleryRequested")
+}
+
+extension UIWindow {
+    /// 기기 흔들기(시뮬레이터 Device › Shake, ⌃⌘Z)로 화면 모음을 연다.
+    override open func motionEnded(_ motion: UIEvent.EventSubtype, with event: UIEvent?) {
+        super.motionEnded(motion, with: event)
+        guard motion == .motionShake else { return }
+        NotificationCenter.default.post(name: .screenGalleryRequested, object: nil)
+    }
+}
+
+/// 마이페이지 맨 아래 `화면 둘러보기` 행.
+struct ScreenGalleryMenuRow: View {
+    var body: some View {
+        Button {
+            NotificationCenter.default.post(name: .screenGalleryRequested, object: nil)
+        } label: {
+            EcoListRow(icon: nil, title: "화면 둘러보기 (DEBUG)", horizontalPadding: Spacing.screenHorizontal) {
+                EcoListRowDisclosure()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
