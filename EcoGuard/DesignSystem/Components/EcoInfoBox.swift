@@ -2,8 +2,8 @@ import SwiftUI
 
 /// 카드 안 안내 상자. px14 py12, radius 12.
 /// - `warning`: Figma `Reason` (238:519) 흰 배경 + 테두리, 빨간 제목 + 본문
-/// - `note`: Figma `Note` (255:443) 회색 배경 안내 문구
-/// - `field`: Figma `09 이의신청` 반려 사유 (239:281) 읽기 전용 입력칸. 회색 배경 body2, px16 py14
+/// - `note`: Figma `Note` (823:2576) grey/50 배경 안내 문구
+/// - `field`: Figma `09 이의신청` 반려 사유 (823:1743) 읽기 전용 입력칸. grey/50 배경 body2, px16 py14
 struct EcoInfoBox: View {
     enum Style {
         case warning(title: LocalizedStringKey)
@@ -62,7 +62,7 @@ struct EcoInfoBox: View {
                 .fill(Color.ecoCard)
                 .overlay { shape.stroke(Color.ecoBorder) }
         case .note, .field:
-            shape.fill(Color.ecoDivider)
+            shape.fill(Color.ecoSurface)
         }
     }
 }

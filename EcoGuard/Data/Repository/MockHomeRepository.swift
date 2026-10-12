@@ -81,7 +81,7 @@ extension MockHomeRepository {
 
         static let area = "본관 2층 복도 A"
         static let window = CleaningWindow(startMinute: 8 * 60, endMinute: 8 * 60 + 10)
-        /// Figma `인증 마감까지 05:32`.
+        /// Figma `인증 마감 05:32 남음`.
         static let remainingUntilDeadline: TimeInterval = 5 * 60 + 32
 
         static let notice = Notice(

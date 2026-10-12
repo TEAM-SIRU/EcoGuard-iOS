@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Figma `Dialog` (309:161). 화면 가운데 확인 팝업. 제목(title3) + 설명(body2) + 가로 버튼 두 개.
+/// Figma `Dialog` (823:2872). 화면 가운데 확인 팝업. 제목(title3) + 설명(body2) + 가로 팝업 버튼 두 개(높이 44).
 /// 탭 바까지 덮어야 해서 띄울 때는 `.ecoDialog(isPresented:onCancel:)`를 쓴다.
 struct EcoDialog<Buttons: View>: View {
     private let title: LocalizedStringKey
@@ -26,6 +26,7 @@ struct EcoDialog<Buttons: View>: View {
             HStack(spacing: Spacing.sm) {
                 buttons
             }
+            .environment(\.isInEcoDialog, true)
             .padding(.top, Spacing.lg)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

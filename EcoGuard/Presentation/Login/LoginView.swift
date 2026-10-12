@@ -50,6 +50,7 @@ struct LoginView: View {
         } message: {
             Text(ReviewLoginText.message)
         }
+        .background(Color.ecoCanvas)
     }
 
     /// 앱 심사자용 데모 계정 진입(#101). 일반 사용자 눈에 띄지 않게 로고·앱 이름을 길게 눌러야 열린다. Release 빌드에도 들어간다.

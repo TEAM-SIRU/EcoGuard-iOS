@@ -8,7 +8,7 @@ struct EcoProgressSummary: View {
     let valueAccessibilityLabel: String
     let progress: Double
     let caption: String
-    /// 진행 중이면 초록(값 green/700 · 막대 green/500), 마감이면 caption 회색(Figma 313:36 · 313:38).
+    /// 진행 중이면 초록(값 green/700 · 막대 green/500), 마감이면 값 caption · 막대 grey/300(Figma 823:2954).
     var isActive = true
 
     var body: some View {
@@ -23,7 +23,7 @@ struct EcoProgressSummary: View {
             }
             .ecoFont(.body1Bold)
             .accessibilityElement(children: .combine)
-            EcoProgressBar(progress: progress, tint: isActive ? .ecoPrimary : .ecoTextCaption)
+            EcoProgressBar(progress: progress, tint: isActive ? .ecoPrimary : .ecoBorderStrong)
             Text(caption)
                 .ecoFont(.sub)
                 .foregroundStyle(Color.ecoTextCaption)

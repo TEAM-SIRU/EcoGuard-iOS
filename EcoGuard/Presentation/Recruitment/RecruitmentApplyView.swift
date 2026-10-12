@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Figma `04 환경지킴이 신청` (309:169). 학번·이름 자동 표시와 신청 동기 입력은 Figma에 아직 없어
-/// 기존 토큰(Info table · 입력 라운드)으로 구성했다. 하단 버튼은 키보드 위로 따라 올라가고, 스크롤하면 키보드가 내려간다.
+/// Figma `04 환경지킴이 신청 · 입력 전` (823:2880) · `입력 완료` (823:4643). 학번·이름은 읽기 전용 입력칸, 신청 동기는 입력.
+/// 하단 버튼은 키보드 위로 따라 올라가고, 스크롤하면 키보드가 내려간다.
 struct RecruitmentApplyView: View {
     private enum Field: Hashable {
         case motivation
@@ -70,13 +70,6 @@ struct RecruitmentApplyView: View {
         }
     }
 
-    /// 모르는 값(실제 서버의 학번 등)은 줄째 숨긴다.
-    private var applicantRows: [EcoInfoTable.Row] {
-        [
-            viewModel.applicant.studentNumber.map { .init(label: RecruitmentCopy.Apply.studentNumberLabel, value: $0) },
-            viewModel.applicant.name.map { .init(label: RecruitmentCopy.Apply.nameLabel, value: $0) }
-        ].compactMap { $0 }
-    }
 
     private var form: some View {
         ScrollView {
@@ -86,9 +79,18 @@ struct RecruitmentApplyView: View {
                     subtitle: RecruitmentCopy.Apply.subtitle(capacity: viewModel.capacityPerClass)
                 )
                 .padding(.top, Spacing.sm)
+                .padding(.bottom, Spacing.xs)
                 VStack(spacing: Spacing.xxl) {
-                    if !applicantRows.isEmpty {
-                        EcoInfoTable(rows: applicantRows)
+                    // 모르는 값(실제 서버의 학번 등)은 칸째 숨긴다. 자동 입력 안내는 마지막 칸 아래에 둔다.
+                    if let studentNumber = viewModel.applicant.studentNumber {
+                        ReadOnlyField(
+                            title: RecruitmentCopy.Apply.studentNumberLabel,
+                            value: studentNumber,
+                            showsNote: viewModel.applicant.name == nil
+                        )
+                    }
+                    if let name = viewModel.applicant.name {
+                        ReadOnlyField(title: RecruitmentCopy.Apply.nameLabel, value: name, showsNote: true)
                     }
                     EcoTextArea(
                         title: RecruitmentCopy.Apply.motivationTitle,
@@ -126,8 +128,44 @@ struct RecruitmentApplyView: View {
                 .disabled(viewModel.validation != .valid)
             }
         }
-        .background(Color.ecoCard)
+        .background(Color.ecoCanvas)
     }
+}
+
+/// Figma 학번·이름 칸. 라벨(13/19 Medium) · 회색 칸(grey/100 + 1px grey/200, radius 12, 위아래 14 · 좌우 16) · 안내(12/17).
+private struct ReadOnlyField: View {
+    let title: LocalizedStringKey
+    let value: String
+    let showsNote: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text(title)
+                .ecoFont(.subMedium)
+                .foregroundStyle(Color.ecoTextCaption)
+            Text(verbatim: value)
+                .ecoFont(.body2)
+                .foregroundStyle(Color.ecoTextPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Metrics.fieldVerticalPadding)
+                .background(Color.ecoDivider, in: RoundedRectangle(cornerRadius: Radius.tile))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.tile)
+                        .strokeBorder(Color.ecoBorder, lineWidth: 1)
+                }
+            if showsNote {
+                Text(RecruitmentCopy.Apply.autofillNote)
+                    .ecoFont(.captionRegular)
+                    .foregroundStyle(Color.ecoTextCaption)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private enum Metrics {
+    static let fieldVerticalPadding: CGFloat = 14
 }
 
 private struct RecruitmentApplyPreview: View {

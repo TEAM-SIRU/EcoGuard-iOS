@@ -22,6 +22,7 @@ struct ApplicationResultView: View {
             .task {
                 await viewModel.load()
             }
+        .background(Color.ecoCanvas)
     }
 
     @ViewBuilder
@@ -34,6 +35,8 @@ struct ApplicationResultView: View {
             resultView(ApplicationResultContent(outcome: outcome))
         case .notApplied:
             RecruitmentMessageView(
+                icon: .iconListHero,
+                iconTint: .ecoTextMuted,
                 title: RecruitmentCopy.Result.notAppliedTitle,
                 message: RecruitmentCopy.Result.notAppliedMessage,
                 onBack: onBack,
@@ -82,7 +85,7 @@ struct ApplicationResultView: View {
     private func heroIcon(_ icon: ApplicationResultContent.Icon) -> some View {
         switch icon {
         case .check:
-            HeroIcon(icon: .iconCheckHero, style: .result(tint: .ecoPrimary))
+            HeroIcon(icon: .iconCheckHero, style: .result(tint: .ecoPrimaryIcon))
         case .cross:
             HeroIcon(icon: .iconXHero, style: .result(tint: .ecoRejected))
         }

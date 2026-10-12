@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Figma `Recruit card` (255:583 모집 기간 · 313:262 구역 배정 대기).
+/// Figma `Recruit card` (823:3025 구역 배정 대기). 모집 기간 카드는 Redesign 2에 없어 같은 카드 모양을 쓴다.
 /// 미선발·모집 없음은 Figma에 없어 같은 카드에 버튼 없이 사실만 보여 준다(`HomeStatusCopy`).
 struct HomeRecruitCard: View {
     enum Content {
@@ -17,8 +17,8 @@ struct HomeRecruitCard: View {
     var body: some View {
         EcoCard(.content) {
             VStack(alignment: .leading, spacing: 0) {
-                EcoTag(title: tagTitle, style: .tint)
-                VStack(alignment: .leading, spacing: Spacing.sm) {
+                EcoTag(title: tagTitle)
+                VStack(alignment: .leading, spacing: Metrics.textSpacing) {
                     Text(title)
                         .ecoFont(.title2)
                         .foregroundStyle(Color.ecoTextPrimary)
@@ -27,7 +27,7 @@ struct HomeRecruitCard: View {
                         .ecoFont(.body2)
                         .foregroundStyle(Color.ecoTextSub)
                 }
-                .padding(.top, Spacing.md)
+                .padding(.top, Metrics.textTop)
                 .padding(.bottom, Spacing.lg)
                 if case .recruiting(let recruitment) = content {
                     progress(recruitment)
@@ -63,7 +63,7 @@ struct HomeRecruitCard: View {
     private var message: LocalizedStringKey {
         switch content {
         case .recruiting(let recruitment): "반마다 \(recruitment.capacityPerClass)명, 먼저 신청한 순서대로 확정돼요"
-        case .awaitingAssignment: "선생님이 청소 구역을 배정하면 여기서 바로 알려드려요"
+        case .awaitingAssignment: "선생님이 청소 구역을 배정하면\n여기서 바로 알려 드려요"
         case .notSelected: HomeStatusCopy.NotSelected.message
         case .notRecruiting: HomeStatusCopy.NotRecruiting.message
         }
@@ -96,4 +96,10 @@ struct HomeRecruitCard: View {
             nil
         }
     }
+}
+
+private enum Metrics {
+    /// Figma 태그 아래 10 · 제목과 설명 사이 6. Foundations 간격 스케일 밖이다.
+    static let textTop: CGFloat = 10
+    static let textSpacing: CGFloat = 6
 }

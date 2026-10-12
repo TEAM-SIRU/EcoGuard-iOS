@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 화면 가운데 큰 아이콘. 80 정사각 영역에 그린다.
 /// - `logo`: Figma `Logo` (238:128). 64 아이콘만 둔다.
-/// - `badge`: Figma 교사 안내 (309:43). 64 원 배경 가운데에 30 아이콘을 둔다.
+/// - `badge`: Figma 교사 안내 (823:2733) · 안내 시트 아이콘. 64 영역 가운데에 48 중립 아이콘(grey/500)을 둔다. 원 배경은 없다.
 /// - `result`: Figma 신청 결과 (246:119 check · 246:135 x). 64 아이콘을 `tint` 색으로 둔다.
 struct HeroIcon: View {
     enum Style {
@@ -13,7 +13,7 @@ struct HeroIcon: View {
 
     let icon: ImageResource
     let style: Style
-    /// 아이콘 색. 없으면 스타일 기본색(logo: primary, badge: caption)을 쓴다.
+    /// 아이콘 색. 없으면 스타일 기본색(logo: green/500, badge: grey/500)을 쓴다.
     var tint: Color?
 
     var body: some View {
@@ -29,7 +29,7 @@ struct HeroIcon: View {
             Image(icon)
                 .resizable()
                 .frame(width: Metrics.logoIconSize, height: Metrics.logoIconSize)
-                .foregroundStyle(tint ?? Color.ecoPrimary)
+                .foregroundStyle(tint ?? Color.ecoPrimaryIcon)
         case .result(let resultTint):
             Image(icon)
                 .resizable()
@@ -39,9 +39,8 @@ struct HeroIcon: View {
             Image(icon)
                 .resizable()
                 .frame(width: Metrics.badgeIconSize, height: Metrics.badgeIconSize)
-                .foregroundStyle(tint ?? Color.ecoTextCaption)
+                .foregroundStyle(tint ?? Color.ecoTextMuted)
                 .frame(width: Metrics.badgeSize, height: Metrics.badgeSize)
-                .background(Color.ecoBadgeBackground, in: Circle())
         }
     }
 }
@@ -51,7 +50,7 @@ private extension HeroIcon {
         static let size: CGFloat = 80
         static let logoIconSize: CGFloat = 64
         static let badgeSize: CGFloat = 64
-        static let badgeIconSize: CGFloat = 30
+        static let badgeIconSize: CGFloat = 48
     }
 }
 
@@ -59,7 +58,7 @@ private extension HeroIcon {
     HStack(spacing: Spacing.lg) {
         HeroIcon(icon: .iconSprout, style: .logo)
         HeroIcon(icon: .iconList, style: .badge)
-        HeroIcon(icon: .iconCheckHero, style: .result(tint: .ecoPrimary))
+        HeroIcon(icon: .iconCheckHero, style: .result(tint: .ecoPrimaryIcon))
         HeroIcon(icon: .iconXHero, style: .result(tint: .ecoRejected))
     }
 }

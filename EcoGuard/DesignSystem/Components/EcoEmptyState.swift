@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// 화면 가운데 빈 상태·실패 안내. Figma `06 청소구역 · 미배정` (246:152) · `05 청소구역 · 조회 실패` (317:1245).
-/// `07 활동 기록 · 빈 상태` (240:129)처럼 버튼 크기가 다르면 `Action.size`로 고른다.
-/// 64 영역 가운데 30 아이콘, 제목 body1Bold, 설명 body2, 선택 버튼(기본 compact). 간격 12.
+/// 화면 가운데 빈 상태·실패 안내. Figma `06 청소구역 · 미배정` (823:2496) · `05 청소구역 · 조회 실패` (823:3784).
+/// `07 활동 기록 · 빈 상태` (823:1966)처럼 버튼 크기가 다르면 `Action.size`로 고른다.
+/// 64 영역 가운데 30 중립 아이콘(grey/500), 제목 body1Bold, 설명 body2, 선택 버튼(기본 compact). 간격 12.
 struct EcoEmptyState: View {
     struct Action {
         let title: LocalizedStringKey
@@ -20,7 +20,7 @@ struct EcoEmptyState: View {
             Image(icon)
                 .resizable()
                 .frame(width: Metrics.iconSize, height: Metrics.iconSize)
-                .foregroundStyle(Color.ecoDisabled)
+                .foregroundStyle(Color.ecoTextMuted)
                 .frame(width: Metrics.iconArea, height: Metrics.iconArea)
                 .accessibilityHidden(true)
             VStack(spacing: Spacing.md) {

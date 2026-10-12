@@ -44,6 +44,7 @@ struct AppealSubmittedView: View {
                 EcoButton("홈으로", style: .secondary, action: goHome)
             }
         }
+        .background(Color.ecoCanvas)
     }
 }
 

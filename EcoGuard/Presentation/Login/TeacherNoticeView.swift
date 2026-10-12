@@ -37,12 +37,12 @@ struct TeacherNoticeView: View {
         .safeAreaInset(edge: .bottom) {
             BottomCTA {
                 if let webAdminURL {
+                    EcoShareButton("웹 주소 공유", style: .secondary, item: webAdminURL)
+                        .disabled(isLoggingOut)
                     EcoButton("웹 주소 복사", style: .secondary) {
                         copy(webAdminURL)
                     }
                     .disabled(isLoggingOut)
-                    EcoShareButton("웹 주소 공유", style: .secondary, item: webAdminURL)
-                        .disabled(isLoggingOut)
                 }
                 EcoButton("로그아웃", style: .secondary) {
                     isLoggingOut = true
@@ -68,6 +68,7 @@ struct TeacherNoticeView: View {
             guard (try? await Task.sleep(for: EcoToast.displayDuration)) != nil else { return }
             isShowingCopiedToast = false
         }
+        .background(Color.ecoCanvas)
     }
 
     private func copy(_ url: URL) {

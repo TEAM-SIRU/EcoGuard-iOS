@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Figma `Info table` (246:15). grey/50 배경, 사방 20, radius 16, 행 사이 12.
+/// Figma `Info table` (823:2403). 흰 카드(테두리 + 그림자), 사방 16, radius 16, 행 사이 10.
 /// 왼쪽 라벨(body2 caption 색) · 오른쪽 값(body2Medium).
 struct EcoInfoTable: View {
     struct Row {
@@ -11,7 +11,7 @@ struct EcoInfoTable: View {
     let rows: [Row]
 
     var body: some View {
-        VStack(spacing: Spacing.md) {
+        VStack(spacing: Metrics.rowSpacing) {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                 HStack(alignment: .firstTextBaseline, spacing: Spacing.md) {
                     Text(row.label)
@@ -26,9 +26,13 @@ struct EcoInfoTable: View {
                 .accessibilityElement(children: .combine)
             }
         }
-        .padding(Spacing.xl)
-        .background(Color.ecoSurface, in: RoundedRectangle(cornerRadius: Radius.button))
+        .padding(Spacing.lg)
+        .ecoCardBackground(cornerRadius: Radius.box)
     }
+}
+
+private enum Metrics {
+    static let rowSpacing: CGFloat = 10
 }
 
 #Preview {

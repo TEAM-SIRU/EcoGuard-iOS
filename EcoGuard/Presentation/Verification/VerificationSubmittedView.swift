@@ -29,6 +29,7 @@ struct VerificationSubmittedView: View {
                 EcoButton("홈으로", action: goHome)
             }
         }
+        .background(Color.ecoCanvas)
     }
 
     private var header: some View {

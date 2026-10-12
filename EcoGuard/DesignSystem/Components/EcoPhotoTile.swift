@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 사진 추가 칸. Figma `09 이의신청` `Add photo` (239:291).
-/// 88 정사각, grey/100 배경, radius 12, `icon/cam` 24(grey/700) + `촬영 n/최대`(13/18 Medium grey/600), 사이 4.
+/// 88 정사각, grey/150 배경, radius 12, `icon/cam` 24(grey/700) + `촬영 n/최대`(12/17 Medium grey/600), 사이 4.
 struct EcoAddPhotoTile: View {
     let count: Int
     let maxCount: Int
@@ -18,7 +18,7 @@ struct EcoAddPhotoTile: View {
                     .foregroundStyle(Color.ecoTextCaption)
             }
             .frame(width: Metrics.size, height: Metrics.size)
-            .background(Color.ecoDivider, in: RoundedRectangle(cornerRadius: Radius.tile))
+            .background(Color.ecoButtonFill, in: RoundedRectangle(cornerRadius: Radius.tile))
             .contentShape(RoundedRectangle(cornerRadius: Radius.tile))
         }
         .buttonStyle(.plain)

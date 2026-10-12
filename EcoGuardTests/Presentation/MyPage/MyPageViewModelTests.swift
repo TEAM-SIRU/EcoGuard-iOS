@@ -44,7 +44,8 @@ struct MyPageViewModelTests {
         logoutDelay: Duration = .zero,
         logoutFails: Bool = false,
         settings: NotificationSettingRepository? = nil,
-        scheduler: CleaningReminderScheduler? = nil
+        scheduler: CleaningReminderScheduler? = nil,
+        currentUserRepository: MockCurrentUserRepository = MockCurrentUserRepository()
     ) -> (MyPageViewModel, MockAuthRepository, MockMyPageRepository, LogoutSpy) {
         let authRepository = MockAuthRepository(delay: logoutDelay, logoutFails: logoutFails)
         let myPageRepository = MockMyPageRepository(scenarios: scenarios, delay: .zero)
@@ -59,6 +60,7 @@ struct MyPageViewModelTests {
         let viewModel = container.makeMyPageViewModel(
             repository: myPageRepository,
             notificationSettingRepository: settings ?? InMemoryNotificationSettingRepository(),
+            currentUserRepository: currentUserRepository,
             onLoggedOut: { spy.loggedOutCount += 1 }
         )
         return (viewModel, authRepository, myPageRepository, spy)
@@ -235,6 +237,54 @@ struct MyPageViewModelTests {
         viewModel.requestLogout()
 
         #expect(!viewModel.isLogoutConfirmPresented)
+    }
+
+    // MARK: - 회원탈퇴
+
+    @Test func confirmWithdrawCallsCompletionAfterDismiss() async {
+        let users = MockCurrentUserRepository()
+        let (viewModel, _, _, spy) = makeViewModel(currentUserRepository: users)
+        viewModel.requestWithdraw()
+        #expect(viewModel.isWithdrawConfirmPresented)
+
+        await viewModel.confirmWithdraw()
+
+        #expect(users.withdrawCallCount == 1)
+        #expect(!viewModel.isWithdrawConfirmPresented)
+        #expect(spy.loggedOutCount == 0)
+
+        viewModel.logoutConfirmDidDismiss()
+
+        #expect(spy.loggedOutCount == 1)
+        #expect(viewModel.withdrawFailureCount == 0)
+    }
+
+    @Test func cancelWithdrawKeepsAccount() {
+        let users = MockCurrentUserRepository()
+        let (viewModel, _, _, spy) = makeViewModel(currentUserRepository: users)
+        viewModel.requestWithdraw()
+
+        viewModel.cancelWithdraw()
+        viewModel.logoutConfirmDidDismiss()
+
+        #expect(!viewModel.isWithdrawConfirmPresented)
+        #expect(users.withdrawCallCount == 0)
+        #expect(spy.loggedOutCount == 0)
+    }
+
+    /// 탈퇴에 실패하면 계정이 남아 있으므로 로그인 화면으로 보내지 않고 실패를 알린다.
+    @Test func failedWithdrawStaysAndReportsFailure() async {
+        let users = MockCurrentUserRepository(withdrawFails: true)
+        let (viewModel, _, _, spy) = makeViewModel(currentUserRepository: users)
+        viewModel.requestWithdraw()
+
+        await viewModel.confirmWithdraw()
+        viewModel.logoutConfirmDidDismiss()
+
+        #expect(users.withdrawCallCount == 1)
+        #expect(!viewModel.isWithdrawConfirmPresented)
+        #expect(viewModel.withdrawFailureCount == 1)
+        #expect(spy.loggedOutCount == 0)
     }
 
     // MARK: - 돌아왔을 때 새로고침

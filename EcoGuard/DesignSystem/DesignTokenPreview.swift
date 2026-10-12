@@ -6,6 +6,10 @@ private struct DesignTokenPreview: View {
         ("ecoPrimary", .ecoPrimary),
         ("ecoPrimaryTint", .ecoPrimaryTint),
         ("ecoPrimaryText", .ecoPrimaryText),
+        ("ecoPrimaryIcon", .ecoPrimaryIcon),
+        ("ecoCanvas", .ecoCanvas),
+        ("ecoButtonFill", .ecoButtonFill),
+        ("ecoTextMuted", .ecoTextMuted),
         ("ecoTextPrimary", .ecoTextPrimary),
         ("ecoTextSub", .ecoTextSub),
         ("ecoTextCaption", .ecoTextCaption),
@@ -19,15 +23,16 @@ private struct DesignTokenPreview: View {
         ("ecoOnPrimary", .ecoOnPrimary),
         ("ecoToastBackground", .ecoToastBackground),
         ("ecoOnToast", .ecoOnToast),
-        ("ecoToastIcon", .ecoToastIcon),
-        ("ecoBadgeBackground", .ecoBadgeBackground)
+        ("ecoToastIcon", .ecoToastIcon)
     ]
 
     private let radii: [(name: String, value: CGFloat)] = [
         ("tag", Radius.tag),
         ("tile", Radius.tile),
         ("button", Radius.button),
+        ("box", Radius.box),
         ("card", Radius.card),
+        ("listCard", Radius.listCard),
         ("chip", Radius.chip)
     ]
 
@@ -40,7 +45,7 @@ private struct DesignTokenPreview: View {
             }
             .padding(.horizontal, Spacing.screenHorizontal)
         }
-        .background(Color.ecoSurface)
+        .background(Color.ecoCanvas)
     }
 
     private var textStyleSection: some View {

@@ -20,7 +20,7 @@ struct CameraVerificationView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        content
+        screen
             .task {
                 guard viewModel.state == .loading else { return }
                 await viewModel.load()
@@ -65,6 +65,8 @@ struct CameraVerificationView: View {
             )
         case .notAssigned:
             VerificationMessageView(
+                icon: .iconMapHero,
+                iconTint: .ecoTextMuted,
                 title: "아직 배정된 구역이 없어요",
                 message: "청소 구역이 배정되면 알려드려요.",
                 primaryTitle: "다시 시도",
@@ -89,7 +91,7 @@ struct CameraVerificationView: View {
         case .uploadFailed:
             VerificationMessageView(
                 title: "사진을 보내지 못했어요",
-                message: "네트워크 연결을 확인하고 다시 시도해 주세요.\n\(deadlineText) 전에 업로드를 시작한 사진은 마감 후에도 같은 사진으로 재시도할 수 있어요.\n새 사진으로 바꾸면 마감 후 제출할 수 없어요.",
+                message: "네트워크 연결을 확인하고 다시 시도해 주세요.\n\(deadlineText) 전에 업로드를 시작한 사진은\n마감 후에도 같은 사진으로 다시 보낼 수 있어요.\n새 사진으로 바꾸면 마감 후에는 제출할 수 없어요.",
                 primaryTitle: "같은 사진 다시 보내기",
                 primaryAction: viewModel.submit,
                 back: viewModel.returnToConfirm,
@@ -99,6 +101,8 @@ struct CameraVerificationView: View {
             VerificationSubmittedView(captured: captured, submittedAt: submittedAt, area: viewModel.session?.area, goHome: actions.goHome)
         case .timedOut:
             VerificationMessageView(
+                icon: .iconClockHero,
+                iconTint: .ecoPendingIcon,
                 title: "오늘 인증 시간이 끝났어요",
                 message: "\(deadlineText)이 지나 새 인증은 제출할 수 없어요.\n마감 전에 업로드를 시작했다면 기존 사진의 업로드를 이어갈 수 있어요.\n이의신청용 촬영은 별도로 가능해요.",
                 primaryTitle: "업로드 상태 확인",
@@ -114,9 +118,23 @@ struct CameraVerificationView: View {
         viewModel.session.map { HomeFormatter.time(minuteOfDay: $0.window.endMinute) } ?? "마감"
     }
 
+    /// 주말·방학은 시트가 아닌 전체 화면(`VerificationClosedView`)으로 보여 준다.
+    @ViewBuilder
+    private var screen: some View {
+        switch viewModel.sheet {
+        case .outsideWindow(let reason) where reason != .outsideHours:
+            VerificationClosedView(reason: reason) {
+                viewModel.dismissSheet()
+                actions.goHome()
+            }
+        default:
+            content
+        }
+    }
+
     private var isSheetPresented: Binding<Bool> {
         Binding(
-            get: { viewModel.sheet != nil },
+            get: { sheetKind != nil },
             set: { isPresented in
                 if !isPresented {
                     viewModel.dismissSheet()
@@ -127,8 +145,10 @@ struct CameraVerificationView: View {
 
     private var sheetKind: VerificationSheet.Kind? {
         switch viewModel.sheet {
-        case .outsideWindow(let reason):
-            viewModel.session.map { .outsideWindow($0.window, reason) }
+        case .outsideWindow(.outsideHours):
+            viewModel.session.map { .outsideWindow($0.window) }
+        case .outsideWindow(.weekend), .outsideWindow(.vacation):
+            nil
         case .alreadySubmitted(let submittedAt, let status):
             .alreadySubmitted(submittedAt: submittedAt, status: status)
         case .permissionRequired:

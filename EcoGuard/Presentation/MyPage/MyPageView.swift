@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Figma `12 전체` (240:221) · `12 전체 · 로그아웃 확인` (309:64). 하단 탭 바는 앱 셸(`MainTabView`)이 얹는다.
+/// Figma `12 마이페이지` (823:2045) · `12 마이페이지 · 로그아웃 확인` (823:2770). 하단 탭 바는 앱 셸(`MainTabView`)이 얹는다.
 /// 내 정보를 불러오지 못해도 메뉴와 로그아웃은 그대로 쓸 수 있다.
 struct MyPageView: View {
     /// 화면 이동. 앱 셸(`MainTabView`)이 연결한다. 기본값은 아무것도 하지 않는다.
@@ -18,63 +18,71 @@ struct MyPageView: View {
 
     @Environment(\.openURL) private var openURL
 
+    /// 회원탈퇴 실패 토스트. Figma 정의가 없어 다른 토스트와 같은 모양으로 위쪽에 띄운다.
+    @State private var isWithdrawFailedToastPresented = false
+
+    private static let withdrawFailedMessage: LocalizedStringResource = "탈퇴하지 못했어요. 잠시 후 다시 시도해 주세요"
+
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
                 profileSection
                 sectionDivider
-                EcoListRow(icon: nil, title: "내 청소 구역", horizontalPadding: Spacing.screenHorizontal) {
-                    EcoListRowDisclosure(value: summary?.cleaningAreaName)
-                }
-                .menuButton(action: actions.openCleaningArea)
-                EcoListRow(icon: nil, title: "신청 결과", horizontalPadding: Spacing.screenHorizontal) {
-                    EcoListRowDisclosure(value: summary?.hasApplied == true ? "신청 완료" : nil)
-                }
-                .menuButton(action: actions.openApplicationResult)
-                EcoToggleRow(
-                    title: "청소 알림",
-                    isOn: Binding(
-                        get: { viewModel.isCleaningReminderOn },
-                        set: { isOn in Task { await viewModel.setCleaningReminder(isOn) } }
-                    ),
-                    horizontalPadding: Spacing.screenHorizontal
-                )
-                // 로그아웃 확인 팝업과 같은 뷰에 두 개를 겹쳐 걸지 않도록 스위치 행에 건다.
-                .ecoDialog(isPresented: notificationDeniedBinding, onCancel: viewModel.dismissNotificationDenied) {
-                    EcoDialog(
-                        LocalizedStringKey(CleaningReminderCopy.Denied.title),
-                        message: LocalizedStringKey(CleaningReminderCopy.Denied.message)
-                    ) {
-                        EcoButton(LocalizedStringKey(CleaningReminderCopy.Denied.cancel), style: .secondary, action: viewModel.dismissNotificationDenied)
-                        EcoButton(LocalizedStringKey(CleaningReminderCopy.Denied.openSettings)) {
-                            viewModel.dismissNotificationDenied()
-                            guard let url = URL(string: UIApplication.openNotificationSettingsURLString) else { return }
-                            openURL(url)
+                EcoListCard {
+                    EcoListRow(icon: nil, title: "내 청소 구역") {
+                        EcoListRowDisclosure(value: summary?.cleaningAreaName)
+                    }
+                    .menuButton(action: actions.openCleaningArea)
+                    EcoListRow(icon: nil, title: "신청 결과") {
+                        EcoListRowDisclosure(value: summary?.hasApplied == true ? "신청 완료" : nil)
+                    }
+                    .menuButton(action: actions.openApplicationResult)
+                    EcoToggleRow(
+                        title: "청소 알림",
+                        isOn: Binding(
+                            get: { viewModel.isCleaningReminderOn },
+                            set: { isOn in Task { await viewModel.setCleaningReminder(isOn) } }
+                        )
+                    )
+                    // 로그아웃 확인 팝업과 같은 뷰에 두 개를 겹쳐 걸지 않도록 스위치 행에 건다.
+                    .ecoDialog(isPresented: notificationDeniedBinding, onCancel: viewModel.dismissNotificationDenied) {
+                        EcoDialog(
+                            LocalizedStringKey(CleaningReminderCopy.Denied.title),
+                            message: LocalizedStringKey(CleaningReminderCopy.Denied.message)
+                        ) {
+                            EcoButton(LocalizedStringKey(CleaningReminderCopy.Denied.cancel), style: .secondary, action: viewModel.dismissNotificationDenied)
+                            EcoButton(LocalizedStringKey(CleaningReminderCopy.Denied.openSettings)) {
+                                viewModel.dismissNotificationDenied()
+                                guard let url = URL(string: UIApplication.openNotificationSettingsURLString) else { return }
+                                openURL(url)
+                            }
                         }
                     }
+                    EcoListRow(icon: nil, title: "이의신청 내역") {
+                        EcoListRowDisclosure()
+                    }
+                    .menuButton(action: actions.openAppeals)
                 }
-                EcoListRow(icon: nil, title: "이의신청 내역", horizontalPadding: Spacing.screenHorizontal) {
-                    EcoListRowDisclosure()
-                }
-                .menuButton(action: actions.openAppeals)
                 sectionDivider
-                EcoListRow(icon: nil, title: "공지", horizontalPadding: Spacing.screenHorizontal) {
-                    EcoListRowDisclosure()
+                EcoListCard {
+                    EcoListRow(icon: nil, title: "공지") {
+                        EcoListRowDisclosure()
+                    }
+                    .menuButton(action: actions.openNotices)
+                    EcoListRow(icon: nil, title: "도움말") {
+                        EcoListRowDisclosure()
+                    }
+                    .menuButton(action: actions.openHelp)
                 }
-                .menuButton(action: actions.openNotices)
-                EcoListRow(icon: nil, title: "도움말", horizontalPadding: Spacing.screenHorizontal) {
-                    EcoListRowDisclosure()
-                }
-                .menuButton(action: actions.openHelp)
                 sectionDivider
-                logoutButton
+                accountActions
                 #if DEBUG
                 ScreenGalleryMenuRow()
                 #endif
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color.ecoCard)
+        .background(Color.ecoCanvas)
         .task {
             // 불러온 화면이 없으면(처음, 탭을 떠나 취소됨) 다시 불러온다. 실패 화면은 사용자가 다시 시도한다.
             guard viewModel.state == .loading else { return }
@@ -93,6 +101,26 @@ struct MyPageView: View {
                 }
             }
         }
+        .overlay(alignment: .top) {
+            if isWithdrawFailedToastPresented {
+                EcoToast(message: Self.withdrawFailedMessage)
+                    .padding(.top, Spacing.sm)
+                    .padding(.horizontal, Spacing.screenHorizontal)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.default, value: isWithdrawFailedToastPresented)
+        .onChange(of: viewModel.withdrawFailureCount) { old, new in
+            guard new > old else { return }
+            AccessibilityNotification.Announcement(String(localized: Self.withdrawFailedMessage)).post()
+            isWithdrawFailedToastPresented = true
+        }
+        .task(id: viewModel.withdrawFailureCount) {
+            guard isWithdrawFailedToastPresented else { return }
+            // 다시 실패하면 이 작업은 취소되고 새 작업이 시간을 처음부터 센다.
+            guard (try? await Task.sleep(for: EcoToast.displayDuration)) != nil else { return }
+            isWithdrawFailedToastPresented = false
+        }
     }
 
     private var summary: MyPageSummary? {
@@ -105,7 +133,7 @@ struct MyPageView: View {
         case .loading:
             // 불러온 프로필과 같은 높이를 차지해야 불러온 뒤 아래 메뉴가 밀려 내려가지 않는다(#89).
             // 글자 크기를 따라가도록 빈 프로필을 숨겨 높이를 잡고, 스켈레톤은 그 위에 얹는다.
-            profileContent(initials: " ", name: " ", caption: " ", approvedCount: " ", activityTime: " ")
+            profileContent(name: " ", caption: " ", approvedCount: " ", activityTime: " ")
                 .hidden()
                 .overlay(alignment: .top) {
                     VStack(spacing: Spacing.md) {
@@ -129,7 +157,6 @@ struct MyPageView: View {
             .padding(.bottom, Spacing.xl)
         case .loaded(let summary):
             profileContent(
-                initials: MyPageFormatter.initials(of: summary.profile.name),
                 name: summary.profile.name,
                 caption: MyPageFormatter.affiliation(of: summary.profile),
                 approvedCount: MyPageFormatter.count(summary.monthlyApprovedCount),
@@ -141,9 +168,9 @@ struct MyPageView: View {
         }
     }
 
-    private func profileContent(initials: String, name: String, caption: String, approvedCount: String, activityTime: String) -> some View {
+    private func profileContent(name: String, caption: String, approvedCount: String, activityTime: String) -> some View {
         VStack(spacing: Spacing.xl) {
-            EcoProfileHeader(initials: initials, name: name, caption: caption)
+            EcoProfileHeader(name: name, caption: caption)
             HStack(spacing: Spacing.sm) {
                 statTile(title: "이번 달 승인", value: approvedCount)
                 statTile(title: "활동 시간", value: activityTime)
@@ -162,24 +189,45 @@ struct MyPageView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Spacing.lg)
-        .background(Color.ecoSurface, in: RoundedRectangle(cornerRadius: Radius.button))
+        .ecoCardBackground(cornerRadius: Radius.box)
         .accessibilityElement(children: .combine)
     }
 
+    /// Figma `Section divider`. 화면 배경색 12 간격이다.
     private var sectionDivider: some View {
-        Rectangle()
-            .fill(Color.ecoDivider)
+        Spacer()
             .frame(height: Spacing.md)
-            .accessibilityHidden(true)
     }
 
-    private var logoutButton: some View {
-        Button(action: viewModel.requestLogout) {
-            Text("로그아웃")
+    /// Figma 아래 줄: `로그아웃` · `회원탈퇴`(빨강), 사이 20, 위아래 16.
+    private var accountActions: some View {
+        HStack(spacing: Spacing.xl) {
+            accountButton("로그아웃", color: .ecoTextCaption, action: viewModel.requestLogout)
+            accountButton("회원탈퇴", color: .ecoDestructive, action: viewModel.requestWithdraw)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, Spacing.screenHorizontal)
+        // 로그아웃 확인 팝업과 같은 뷰에 두 개를 겹쳐 걸지 않도록 이 줄에 건다.
+        .ecoDialog(
+            isPresented: withdrawConfirmBinding,
+            onCancel: viewModel.cancelWithdraw,
+            onDismiss: viewModel.logoutConfirmDidDismiss
+        ) {
+            EcoDialog("회원탈퇴", message: "정말 탈퇴하시겠어요?") {
+                EcoButton("취소", style: .secondary, action: viewModel.cancelWithdraw)
+                    .disabled(viewModel.isWithdrawing)
+                EcoButton("회원탈퇴", style: .destructive, isLoading: viewModel.isWithdrawing) {
+                    await viewModel.confirmWithdraw()
+                }
+            }
+        }
+    }
+
+    private func accountButton(_ title: LocalizedStringKey, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
                 .ecoFont(.body2Medium)
-                .foregroundStyle(Color.ecoTextCaption)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.screenHorizontal)
+                .foregroundStyle(color)
                 .padding(.vertical, Spacing.lg)
                 .contentShape(Rectangle())
         }
@@ -192,6 +240,16 @@ struct MyPageView: View {
             get: { viewModel.isLogoutConfirmPresented },
             set: { isPresented in
                 if !isPresented { viewModel.cancelLogout() }
+            }
+        )
+    }
+
+    /// 팝업 바깥에서 닫히는 경우도 취소로 본다. 탈퇴 중에는 `cancelWithdraw`가 무시한다.
+    private var withdrawConfirmBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.isWithdrawConfirmPresented },
+            set: { isPresented in
+                if !isPresented { viewModel.cancelWithdraw() }
             }
         )
     }

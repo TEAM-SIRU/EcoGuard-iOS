@@ -1,15 +1,18 @@
 import SwiftUI
 
-/// Figma `Button/primary` · `Button/secondary` · `Button/disabled` (높이 56, 풀와이드, radius 16).
+/// Figma `Button/primary` · `Button/secondary` · `Button/disabled` (높이 48, 풀와이드, radius 14, 15 Bold).
+/// 보조 버튼은 흰 배경 + 1px grey/200 테두리, 비활성은 grey/150 채움이다.
 /// 비활성은 `.disabled(true)`로 표현한다. 로딩 중에는 loader 아이콘을 돌리고 탭을 무시한다.
 /// async `action`을 넘기면 끝날 때까지 스스로 로딩 상태가 되어 중복 탭을 막는다.
-/// `size: .compact`는 빈 화면 안 버튼(Figma `05 청소구역 · 조회 실패` 317:1284, 140 × 48)이다.
-/// `size: .wide`는 빈 기록 안 버튼(Figma `07 활동 기록 · 빈 상태` 240:138, 200 × 44, radius 12)이다.
+/// `size: .compact`는 빈 화면 안 버튼(Figma `05 청소구역 · 조회 실패` 823:3784, 140 × 44, radius 12)이다.
+/// `size: .wide`는 빈 기록 안 버튼(Figma `07 활동 기록 · 빈 상태` 823:1966, 200 × 44, radius 12)이다.
+/// `EcoDialog` 안에서는 팝업 버튼(높이 44, radius 12)이 된다. 보조는 grey/150 채움, 위험은 빨간 채움이다.
 struct EcoButton: View {
     enum Style {
         case primary
         case secondary
-        /// `Button/secondary` 모양에 빨간 글자. 로그아웃처럼 되돌리기 어려운 동작(Figma `12 전체 · 로그아웃 확인` 309:167).
+        /// 로그아웃처럼 되돌리기 어려운 동작. 팝업 안에서는 빨간 채움(Figma `12 마이페이지 · 로그아웃 확인` 823:2872),
+        /// 밖에서는 보조 버튼 모양에 빨간 글자.
         case destructive
     }
 
@@ -104,6 +107,7 @@ private struct EcoButtonLabel: View {
     let isLoading: Bool
 
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.isInEcoDialog) private var isInDialog
 
     var body: some View {
         HStack(spacing: Spacing.sm) {
@@ -116,13 +120,19 @@ private struct EcoButtonLabel: View {
                     .accessibilityHidden(true)
             }
             Text(title)
-                .ecoFont(appearance.textStyle)
+                .ecoFont(.button)
                 .lineLimit(1)
         }
         .foregroundStyle(appearance.foreground)
         .frame(maxWidth: width)
         .frame(height: height)
         .background(appearance.background, in: RoundedRectangle(cornerRadius: cornerRadius))
+        .overlay {
+            if appearance.hasBorder {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .strokeBorder(Color.ecoBorder, lineWidth: 1)
+            }
+        }
         .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
         .opacity(isLoading ? Metrics.loadingOpacity : 1)
     }
@@ -136,47 +146,52 @@ private struct EcoButtonLabel: View {
     }
 
     private var height: CGFloat {
-        switch size {
-        case .regular: Metrics.height
-        case .compact: Metrics.compactHeight
-        case .wide: Metrics.wideHeight
-        }
+        size == .regular && !isInDialog ? Metrics.height : Metrics.smallHeight
     }
 
     private var cornerRadius: CGFloat {
-        size == .wide ? Radius.tile : Radius.button
+        size == .regular && !isInDialog ? Radius.button : Radius.tile
     }
 
     private var appearance: Appearance {
-        // 로딩은 primary 색을 유지한 채 흐리게 보인다(Figma 01 로그인 · 로딩, 238:157).
+        // 로딩은 primary 색을 유지한 채 흐리게 보인다(Figma 01 로그인 · 로딩, 823:777).
         if !isEnabled {
-            return Appearance(textStyle: .button, foreground: .ecoDisabled, background: .ecoDivider)
+            return Appearance(foreground: .ecoDisabled, background: .ecoButtonFill)
         }
         switch style {
         case .primary:
-            return Appearance(textStyle: .buttonLarge, foreground: .ecoOnPrimary, background: .ecoPrimary)
+            return Appearance(foreground: .ecoOnPrimary, background: .ecoPrimary)
+        case .secondary where isInDialog:
+            return Appearance(foreground: .ecoTextSub, background: .ecoButtonFill)
         case .secondary:
-            return Appearance(textStyle: .button, foreground: .ecoTextSub, background: .ecoDivider)
+            return Appearance(foreground: .ecoTextPrimary, background: .ecoCard, hasBorder: true)
+        case .destructive where isInDialog:
+            return Appearance(foreground: .ecoOnPrimary, background: .ecoDestructive)
         case .destructive:
-            return Appearance(textStyle: .button, foreground: .ecoDestructive, background: .ecoDivider)
+            return Appearance(foreground: .ecoDestructive, background: .ecoCard, hasBorder: true)
         }
     }
 
     struct Appearance {
-        let textStyle: EcoTextStyle
         let foreground: Color
         let background: Color
+        var hasBorder = false
     }
 
     enum Metrics {
-        static let height: CGFloat = 56
+        static let height: CGFloat = 48
+        /// 팝업 버튼 · 빈 화면 안 버튼 높이.
+        static let smallHeight: CGFloat = 44
         static let compactWidth: CGFloat = 140
-        static let compactHeight: CGFloat = 48
         static let wideWidth: CGFloat = 200
-        static let wideHeight: CGFloat = 44
         static let iconSize: CGFloat = 20
         static let loadingOpacity: Double = 0.72
     }
+}
+
+extension EnvironmentValues {
+    /// `EcoDialog` 안인지. 안이면 `EcoButton`이 팝업 버튼 모양이 된다.
+    @Entry var isInEcoDialog = false
 }
 
 /// `EcoButton` 모양의 `ShareLink`. 시스템 공유 시트를 띄운다.

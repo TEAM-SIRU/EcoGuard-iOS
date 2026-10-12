@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Figma `Tab bar` (255:2). 탭 사이 가운데 칸을 비워 두고 그 위에 카메라 버튼을 18pt 띄워 얹는다.
+/// Figma `Tab bar` (823:969). 흰 배경 + 위 1px grey/200 구분선 + 그림자. 탭 사이 가운데 칸을 비워 두고 그 위에 카메라 버튼을 18pt 띄워 얹는다.
 /// 홈 인디케이터가 없는 기기(하단 safe area 0)는 아래 여백을 따로 준다.
 struct EcoTabBar<CenterButton: View>: View {
     private let leadingItems: [EcoTabItem]
@@ -35,6 +35,11 @@ struct EcoTabBar<CenterButton: View>: View {
             Rectangle()
                 .fill(Color.ecoCard)
                 .ecoShadow(.tabBar)
+                .overlay(alignment: .top) {
+                    Rectangle()
+                        .fill(Color.ecoBorder)
+                        .frame(height: 1)
+                }
                 .ignoresSafeArea(edges: .bottom)
         }
         .onGeometryChange(for: CGFloat.self) { proxy in
@@ -69,7 +74,7 @@ private struct EcoTabBarButton: View {
         Button(action: item.action) {
             VStack(spacing: Spacing.xs) {
                 Image(item.icon)
-                    .foregroundStyle(item.isSelected ? Color.ecoPrimary : Color.ecoTextCaption)
+                    .foregroundStyle(item.isSelected ? Color.ecoPrimaryIcon : Color.ecoTextCaption)
                 Text(item.title)
                     .ecoFont(item.isSelected ? .caption2Bold : .caption2Medium)
                     .foregroundStyle(item.isSelected ? Color.ecoPrimaryText : Color.ecoTextCaption)
@@ -90,7 +95,7 @@ private enum Metrics {
 }
 
 #Preview {
-    Color.ecoSurface
+    Color.ecoCanvas
         .ignoresSafeArea()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             EcoTabBar(

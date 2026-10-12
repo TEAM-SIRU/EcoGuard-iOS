@@ -26,6 +26,14 @@ struct ActivityWeekSection: Equatable, Identifiable {
     let items: [Item]
 
     var id: Int { weeksAgo }
+
+    var records: [ActivityRecord] {
+        items.compactMap { if case .record(let record) = $0 { record } else { nil } }
+    }
+
+    var holidays: [HolidayPeriod] {
+        items.compactMap { if case .holiday(let holiday) = $0 { holiday } else { nil } }
+    }
 }
 
 /// 활동 기록 화면 표시 문자열과 주 묶음. 날짜는 학교 기준이라 기기 시간대와 관계없이 KST, 주는 월요일에 시작한다.
@@ -135,18 +143,28 @@ enum ActivityRecordsFormatter {
         formatter("M월 d일(E)").string(from: date)
     }
 
-    /// 결과별 보조줄. "본관 2층 복도 A · 08:04", "08:05 · +10분 · 이의신청 승인", "본관 2층 복도 A · 인증하지 않았어요".
+    /// 결과별 보조줄(Figma `07 활동 기록` 823:1767). 적립 분은 상태 칩 아래(`earned`)에 따로 둔다.
+    /// "08:04 · 본관 2층 복도 A", "08:07 · 본관 2층 복도 A · 이의신청", "본관 2층 복도 A · 인증하지 않았어요".
     static func detail(_ record: ActivityRecord) -> String {
         let time = record.submittedAt.map { HomeFormatter.clockTime($0) }
         let parts: [String?] = switch record.result {
         case .reviewing, .rejected:
-            [record.area, time]
+            [time, record.area]
         case .approved:
-            [time, String(localized: "+\(record.earnedMinutes)분"), record.isAppealApproved ? String(localized: "이의신청 승인") : nil]
+            [time, record.area, record.isAppealApproved ? String(localized: "이의신청") : nil]
         case .notSubmitted:
             [record.area, String(localized: "인증하지 않았어요")]
         }
         return parts.compactMap(\.self).joined(separator: " · ")
+    }
+
+    /// 상태 칩 아래 적립 분. 승인 "+10분", 반려·미제출 "0분", 검수 중은 없음.
+    static func earned(_ record: ActivityRecord) -> String? {
+        switch record.result {
+        case .approved: String(localized: "+\(record.earnedMinutes)분")
+        case .rejected, .notSubmitted: String(localized: "0분")
+        case .reviewing: nil
+        }
     }
 
     /// "9월 24–25일 · 휴일로 청소하지 않아요". 하루면 "9월 24일", 달이 바뀌면 "9월 30일–10월 1일".

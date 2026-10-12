@@ -13,9 +13,11 @@ struct VerificationGuideView: View {
                 VStack(spacing: 0) {
                     VerificationTitle(title: "이렇게 찍어 주세요", message: "사진 1장으로 오늘 청소를 인증해요")
                     illustration
-                    GuideRow(icon: .iconFrame, title: "구역 전체가 보이게 찍어요", subtitle: "복도 끝까지 한 장에 담아 주세요")
-                    GuideRow(icon: .iconSun, title: "밝은 곳에서 흔들리지 않게 찍어요", subtitle: "어두우면 반려될 수 있어요")
-                    GuideRow(icon: .iconBan, title: "갤러리 사진은 쓸 수 없어요", subtitle: "하루 1번만 제출할 수 있어요")
+                    EcoListCard {
+                        GuideRow(icon: .iconFrame, title: "구역 전체가 보이게 찍어요", subtitle: "복도 끝까지 한 장에 담아 주세요")
+                        GuideRow(icon: .iconSun, title: "밝은 곳에서 흔들리지 않게 찍어요", subtitle: "어두우면 반려될 수 있어요")
+                        GuideRow(icon: .iconBan, title: "갤러리 사진은 쓸 수 없어요", subtitle: "하루 1번만 제출할 수 있어요")
+                    }
                 }
             }
             .scrollBounceBehavior(.basedOnSize)
@@ -27,12 +29,13 @@ struct VerificationGuideView: View {
                 }
             }
         }
+        .background(Color.ecoCanvas)
     }
 
     private var illustration: some View {
         VStack(spacing: Spacing.md) {
             Image(.iconFrameHero)
-                .foregroundStyle(Color.ecoPrimary)
+                .foregroundStyle(Color.ecoPrimaryIcon)
                 .frame(width: Metrics.illustrationIconFrame, height: Metrics.illustrationIconFrame)
                 .accessibilityHidden(true)
             Text(verbatim: area)
@@ -41,13 +44,13 @@ struct VerificationGuideView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: Metrics.illustrationHeight)
-        .background(Color.ecoSurface, in: RoundedRectangle(cornerRadius: Radius.card))
+        .ecoCardBackground(cornerRadius: Radius.card)
         .padding(.horizontal, Spacing.screenHorizontal)
         .padding(.bottom, Spacing.sm)
     }
 }
 
-/// Figma 촬영 안내 `ListRow` (239:112). 공용 `EcoListRow`와 달리 아이콘 타일 없이 22 아이콘만 둔다.
+/// Figma 촬영 안내 `ListRow` (823:1491). 공용 `EcoListRow`와 달리 아이콘 타일 없이 22 아이콘만 둔다. 위아래 12 · 좌우 16.
 private struct GuideRow: View {
     let icon: ImageResource
     let title: LocalizedStringKey
@@ -56,7 +59,7 @@ private struct GuideRow: View {
     var body: some View {
         HStack(spacing: Metrics.rowSpacing) {
             Image(icon)
-                .foregroundStyle(Color.ecoPrimary)
+                .foregroundStyle(Color.ecoPrimaryIcon)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Metrics.rowTextSpacing) {
                 Text(title)
@@ -68,7 +71,7 @@ private struct GuideRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, Spacing.screenHorizontal)
+        .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Metrics.rowVerticalPadding)
         .accessibilityElement(children: .combine)
     }
@@ -79,5 +82,5 @@ private enum Metrics {
     static let illustrationIconFrame: CGFloat = 72
     static let rowSpacing: CGFloat = 14
     static let rowTextSpacing: CGFloat = 2
-    static let rowVerticalPadding: CGFloat = 14
+    static let rowVerticalPadding: CGFloat = 12
 }

@@ -27,6 +27,7 @@ struct AppealHistoryView: View {
             guard scenePhase == .active else { return }
             await viewModel.load()
         }
+        .background(Color.ecoCanvas)
     }
 
     @ViewBuilder
@@ -71,8 +72,10 @@ struct AppealHistoryView: View {
                         .foregroundStyle(Color.ecoTextCaption)
                         .padding(.top, Spacing.lg)
                         .padding(.horizontal, Spacing.screenHorizontal)
-                    ForEach(appeals) { appeal in
-                        row(appeal)
+                    EcoListCard {
+                        ForEach(appeals) { appeal in
+                            row(appeal)
+                        }
                     }
                 }
             }
@@ -88,8 +91,7 @@ struct AppealHistoryView: View {
         let listRow = EcoListRow(
             icon: nil,
             title: AppealFormatter.verificationTitle(appeal),
-            subtitle: AppealFormatter.historySubtitle(appeal),
-            horizontalPadding: Spacing.screenHorizontal
+            subtitle: AppealFormatter.historySubtitle(appeal)
         ) {
             StatusChip(status: appeal.status.chipStatus)
         }

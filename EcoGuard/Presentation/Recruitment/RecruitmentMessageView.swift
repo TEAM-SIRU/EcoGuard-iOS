@@ -1,7 +1,10 @@
 import SwiftUI
 
-/// Figma `03 모집 공고 · 조회 실패` (514:136) 레이아웃. 공고 없음·결과 조회 실패도 같은 레이아웃을 쓴다.
+/// Figma `03 모집 공고 · 조회 실패` (823:4350) 레이아웃. 공고 없음·결과 조회 실패도 같은 레이아웃을 쓴다.
+/// 조회 실패는 빨간 alert, 공고 없음처럼 실패가 아닌 안내는 회색 아이콘을 넘긴다.
 struct RecruitmentMessageView: View {
+    var icon: ImageResource = .iconAlertHero
+    var iconTint: Color = .ecoRejected
     let title: LocalizedStringKey
     let message: LocalizedStringKey
     /// 있으면 primary 버튼(예: 다시 시도)을 홈으로 위에 둔다.
@@ -13,17 +16,11 @@ struct RecruitmentMessageView: View {
     var body: some View {
         VStack(spacing: 0) {
             EcoNavBar(onBack: onBack)
-            VStack(alignment: .leading, spacing: Spacing.xl) {
-                Text(title)
-                    .ecoFont(.title1)
-                    .foregroundStyle(Color.ecoTextPrimary)
-                    .accessibilityAddTraits(.isHeader)
-                Text(message)
-                    .ecoFont(.body2)
-                    .foregroundStyle(Color.ecoTextSub)
+            ScrollView {
+                EcoMessageContent(icon: icon, iconTint: iconTint, title: title, message: message)
+                    .containerRelativeFrame(.vertical, alignment: .center)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .padding(.horizontal, Spacing.screenHorizontal)
+            .scrollBounceBehavior(.basedOnSize)
         }
         .safeAreaInset(edge: .bottom) {
             BottomCTA {
@@ -37,6 +34,7 @@ struct RecruitmentMessageView: View {
                 }
             }
         }
+        .background(Color.ecoCanvas)
     }
 }
 

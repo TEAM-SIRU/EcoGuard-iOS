@@ -15,13 +15,20 @@ final class MyPageViewModel {
     private(set) var isCleaningReminderOn: Bool
     /// 알림 권한이 거부돼 켜지 못했다는 안내(설정 앱 열기)를 띄웠는지.
     private(set) var isNotificationDeniedPresented = false
-    /// 로그아웃 확인 팝업(Figma `12 전체 · 로그아웃 확인` 309:64)을 띄웠는지.
+    /// 로그아웃 확인 팝업(Figma `12 마이페이지 · 로그아웃 확인` 823:2770)을 띄웠는지.
     private(set) var isLogoutConfirmPresented = false
     /// 로그아웃 요청 중. 이 동안에는 팝업을 닫거나 다시 누를 수 없다.
     private(set) var isLoggingOut = false
+    /// 회원탈퇴 확인 팝업(Figma `12 마이페이지 · 회원탈퇴 확인` 823:2146)을 띄웠는지.
+    private(set) var isWithdrawConfirmPresented = false
+    /// 탈퇴 요청 중. 이 동안에는 팝업을 닫거나 다시 누를 수 없다.
+    private(set) var isWithdrawing = false
+    /// 탈퇴에 실패한 횟수. 늘어날 때마다 화면이 실패 토스트를 띄운다.
+    private(set) var withdrawFailureCount = 0
 
     private let fetchMyPageUseCase: FetchMyPageUseCase
     private let logoutUseCase: LogoutUseCase
+    private let withdrawUseCase: WithdrawUseCase
     private let fetchCleaningReminderUseCase: FetchCleaningReminderUseCase
     private let updateCleaningReminderUseCase: UpdateCleaningReminderUseCase
     private let onLoggedOut: () -> Void
@@ -29,13 +36,14 @@ final class MyPageViewModel {
     private var isFetching = false
     /// 알림 권한을 묻는 중. 이 동안 스위치를 다시 바꾸지 않는다.
     private var isUpdatingCleaningReminder = false
-    /// 로그아웃을 마치고 팝업이 내려가기를 기다리는 중.
+    /// 로그아웃·탈퇴를 마치고 팝업이 내려가기를 기다리는 중.
     private var isAwaitingDismissAfterLogout = false
 
-    /// `onLoggedOut`은 로그아웃을 마치고(실패해도) 팝업이 내려간 뒤 한 번 불린다. 로그인 화면으로 돌리는 일은 부르는 쪽이 맡는다.
+    /// `onLoggedOut`은 로그아웃을 마치고(실패해도)·탈퇴에 성공하고 팝업이 내려간 뒤 한 번 불린다. 로그인 화면으로 돌리는 일은 부르는 쪽이 맡는다.
     init(
         fetchMyPageUseCase: FetchMyPageUseCase,
         logoutUseCase: LogoutUseCase,
+        withdrawUseCase: WithdrawUseCase,
         fetchCleaningReminderUseCase: FetchCleaningReminderUseCase,
         updateCleaningReminderUseCase: UpdateCleaningReminderUseCase,
         state: State = .loading,
@@ -43,6 +51,7 @@ final class MyPageViewModel {
     ) {
         self.fetchMyPageUseCase = fetchMyPageUseCase
         self.logoutUseCase = logoutUseCase
+        self.withdrawUseCase = withdrawUseCase
         self.fetchCleaningReminderUseCase = fetchCleaningReminderUseCase
         self.updateCleaningReminderUseCase = updateCleaningReminderUseCase
         self.state = state
@@ -115,7 +124,7 @@ final class MyPageViewModel {
     }
 
     func requestLogout() {
-        guard !isLoggingOut, !isAwaitingDismissAfterLogout else { return }
+        guard !isLoggingOut, !isWithdrawing, !isAwaitingDismissAfterLogout else { return }
         isLogoutConfirmPresented = true
     }
 
@@ -139,7 +148,33 @@ final class MyPageViewModel {
         isLogoutConfirmPresented = false
     }
 
-    /// 확인 팝업이 화면에서 다 내려간 뒤 부른다. 로그아웃을 마쳤으면 그때 `onLoggedOut`을 부른다.
+    func requestWithdraw() {
+        guard !isLoggingOut, !isWithdrawing, !isAwaitingDismissAfterLogout else { return }
+        isWithdrawConfirmPresented = true
+    }
+
+    func cancelWithdraw() {
+        guard !isWithdrawing else { return }
+        isWithdrawConfirmPresented = false
+    }
+
+    /// 성공하면 팝업을 내리고, 다 내려가면(`logoutConfirmDidDismiss`) `onLoggedOut`을 부른다.
+    /// 실패하면 계정이 남아 있으므로 마이페이지에 그대로 두고 실패 토스트를 띄운다.
+    func confirmWithdraw() async {
+        guard isWithdrawConfirmPresented, !isWithdrawing, !isAwaitingDismissAfterLogout else { return }
+        isWithdrawing = true
+        do {
+            try await withdrawUseCase.execute()
+            isAwaitingDismissAfterLogout = true
+        } catch {
+            logger.error("회원탈퇴 실패: \(String(describing: type(of: error)), privacy: .public) \(String(describing: error), privacy: .private)")
+            withdrawFailureCount += 1
+        }
+        isWithdrawing = false
+        isWithdrawConfirmPresented = false
+    }
+
+    /// 확인 팝업(로그아웃·회원탈퇴)이 화면에서 다 내려간 뒤 부른다. 로그아웃·탈퇴를 마쳤으면 그때 `onLoggedOut`을 부른다.
     /// 팝업이 떠 있는 채로 화면을 바꾸면 팝업이 남거나 전환이 겹친다.
     func logoutConfirmDidDismiss() {
         guard isAwaitingDismissAfterLogout else { return }

@@ -211,14 +211,14 @@ enum ScreenGalleryCatalog {
             camera("verification.sheet.permission", "인증 불가 시트 · 카메라 권한 필요", state: .guide, sheet: .permissionRequired),
             camera(
                 "verification.sheet.weekend",
-                "인증 불가 시트 · 주말",
+                "인증 불가 · 주말",
                 state: .guide,
                 sheet: .outsideWindow(.weekend),
                 availability: .outsideWindow(.weekend)
             ),
             camera(
                 "verification.sheet.vacation",
-                "인증 불가 시트 · 방학",
+                "인증 불가 · 방학",
                 state: .guide,
                 sheet: .outsideWindow(.vacation),
                 availability: .outsideWindow(.vacation)
@@ -576,6 +576,11 @@ enum ScreenGalleryCatalog {
                         viewModel.requestLogout()
                         await viewModel.confirmLogout()
                     }
+            },
+            item("myPage.withdrawConfirm", "회원탈퇴 확인") { close in
+                let viewModel = myPageViewModel(onLoggedOut: close)
+                MyPageView(viewModel: viewModel)
+                    .onAppear { viewModel.requestWithdraw() }
             }
         ])
     }

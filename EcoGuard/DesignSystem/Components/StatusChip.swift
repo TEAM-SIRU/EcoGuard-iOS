@@ -63,14 +63,14 @@ private extension StatusChip.Status {
         case .approved: .ecoPrimaryText
         case .processing, .reviewing: .ecoPending
         case .rejected: .ecoRejected
-        case .notSubmitted: .ecoTextSub
+        case .notSubmitted: .ecoTextCaption
         }
     }
 
-    /// 승인만 아이콘(green/500)과 텍스트(green/700) 변수가 다르다.
+    /// 승인만 아이콘(green/500)과 텍스트(green/700) 색이 다르다.
     var iconColor: Color {
         switch self {
-        case .approved: .ecoPrimary
+        case .approved: .ecoPrimaryIcon
         default: textColor
         }
     }

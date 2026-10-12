@@ -112,14 +112,23 @@ struct ActivityRecordsFormatterTests {
     @Test func detailPerResultMatchesFigma() {
         let submitted = date(day: 29, hour: 8, minute: 4)
 
-        #expect(ActivityRecordsFormatter.detail(record(.reviewing, submittedAt: submitted)) == "본관 2층 복도 A · 08:04")
-        #expect(ActivityRecordsFormatter.detail(record(.rejected, submittedAt: submitted)) == "본관 2층 복도 A · 08:04")
-        #expect(ActivityRecordsFormatter.detail(record(.approved, submittedAt: submitted, earnedMinutes: 10)) == "08:04 · +10분")
+        #expect(ActivityRecordsFormatter.detail(record(.reviewing, submittedAt: submitted)) == "08:04 · 본관 2층 복도 A")
+        #expect(ActivityRecordsFormatter.detail(record(.rejected, submittedAt: submitted)) == "08:04 · 본관 2층 복도 A")
+        #expect(ActivityRecordsFormatter.detail(record(.approved, submittedAt: submitted, earnedMinutes: 10)) == "08:04 · 본관 2층 복도 A")
         #expect(
             ActivityRecordsFormatter.detail(record(.approved, submittedAt: submitted, earnedMinutes: 10, isAppealApproved: true))
-                == "08:04 · +10분 · 이의신청 승인"
+                == "08:04 · 본관 2층 복도 A · 이의신청"
         )
         #expect(ActivityRecordsFormatter.detail(record(.notSubmitted, submittedAt: nil)) == "본관 2층 복도 A · 인증하지 않았어요")
+    }
+
+    @Test func earnedMinutesUnderChip() {
+        let submitted = date(day: 29, hour: 8, minute: 4)
+
+        #expect(ActivityRecordsFormatter.earned(record(.approved, submittedAt: submitted, earnedMinutes: 10)) == "+10분")
+        #expect(ActivityRecordsFormatter.earned(record(.rejected, submittedAt: submitted)) == "0분")
+        #expect(ActivityRecordsFormatter.earned(record(.notSubmitted, submittedAt: nil)) == "0분")
+        #expect(ActivityRecordsFormatter.earned(record(.reviewing, submittedAt: submitted)) == nil)
     }
 
     @Test func holidayRange() {

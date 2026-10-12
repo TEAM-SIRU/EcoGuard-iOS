@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Figma `Today card` (238:201). 오늘 인증 상태마다 제목·정보·버튼이 바뀐다.
+/// Figma `Today card` (823:870). 오늘 인증 상태마다 제목·정보·버튼이 바뀐다.
 struct HomeTodayCard: View {
     let today: TodayCleaning
     /// 지금 인증 버튼을 켤지. 마감이 지나면 다시 조회되기 전에도 끈다.
@@ -16,7 +16,7 @@ struct HomeTodayCard: View {
                 Text(title)
                     .ecoFont(.title2)
                     .foregroundStyle(Color.ecoTextPrimary)
-                    .padding(.top, Spacing.md)
+                    .padding(.top, Metrics.titleTop)
                     .padding(.bottom, Spacing.xl)
                     .accessibilityAddTraits(.isHeader)
                 infoTable
@@ -24,6 +24,7 @@ struct HomeTodayCard: View {
                     TimelineView(.periodic(from: .now, by: 1)) { context in
                         VStack(alignment: .leading, spacing: 0) {
                             countdown(until: deadline, now: context.date)
+                                .padding(.top, Spacing.md)
                             verifyButton(isEnabled: canVerify(context.date))
                                 .padding(.top, Spacing.xl)
                         }
@@ -80,11 +81,14 @@ struct HomeTodayCard: View {
         }
     }
 
+    /// Figma `Deadline row`: 정보 표의 한 줄로 `인증 마감 ··· 05:32 남음`(초록).
     private func countdown(until deadline: Date, now: Date) -> some View {
-        Text("인증 마감까지 \(HomeFormatter.countdown(deadline.timeIntervalSince(now)))")
-            .ecoFont(.body2)
-            .foregroundStyle(Color.ecoPrimaryText)
-            .monospacedDigit()
+        HomeInfoRow(
+            label: "인증 마감",
+            value: String(localized: "\(HomeFormatter.countdown(deadline.timeIntervalSince(now))) 남음"),
+            isHighlighted: true
+        )
+        .monospacedDigit()
     }
 
     private func verifyButton(isEnabled: Bool) -> some View {
@@ -110,7 +114,7 @@ struct HomeTodayCard: View {
     }
 }
 
-/// 카드 안 `라벨 ··· 값` 한 줄. Figma `Info table` (238:210).
+/// 카드 안 `라벨 ··· 값` 한 줄. Figma `Info table` (823:870).
 private struct HomeInfoRow: View {
     let label: LocalizedStringKey
     let value: String
@@ -128,4 +132,9 @@ private struct HomeInfoRow: View {
         }
         .accessibilityElement(children: .combine)
     }
+}
+
+private enum Metrics {
+    /// Figma 제목 위 10. Foundations 간격 스케일 밖이다.
+    static let titleTop: CGFloat = 10
 }
