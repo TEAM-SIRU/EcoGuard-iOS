@@ -17,7 +17,7 @@ struct ActivityRecordsView: View {
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(Color.ecoCard)
+            .background(Color.ecoCanvas)
             // 처음 들어올 때, 달을 바꿨을 때, 불러오던 중 화면을 떠났다 돌아왔을 때 불러온다. 달을 바꾸면 진행 중인 조회는 취소된다.
             .task(id: viewModel.selectedMonth) {
                 guard viewModel.state == .loading else { return }
@@ -108,10 +108,8 @@ struct ActivityRecordsView: View {
                     .init(title: String(localized: "미제출"), value: ActivityRecordsFormatter.count(month.count(of: .notSubmitted)))
                 ]
             )
-            Rectangle()
-                .fill(Color.ecoDivider)
+            Spacer()
                 .frame(height: Spacing.md)
-                .accessibilityHidden(true)
             if month.records.isEmpty {
                 EcoEmptyState(
                     icon: .iconListHero,
@@ -138,17 +136,20 @@ struct ActivityRecordsView: View {
                 .accessibilityAddTraits(.isHeader)
                 .padding(.horizontal, Spacing.screenHorizontal)
                 .padding(.top, isFirst ? Spacing.lg : Spacing.xl)
-            ForEach(section.items) { item in
-                switch item {
-                case .record(let record):
-                    recordRow(record)
-                case .holiday(let holiday):
-                    Text(ActivityRecordsFormatter.holiday(holiday))
-                        .ecoFont(.captionRegular)
-                        .foregroundStyle(Color.ecoTextCaption)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, Spacing.screenHorizontal)
-                        .padding(.vertical, Spacing.md)
+            // Figma `휴일 안내`는 주 제목 바로 아래, 리스트 카드 밖에 둔다.
+            ForEach(section.holidays, id: \.start) { holiday in
+                Text(ActivityRecordsFormatter.holiday(holiday))
+                    .ecoFont(.captionRegular)
+                    .foregroundStyle(Color.ecoTextCaption)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, Spacing.screenHorizontal)
+                    .padding(.vertical, Spacing.md)
+            }
+            if !section.records.isEmpty {
+                EcoListCard {
+                    ForEach(section.records) { record in
+                        recordRow(record)
+                    }
                 }
             }
         }
@@ -159,8 +160,7 @@ struct ActivityRecordsView: View {
         let row = EcoListRow(
             icon: nil,
             title: ActivityRecordsFormatter.recordDate(record.date),
-            subtitle: ActivityRecordsFormatter.detail(record),
-            horizontalPadding: Spacing.screenHorizontal
+            subtitle: ActivityRecordsFormatter.detail(record)
         ) {
             HStack(spacing: Spacing.sm) {
                 StatusChip(status: record.result.chipStatus)

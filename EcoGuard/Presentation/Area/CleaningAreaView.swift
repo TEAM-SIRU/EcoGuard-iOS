@@ -7,7 +7,7 @@ struct CleaningAreaView: View {
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(Color.ecoCard)
+            .background(Color.ecoCanvas)
             .task {
                 // 불러온 화면이 없으면(처음, 탭을 떠나 취소됨) 다시 불러온다. 실패 화면은 사용자가 다시 시도한다.
                 guard viewModel.state == .loading else { return }
@@ -94,18 +94,17 @@ struct CleaningAreaView: View {
                 .padding(.horizontal, Spacing.screenHorizontal)
                 .padding(.top, Spacing.xs)
                 .padding(.bottom, Spacing.xl)
-                Rectangle()
-                    .fill(Color.ecoDivider)
+                Spacer()
                     .frame(height: Spacing.md)
-                    .accessibilityHidden(true)
-                EcoListRow(icon: nil, title: area.range, subtitle: "구역 설명 · \(area.description)", horizontalPadding: Spacing.screenHorizontal)
-                EcoListRow(icon: nil, title: "매일 \(CleaningAreaFormatter.window(area))", subtitle: "청소 시간", horizontalPadding: Spacing.screenHorizontal)
-                EcoListRow(
-                    icon: nil,
-                    title: "\(area.memberNames.count)명이 함께해요",
-                    subtitle: CleaningAreaFormatter.members(area),
-                    horizontalPadding: Spacing.screenHorizontal
-                )
+                EcoListCard {
+                    EcoListRow(icon: nil, title: area.range, subtitle: "구역 설명 · \(area.description)")
+                    EcoListRow(icon: nil, title: "매일 \(CleaningAreaFormatter.window(area))", subtitle: "청소 시간")
+                    EcoListRow(
+                        icon: nil,
+                        title: "\(area.memberNames.count)명이 함께해요",
+                        subtitle: CleaningAreaFormatter.members(area)
+                    )
+                }
             }
             .padding(.bottom, Spacing.xxl)
         }

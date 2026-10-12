@@ -40,6 +40,7 @@ struct VerificationConfirmView: View {
                 }
             }
         }
+        .background(Color.ecoCanvas)
     }
 
     private var rows: [VerificationInfoTable.Row] {

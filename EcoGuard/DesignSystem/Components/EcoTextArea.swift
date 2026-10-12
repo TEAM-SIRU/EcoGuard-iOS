@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 여러 줄 입력. Figma `09 이의신청` Textarea (239:283 · 239:285): 제목·안내 문구·글자 수 grey/600,
-/// 테두리 grey/200(포커스 primary · 오류 red), 안쪽 여백 16, 높이 140에서 글자 수는 왼쪽 아래.
+/// 테두리 grey/200(포커스 1.5 green/500 · 오류 red), 안쪽 여백 16, 높이 140에서 글자 수는 왼쪽 아래.
 /// 오류 문구와 글자 수(`count/maxLength`)는 입력란 안쪽 아래에 둬서 키보드가 올라와도 입력란과 함께 보인다.
 /// 글자 수 기준(공백 제외 여부 등)은 부르는 쪽이 `count`로 정한다.
 struct EcoTextArea<Field: Hashable>: View {
@@ -67,7 +67,7 @@ struct EcoTextArea<Field: Hashable>: View {
         if errorMessage != nil {
             return .ecoRejected
         }
-        return isFocused ? .ecoPrimary : .ecoBorder
+        return isFocused ? .ecoPrimaryIcon : .ecoBorder
     }
 }
 

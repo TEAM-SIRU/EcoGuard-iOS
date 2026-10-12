@@ -68,8 +68,8 @@ struct VerificationSheet: View {
 
     private var iconTint: Color {
         switch kind {
-        case .alreadySubmitted: .ecoPrimary
-        case .outsideWindow, .permissionRequired: .ecoTextSub
+        case .alreadySubmitted: .ecoPrimaryIcon
+        case .outsideWindow, .permissionRequired: .ecoTextMuted
         }
     }
 

@@ -133,7 +133,7 @@ struct HomeView: View {
                 await viewModel.refresh()
             }
         }
-        .background(Color.ecoSurface)
+        .background(Color.ecoCanvas)
     }
 
     private var topBar: some View {

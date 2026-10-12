@@ -22,6 +22,7 @@ struct ApplicationResultView: View {
             .task {
                 await viewModel.load()
             }
+        .background(Color.ecoCanvas)
     }
 
     @ViewBuilder
@@ -82,7 +83,7 @@ struct ApplicationResultView: View {
     private func heroIcon(_ icon: ApplicationResultContent.Icon) -> some View {
         switch icon {
         case .check:
-            HeroIcon(icon: .iconCheckHero, style: .result(tint: .ecoPrimary))
+            HeroIcon(icon: .iconCheckHero, style: .result(tint: .ecoPrimaryIcon))
         case .cross:
             HeroIcon(icon: .iconXHero, style: .result(tint: .ecoRejected))
         }

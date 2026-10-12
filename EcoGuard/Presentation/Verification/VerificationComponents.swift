@@ -44,7 +44,7 @@ struct VerificationTitle: View {
     }
 }
 
-/// 찍은 사진. 없으면 Figma 자리표시(icon/image + 문구)를 그린다. Figma `Photo` (239:190).
+/// 찍은 사진. 없으면 Figma 자리표시(icon/image + 문구)를 흰 카드에 그린다. Figma `Photo` (823:1599).
 struct VerificationPhotoView: View {
     let image: UIImage?
     let placeholder: LocalizedStringKey
@@ -53,7 +53,7 @@ struct VerificationPhotoView: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.card)
         ZStack {
-            shape.fill(Color.ecoDivider)
+            shape.fill(Color.ecoCard)
             if let image {
                 Image(uiImage: image)
                     .resizable()
@@ -71,6 +71,7 @@ struct VerificationPhotoView: View {
         .frame(maxWidth: .infinity)
         .frame(height: height)
         .clipShape(shape)
+        .ecoCardBackground(cornerRadius: Radius.card)
         .accessibilityElement()
         .accessibilityLabel(Text(placeholder))
         .accessibilityAddTraits(.isImage)
@@ -109,13 +110,12 @@ struct VerificationReviewNote: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Spacing.xl)
-        // Figma 16은 Foundations `버튼·박스` 라운드라 카드(20)가 아닌 `Radius.button`을 쓴다.
-        .background(Color.ecoSurface, in: RoundedRectangle(cornerRadius: Radius.button))
+        .ecoCardBackground(cornerRadius: Radius.box)
         .accessibilityElement(children: .combine)
     }
 }
 
-/// 이름·값 표. Figma `Info table` (239:197).
+/// 이름·값 표. Figma `Info table` (823:1606). 흰 카드, 사방 16, 행 사이 10.
 struct VerificationInfoTable: View {
     struct Row: Identifiable {
         let label: LocalizedStringKey
@@ -128,7 +128,7 @@ struct VerificationInfoTable: View {
     let rows: [Row]
 
     var body: some View {
-        VStack(spacing: Spacing.md) {
+        VStack(spacing: Metrics.infoRowSpacing) {
             ForEach(rows) { row in
                 HStack {
                     Text(row.label)
@@ -142,12 +142,12 @@ struct VerificationInfoTable: View {
                 .accessibilityElement(children: .combine)
             }
         }
-        .padding(Spacing.xl)
-        // Figma `Info table` radius 16은 Foundations `버튼·박스` 라운드라 `Radius.button`을 쓴다.
-        .background(Color.ecoSurface, in: RoundedRectangle(cornerRadius: Radius.button))
+        .padding(Spacing.lg)
+        .ecoCardBackground(cornerRadius: Radius.box)
     }
 }
 
 private enum Metrics {
     static let titleSpacing: CGFloat = 6
+    static let infoRowSpacing: CGFloat = 10
 }

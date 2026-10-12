@@ -50,5 +50,6 @@ struct VerificationMessageView: View {
                 }
             }
         }
+        .background(Color.ecoCanvas)
     }
 }

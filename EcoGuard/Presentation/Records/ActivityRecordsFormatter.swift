@@ -26,6 +26,14 @@ struct ActivityWeekSection: Equatable, Identifiable {
     let items: [Item]
 
     var id: Int { weeksAgo }
+
+    var records: [ActivityRecord] {
+        items.compactMap { if case .record(let record) = $0 { record } else { nil } }
+    }
+
+    var holidays: [HolidayPeriod] {
+        items.compactMap { if case .holiday(let holiday) = $0 { holiday } else { nil } }
+    }
 }
 
 /// 활동 기록 화면 표시 문자열과 주 묶음. 날짜는 학교 기준이라 기기 시간대와 관계없이 KST, 주는 월요일에 시작한다.

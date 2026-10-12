@@ -40,7 +40,7 @@ private enum Metrics {
 }
 
 #Preview {
-    Color.ecoSurface
+    Color.ecoCanvas
         .ignoresSafeArea()
         .safeAreaInset(edge: .bottom) {
             BottomCTA(caption: "학교 계정으로만 로그인할 수 있어요") {

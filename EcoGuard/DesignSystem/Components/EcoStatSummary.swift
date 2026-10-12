@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Figma `07 활동 기록` (240:3) 합계 + 통계 카드 묶음.
-/// 합계: 라벨 body2 · 값 title1, 사이 2, 위 12 · 아래 16. 카드: surface 배경, radius 16, 안쪽 16, 라벨 captionMedium · 값 title2 사이 4, 카드 사이 8, 아래 24.
+/// 합계: 라벨 body2 · 값 title1, 사이 2, 위 12 · 아래 16. 카드: 흰 카드(테두리 + 그림자), radius 16, 안쪽 16, 라벨 captionMedium · 값 title2 사이 4, 카드 사이 8, 아래 24.
 struct EcoStatSummary: View {
     struct Stat: Identifiable {
         let title: String
@@ -42,7 +42,7 @@ struct EcoStatSummary: View {
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(Spacing.lg)
-                    .background(Color.ecoSurface, in: RoundedRectangle(cornerRadius: Radius.button))
+                    .ecoCardBackground(cornerRadius: Radius.box)
                     .accessibilityElement(children: .combine)
                 }
             }

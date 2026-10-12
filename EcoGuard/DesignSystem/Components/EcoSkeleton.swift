@@ -17,7 +17,7 @@ struct EcoSkeleton: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: Radius.tile)
-            .fill(Color.ecoDivider)
+            .fill(Color.ecoButtonFill)
             .frame(width: kind.width, height: kind.height)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityHidden(true)

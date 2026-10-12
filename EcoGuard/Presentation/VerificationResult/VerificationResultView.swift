@@ -41,6 +41,7 @@ struct VerificationResultView: View {
                 guard scenePhase == .active else { return }
                 await viewModel.load()
             }
+        .background(Color.ecoCanvas)
     }
 
     @ViewBuilder
@@ -139,7 +140,7 @@ private struct VerificationResultSummaryView: View {
 
     private var heroIcon: HeroIcon {
         switch hero {
-        case .check: HeroIcon(icon: .iconCheckHero, style: .result(tint: .ecoPrimary))
+        case .check: HeroIcon(icon: .iconCheckHero, style: .result(tint: .ecoPrimaryIcon))
         case .clock: HeroIcon(icon: .iconClockHero, style: .result(tint: .ecoPendingIcon))
         }
     }

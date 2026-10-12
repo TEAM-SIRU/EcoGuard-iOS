@@ -126,7 +126,7 @@ struct RecruitmentApplyView: View {
                 .disabled(viewModel.validation != .valid)
             }
         }
-        .background(Color.ecoCard)
+        .background(Color.ecoCanvas)
     }
 }
 

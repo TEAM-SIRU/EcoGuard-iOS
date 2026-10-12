@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// Figma `02 홈` 흰 카드. 스타일마다 안쪽 여백·라운드·그림자가 다르다.
-/// - `notice`: `Notice card` (249:2) 20 / 20 / 18, 그림자 notice
-/// - `content`: `Today card` (238:201) · `Recruit card` (255:583) 위 24 · 좌우 20 · 아래 20
-/// - `plain`: `Week card` (306:2) 사방 20
-/// - `row`: `Record card` (258:6) 위아래 16 · 좌우 20, radius 16
+/// Figma `02 홈` 흰 카드. 흰색 + 1px grey/200 테두리 + 2단 그림자. 스타일마다 안쪽 여백·라운드가 다르다.
+/// - `notice`: `Notice card` (823:870) 위 18 · 좌우 16 · 아래 16
+/// - `content`: `Today card` · `Recruit card` 위 18 · 좌우 16 · 아래 16
+/// - `plain`: `Week card` 사방 16
+/// - `row`: `Record card` 위아래 14 · 좌우 16, radius 16
 struct EcoCard<Content: View>: View {
     enum Style {
         case notice
@@ -25,46 +25,33 @@ struct EcoCard<Content: View>: View {
         content
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(style.insets)
-            .background {
-                // 그림자를 배경 도형에만 줘야 안쪽 글자·버튼에 그림자가 번지지 않는다.
-                RoundedRectangle(cornerRadius: style.cornerRadius)
-                    .fill(Color.ecoCard)
-                    .ecoShadow(style.shadow)
-            }
+            .ecoCardBackground(cornerRadius: style.cornerRadius)
     }
 }
 
 private extension EcoCard.Style {
     var insets: EdgeInsets {
         switch self {
-        case .notice:
-            EdgeInsets(top: Spacing.xl, leading: Spacing.xl, bottom: Metrics.noticeBottom, trailing: Spacing.xl)
-        case .content:
-            EdgeInsets(top: Spacing.xxl, leading: Spacing.xl, bottom: Spacing.xl, trailing: Spacing.xl)
+        case .notice, .content:
+            EdgeInsets(top: Metrics.contentTop, leading: Spacing.lg, bottom: Spacing.lg, trailing: Spacing.lg)
         case .plain:
-            EdgeInsets(top: Spacing.xl, leading: Spacing.xl, bottom: Spacing.xl, trailing: Spacing.xl)
+            EdgeInsets(top: Spacing.lg, leading: Spacing.lg, bottom: Spacing.lg, trailing: Spacing.lg)
         case .row:
-            EdgeInsets(top: Spacing.lg, leading: Spacing.xl, bottom: Spacing.lg, trailing: Spacing.xl)
+            EdgeInsets(top: Metrics.rowVertical, leading: Spacing.lg, bottom: Metrics.rowVertical, trailing: Spacing.lg)
         }
     }
 
     var cornerRadius: CGFloat {
         switch self {
-        case .row: Radius.button
+        case .row: Radius.box
         default: Radius.card
-        }
-    }
-
-    var shadow: EcoShadow {
-        switch self {
-        case .notice: .notice
-        default: .card
         }
     }
 }
 
 private enum Metrics {
-    static let noticeBottom: CGFloat = 18
+    static let contentTop: CGFloat = 18
+    static let rowVertical: CGFloat = 14
 }
 
 #Preview {
@@ -75,5 +62,5 @@ private enum Metrics {
         EcoCard(.row) { Text(verbatim: "row").ecoFont(.body2) }
     }
     .padding(Spacing.screenHorizontal)
-    .background(Color.ecoSurface)
+    .background(Color.ecoCanvas)
 }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Figma `Week card` 요일 하나 (306:7). 40 원 + 요일 글자.
+/// Figma `Week card` 요일 하나 (823:870). 36 원 + 요일 글자.
 /// 완료한 날은 초록 원에 체크, 오늘은 초록 테두리, 나머지는 회색 테두리.
 struct WeekDayIndicator: View {
     let label: String
@@ -32,7 +32,7 @@ struct WeekDayIndicator: View {
                 .overlay {
                     Circle()
                         .strokeBorder(
-                            isToday ? Color.ecoPrimary : Color.ecoBorder,
+                            isToday ? Color.ecoPrimaryIcon : Color.ecoBorder,
                             lineWidth: isToday ? Metrics.todayBorder : Metrics.border
                         )
                 }
@@ -42,7 +42,7 @@ struct WeekDayIndicator: View {
 }
 
 private enum Metrics {
-    static let size: CGFloat = 40
+    static let size: CGFloat = 36
     static let spacing: CGFloat = 6
     static let border: CGFloat = 1
     static let todayBorder: CGFloat = 2

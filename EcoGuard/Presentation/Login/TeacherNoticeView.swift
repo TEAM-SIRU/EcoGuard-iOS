@@ -68,6 +68,7 @@ struct TeacherNoticeView: View {
             guard (try? await Task.sleep(for: EcoToast.displayDuration)) != nil else { return }
             isShowingCopiedToast = false
         }
+        .background(Color.ecoCanvas)
     }
 
     private func copy(_ url: URL) {

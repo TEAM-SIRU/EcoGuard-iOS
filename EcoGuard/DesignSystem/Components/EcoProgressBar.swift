@@ -9,7 +9,7 @@ struct EcoProgressBar: View {
 
     var body: some View {
         Capsule()
-            .fill(Color.ecoDivider)
+            .fill(Color.ecoButtonFill)
             .overlay(alignment: .leading) {
                 GeometryReader { proxy in
                     Capsule()

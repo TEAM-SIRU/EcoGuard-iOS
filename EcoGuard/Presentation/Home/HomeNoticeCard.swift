@@ -87,5 +87,5 @@ struct HomeNoticeCard: View {
 #Preview {
     HomeNoticeCard(notice: MockHomeRepository.Fixture.notice, onOpen: {}, onDismiss: {})
         .padding(Spacing.screenHorizontal)
-        .background(Color.ecoSurface)
+        .background(Color.ecoCanvas)
 }

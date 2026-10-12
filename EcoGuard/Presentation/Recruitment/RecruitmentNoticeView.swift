@@ -108,22 +108,20 @@ struct RecruitmentNoticeView: View {
                         isActive: status.isActive
                     )
                     .padding(Spacing.xxl)
-                    Rectangle()
-                        .fill(Color.ecoDivider)
+                    Spacer()
                         .frame(height: Spacing.md)
-                        .accessibilityHidden(true)
-                    EcoListRow(
-                        icon: nil,
-                        title: RecruitmentCopy.Notice.benefitTitle,
-                        subtitle: RecruitmentCopy.Notice.benefitSubtitle,
-                        horizontalPadding: Spacing.screenHorizontal
-                    )
-                    EcoListRow(
-                        icon: nil,
-                        title: RecruitmentCopy.Notice.howTitle,
-                        subtitle: RecruitmentCopy.Notice.howSubtitle,
-                        horizontalPadding: Spacing.screenHorizontal
-                    )
+                    EcoListCard {
+                        EcoListRow(
+                            icon: nil,
+                            title: RecruitmentCopy.Notice.benefitTitle,
+                            subtitle: RecruitmentCopy.Notice.benefitSubtitle
+                        )
+                        EcoListRow(
+                            icon: nil,
+                            title: RecruitmentCopy.Notice.howTitle,
+                            subtitle: RecruitmentCopy.Notice.howSubtitle
+                        )
+                    }
                 }
             }
             .refreshable {
@@ -142,7 +140,7 @@ struct RecruitmentNoticeView: View {
                         .disabled(!viewModel.canApply(at: .now))
                     }
                 }
-                .background(Color.ecoCard)
+                .background(Color.ecoCanvas)
             }
         }
     }

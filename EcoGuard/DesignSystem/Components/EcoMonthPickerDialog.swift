@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Figma `07 활동 기록 · 월 변경 팝업` (504:173) 월 선택 카드. 월 항목은 `Month/Default` · `Month/Selected` (504:185).
-/// 폭 342, 안쪽 여백·간격 24. radius는 Figma 변수(24) 대신 프로젝트 카드 라운드(`Radius.card`)를 쓴다.
+/// Figma `07 활동 기록 · 월 변경 팝업` (823:4152) 월 선택 카드. 월 항목은 `Month/Default` · `Month/Selected` · `Month/Disabled` (823:4186).
+/// 폭 342, 안쪽 여백·간격 24, radius 24. 버튼은 팝업 버튼(높이 44, radius 12)이다.
 /// `range` 밖의 달과 연도는 고를 수 없다. 화면 위에 띄울 때는 `.ecoMonthPicker(isPresented:...)`를 쓴다.
 /// 연도·달 문구는 화면의 다른 월 문구와 같은 곳에서 만들도록 `yearTitle` · `monthTitle`로 받는다.
 struct EcoMonthPickerDialog: View {
@@ -49,11 +49,11 @@ struct EcoMonthPickerDialog: View {
                 }
             }
             HStack(spacing: Spacing.sm) {
-                actionButton("취소", background: .ecoDivider, foreground: .ecoTextPrimary, action: onCancel)
+                actionButton("취소", background: .ecoButtonFill, foreground: .ecoTextSub, action: onCancel)
                 // 다른 연도로 넘겨 그 연도에서 아직 달을 고르지 않았으면 적용할 수 없다.
                 actionButton(
                     "적용",
-                    background: canApply ? .ecoPrimary : .ecoDivider,
+                    background: canApply ? .ecoPrimary : .ecoButtonFill,
                     foreground: canApply ? .ecoOnPrimary : .ecoDisabled
                 ) { onApply(draft) }
                 .disabled(!canApply)
@@ -61,7 +61,7 @@ struct EcoMonthPickerDialog: View {
         }
         .padding(Spacing.xxl)
         .frame(maxWidth: Metrics.width)
-        .background(Color.ecoCard, in: RoundedRectangle(cornerRadius: Radius.card))
+        .background(Color.ecoCard, in: RoundedRectangle(cornerRadius: Radius.listCard))
     }
 
     private var canApply: Bool {
@@ -102,8 +102,8 @@ struct EcoMonthPickerDialog: View {
                 .foregroundStyle(isSelected ? Color.ecoOnPrimary : isEnabled ? Color.ecoTextPrimary : Color.ecoDisabled)
                 .frame(maxWidth: .infinity)
                 .frame(height: Metrics.monthHeight)
-                .background(isSelected ? Color.ecoPrimary : Color.ecoDivider, in: RoundedRectangle(cornerRadius: Radius.button))
-                .contentShape(RoundedRectangle(cornerRadius: Radius.button))
+                .background(isSelected ? Color.ecoPrimary : isEnabled ? Color.ecoDivider : Color.ecoSurface, in: RoundedRectangle(cornerRadius: Radius.box))
+                .contentShape(RoundedRectangle(cornerRadius: Radius.box))
         }
         .buttonStyle(PassthroughButtonStyle())
         .disabled(!isEnabled)
@@ -113,12 +113,12 @@ struct EcoMonthPickerDialog: View {
     private func actionButton(_ title: LocalizedStringKey, background: Color, foreground: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .ecoFont(.title5)
+                .ecoFont(.button)
                 .foregroundStyle(foreground)
                 .frame(maxWidth: .infinity)
                 .frame(height: Metrics.actionHeight)
-                .background(background, in: RoundedRectangle(cornerRadius: Radius.button))
-                .contentShape(RoundedRectangle(cornerRadius: Radius.button))
+                .background(background, in: RoundedRectangle(cornerRadius: Radius.tile))
+                .contentShape(RoundedRectangle(cornerRadius: Radius.tile))
         }
         .buttonStyle(PassthroughButtonStyle())
     }
@@ -214,7 +214,7 @@ private enum Metrics {
     static let columns = 3
     static let yearButtonSize: CGFloat = 44
     static let monthHeight: CGFloat = 48
-    static let actionHeight: CGFloat = 52
+    static let actionHeight: CGFloat = 44
     static let fadeDuration: Double = 0.2
 }
 

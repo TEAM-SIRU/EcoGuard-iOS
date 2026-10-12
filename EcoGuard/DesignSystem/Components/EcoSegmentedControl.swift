@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Figma `Segmented` (239:11). 회색 바탕 안에서 고른 칸만 흰 배경 + Bold.
+/// Figma `Segmented` (823:1402). grey/150 바탕 안에서 고른 칸만 흰 배경 + Bold.
 struct EcoSegmentedControl<ID: Hashable>: View {
     struct Item: Identifiable {
         let id: ID
@@ -31,7 +31,7 @@ struct EcoSegmentedControl<ID: Hashable>: View {
             }
         }
         .padding(Spacing.xs)
-        .background(Color.ecoDivider, in: RoundedRectangle(cornerRadius: Radius.tile))
+        .background(Color.ecoButtonFill, in: RoundedRectangle(cornerRadius: Radius.tile))
     }
 }
 

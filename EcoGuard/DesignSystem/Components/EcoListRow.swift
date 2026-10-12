@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Figma `ListRow`. 아이콘 타일 + 본문(body1) + 보조(sub) + 오른쪽 액세서리.
-/// 모집 공고 안내 행(246:33)처럼 아이콘 없이 화면 좌우 여백에 맞출 때는 `icon: nil`, `horizontalPadding: Spacing.screenHorizontal`.
+/// Figma `ListRow`. 아이콘 타일 + 본문(body1) + 보조(sub) + 오른쪽 액세서리. 위아래 12 · 좌우 16.
+/// 화면에서는 `EcoListCard`로 묶어 흰 리스트 카드 안에 둔다.
 struct EcoListRow<Accessory: View>: View {
     private let icon: ImageResource?
     private let title: String
@@ -53,7 +53,7 @@ extension EcoListRow where Accessory == EmptyView {
     }
 }
 
-/// `EcoListRow` 오른쪽 이동 표시. 보조 값(선택) + `icon/chev` 20. Figma `12 전체` 메뉴 행(512:58).
+/// `EcoListRow` 오른쪽 이동 표시. 보조 값(선택) + `icon/chev` 20. Figma `12 마이페이지` 메뉴 행(823:2077).
 struct EcoListRowDisclosure: View {
     private let value: String?
 
@@ -76,7 +76,7 @@ struct EcoListRowDisclosure: View {
     }
 }
 
-/// 켜고 끄는 `ListRow`. Figma `12 전체` 청소 알림 행(512:70). 스위치는 시스템 `Toggle`을 primary 색으로 쓴다.
+/// 켜고 끄는 `ListRow`. Figma `12 마이페이지` 청소 알림 행(823:2077). 스위치는 시스템 `Toggle`을 primary 색으로 쓴다.
 struct EcoToggleRow: View {
     private let title: String
     @Binding private var isOn: Bool
@@ -100,14 +100,33 @@ struct EcoToggleRow: View {
     }
 }
 
+/// Figma `List group` › `List card`. 흰 리스트 카드(radius 24, 위아래 4)에 행을 묶는다. 화면 좌우 16 · 위아래 4.
+struct EcoListCard<Content: View>: View {
+    private let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            content
+        }
+        .padding(.vertical, Spacing.xs)
+        .ecoCardBackground(cornerRadius: Radius.listCard)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.xs)
+    }
+}
+
 private enum Metrics {
     static let spacing: CGFloat = 14
-    static let verticalPadding: CGFloat = 14
+    static let verticalPadding: CGFloat = 12
     static let textSpacing: CGFloat = 2
 }
 
 #Preview {
-    VStack(spacing: 0) {
+    EcoListCard {
         EcoListRow(icon: .iconPin, title: "본관 2층 복도 A", subtitle: "9월 26일 금 · 08:04") {
             StatusChip(status: .approved)
         }
@@ -117,9 +136,6 @@ private enum Metrics {
         }
         EcoToggleRow(title: "청소 알림", isOn: .constant(true))
     }
-    .overlay {
-        RoundedRectangle(cornerRadius: Radius.button)
-            .stroke(Color.ecoBorder)
-    }
-    .padding(.horizontal, Spacing.screenHorizontal)
+    .frame(maxHeight: .infinity)
+    .background(Color.ecoCanvas)
 }
