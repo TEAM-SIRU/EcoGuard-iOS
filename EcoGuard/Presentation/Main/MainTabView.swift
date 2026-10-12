@@ -12,8 +12,10 @@ struct MainTabView: View {
     @State private var cleaningAreaViewModel: CleaningAreaViewModel?
     /// 탭을 오가도 고른 달과 기록을 유지하도록 셸이 들고 있는다.
     @State private var activityRecordsViewModel: ActivityRecordsViewModel?
-    /// 전체 탭을 처음 열 때 만든다. 로그인마다 셸이 새로 만들어져 이전 계정 정보가 남지 않는다.
+    /// 로그인마다 셸이 새로 만들어져 이전 계정 정보가 남지 않는다.
     @State private var myPageViewModel: MyPageViewModel?
+    /// 한 번이라도 연 탭. 다시 열 때·앱으로 돌아올 때 이미 연 탭만 새로고침한다(처음 열 때는 화면의 `.task`가 불러온다).
+    @State private var openedTabs: Set<MainTab> = [.home]
     /// 홈 탭에서 push한 공지 화면의 ViewModel. 경로에서 빠지면 놓는다.
     @State private var homeNoticeViewModel: NoticeViewModel?
     /// 전체 탭에서 push한 화면의 ViewModel. 경로에서 빠지면 놓는다.
@@ -61,33 +63,27 @@ struct MainTabView: View {
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 Task { await homeViewModel.refresh() }
-                if let activityRecordsViewModel {
+                if openedTabs.contains(.records), let activityRecordsViewModel {
                     Task { await activityRecordsViewModel.refreshOnReturn() }
                 }
-                if let myPageViewModel {
+                if openedTabs.contains(.myPage), let myPageViewModel {
                     Task { await myPageViewModel.refresh() }
                 }
             }
+            // 탭 화면 ViewModel을 셸이 나타날 때 미리 만든다. 탭을 바꾼 뒤에 만들면 한 프레임 동안 탭 영역이 비었다가 채워지며
+            // 다시 잡히는 레이아웃이 버튼 눌림 애니메이션에 섞여, 처음 누른 탭 아이콘이 아래에서 올라온다(#108).
+            // 만들기만 하고 불러오기는 각 화면의 `.task`가 처음 열 때 한다.
+            .onAppear(perform: makeTabViewModels)
             .onChange(of: viewModel.selectedTab) { _, tab in
-                // 구역 탭을 처음 열 때 한 번 만든다. 탭을 오가도 다시 불러오지 않는다.
-                if tab == .area, cleaningAreaViewModel == nil {
-                    cleaningAreaViewModel = container.makeCleaningAreaViewModel()
+                // 처음 열면 화면의 `.task`가 불러온다. 이후 돌아올 때마다 새로고침한다.
+                let isFirstOpen = openedTabs.insert(tab).inserted
+                if tab == .records, !isFirstOpen, let activityRecordsViewModel {
+                    // 달이 바뀌었으면 이번 달로 옮긴다.
+                    Task { await activityRecordsViewModel.refreshOnReturn() }
                 }
-                if tab == .records {
-                    // 처음 열 때 한 번 만들고, 이후 탭에 돌아올 때마다 새로고침한다(달이 바뀌었으면 이번 달로).
-                    if let activityRecordsViewModel {
-                        Task { await activityRecordsViewModel.refreshOnReturn() }
-                    } else {
-                        activityRecordsViewModel = container.makeActivityRecordsViewModel()
-                    }
-                }
-                if tab == .myPage {
-                    // 처음 열 때 한 번 만들고, 이후 탭에 돌아올 때마다 이번 달 승인·신청 결과를 다시 조회한다.
-                    if let myPageViewModel {
-                        Task { await myPageViewModel.refresh() }
-                    } else {
-                        myPageViewModel = container.makeMyPageViewModel(onLoggedOut: onLoggedOut)
-                    }
+                if tab == .myPage, !isFirstOpen, let myPageViewModel {
+                    // 이번 달 승인·신청 결과를 다시 조회한다.
+                    Task { await myPageViewModel.refresh() }
                 }
                 guard tab == .home else { return }
                 Task { await homeViewModel.refreshIfNeeded(now: .now) }
@@ -360,6 +356,18 @@ struct MainTabView: View {
         }
     }
 
+    private func makeTabViewModels() {
+        if cleaningAreaViewModel == nil {
+            cleaningAreaViewModel = container.makeCleaningAreaViewModel()
+        }
+        if activityRecordsViewModel == nil {
+            activityRecordsViewModel = container.makeActivityRecordsViewModel()
+        }
+        if myPageViewModel == nil {
+            myPageViewModel = container.makeMyPageViewModel(onLoggedOut: onLoggedOut)
+        }
+    }
+
     private func openCamera() {
         viewModel.present(.camera(container.makeCameraVerificationViewModel()))
     }
@@ -388,10 +396,10 @@ struct MainTabView: View {
 
     private func refreshAfterFlow() {
         Task { await homeViewModel.refresh() }
-        if let activityRecordsViewModel {
+        if openedTabs.contains(.records), let activityRecordsViewModel {
             Task { await activityRecordsViewModel.refresh() }
         }
-        if let myPageViewModel {
+        if openedTabs.contains(.myPage), let myPageViewModel {
             Task { await myPageViewModel.refresh() }
         }
         if let appealHistoryViewModel {
