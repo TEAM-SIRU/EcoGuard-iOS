@@ -1,47 +1,54 @@
 import SwiftUI
 
-/// Figma `02 홈` 카드·탭 바 그림자. 색은 alpha가 들어간 colorset이다.
+/// Figma Redesign 2 그림자. 색은 alpha가 들어간 colorset이다.
 enum EcoShadow {
-    /// 일반 카드(오늘의 청소·이번 주 청소·기록). 0 / 2 / 10, rgba(26,33,31,0.06).
+    /// 흰 카드 2단 그림자. `.ecoShadow(.card)`는 두 겹을 함께 건다. 0 / 1 / 3 grey/900 4% + 0 / 6 / 18 grey/900 7%.
     case card
-    /// 메인 공지 카드. 0 / 4 / 16, rgba(26,31,41,0.08).
-    case notice
-    /// 하단 탭 바 (255:2). 0 / -4 / 16, rgba(26,31,41,0.06).
+    /// 하단 탭 바 (823:969). 0 / -4 / 16, grey/900 5%.
     case tabBar
-    /// 가운데 카메라 버튼 (255:27). 0 / 6 / 14, rgba(31,171,84,0.32).
+    /// 가운데 카메라 버튼 (823:969 Camera FAB). 0 / 6 / 14, green/500 32%.
     case cameraButton
 
-    var color: Color {
+    fileprivate var layers: [Layer] {
         switch self {
-        case .card: .ecoShadowCard
-        case .notice: .ecoShadowNotice
-        case .tabBar: .ecoShadowTabBar
-        case .cameraButton: .ecoShadowCameraButton
+        case .card:
+            [Layer(color: .ecoShadowCardNear, blur: 3, offsetY: 1), Layer(color: .ecoShadowCard, blur: 18, offsetY: 6)]
+        case .tabBar:
+            [Layer(color: .ecoShadowTabBar, blur: 16, offsetY: -4)]
+        case .cameraButton:
+            [Layer(color: .ecoShadowCameraButton, blur: 14, offsetY: 6)]
         }
     }
 
-    /// Figma blur. SwiftUI `radius`는 blur의 절반이다.
-    var radius: CGFloat {
-        switch self {
-        case .card: 5
-        case .notice: 8
-        case .tabBar: 8
-        case .cameraButton: 7
-        }
-    }
-
-    var offsetY: CGFloat {
-        switch self {
-        case .card: 2
-        case .notice: 4
-        case .tabBar: -4
-        case .cameraButton: 6
-        }
+    fileprivate struct Layer {
+        let color: Color
+        /// Figma blur. SwiftUI `radius`는 blur의 절반이다.
+        let blur: CGFloat
+        let offsetY: CGFloat
     }
 }
 
 extension View {
     func ecoShadow(_ shadow: EcoShadow) -> some View {
-        self.shadow(color: shadow.color, radius: shadow.radius, x: 0, y: shadow.offsetY)
+        let first = shadow.layers[0]
+        // 한 겹짜리는 두 번째 그림자를 투명으로 둔다.
+        let second = shadow.layers.dropFirst().first ?? EcoShadow.Layer(color: .clear, blur: 0, offsetY: 0)
+        return self
+            .shadow(color: first.color, radius: first.blur / 2, x: 0, y: first.offsetY)
+            .shadow(color: second.color, radius: second.blur / 2, x: 0, y: second.offsetY)
+    }
+
+    /// Figma 흰 카드 배경: 흰색 + 1px grey/200 테두리 + 2단 그림자.
+    /// 그림자를 배경 도형에만 줘야 안쪽 글자·버튼에 그림자가 번지지 않는다.
+    func ecoCardBackground(cornerRadius: CGFloat) -> some View {
+        background {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(Color.ecoCard)
+                .ecoShadow(.card)
+                .overlay {
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .strokeBorder(Color.ecoBorder, lineWidth: 1)
+                }
+        }
     }
 }
