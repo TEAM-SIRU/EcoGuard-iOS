@@ -90,20 +90,16 @@ struct HomeView: View {
             HomeMessageView(
                 title: "홈을 불러오지 못했어요",
                 message: "네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
-                primaryTitle: "다시 시도",
-                primaryAction: { await viewModel.retry() },
-                secondaryAction: actions.openNotices
+                kind: .failed(retry: { await viewModel.retry() })
             )
         case .loaded(let summary):
             if case .excluded(let reason) = summary.status {
                 HomeMessageView(
                     title: "환경지킴이 활동이 취소됐어요",
                     message: "담당 선생님이 활동에서 제외했어요.\n\n제외 사유\n\(reason)\n\n사유에 대해 궁금하면 담당 선생님께 문의해 주세요.",
-                    primaryTitle: "홈으로",
                     // Figma 문구는 `홈으로`지만 이미 홈 탭 첫 화면이라 옮길 곳이 없다(#77).
                     // 화면을 둔 채 활동 상태를 다시 확인해 제외가 풀렸으면 홈을, 그대로면 토스트로 결과를 보여 준다.
-                    primaryAction: { await viewModel.recheckExclusion() },
-                    secondaryAction: actions.openNotices
+                    kind: .excluded(recheck: { await viewModel.recheckExclusion() }, openNotices: actions.openNotices)
                 )
             } else {
                 loaded(summary)

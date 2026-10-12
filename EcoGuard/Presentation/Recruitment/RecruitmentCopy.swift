@@ -52,17 +52,17 @@ enum RecruitmentCopy {
     }
 
     enum Apply {
-        // Figma 309:169
+        // Figma 823:2880 · 823:4643
         static let title: LocalizedStringKey = "환경지킴이 신청"
         /// 신청하면 바로 확정된다(선착순, 2026-10-03 결정).
         static func subtitle(capacity: Int) -> LocalizedStringKey { "신청하면 바로 확정돼요.\n반마다 \(capacity)명이 차면 마감돼요." }
         static let submit: LocalizedStringKey = "신청하기"
 
-        // 새 문구: 신청자 정보·신청 동기 입력
         static let studentNumberLabel: LocalizedStringKey = "학번"
         static let nameLabel: LocalizedStringKey = "이름"
+        static let autofillNote: LocalizedStringKey = "DataGSM 정보로 자동 입력돼요. 직접 바꿀 수 없어요."
         static let motivationTitle: LocalizedStringKey = "신청 동기"
-        static let motivationPrompt: LocalizedStringKey = "환경지킴이로 활동하고 싶은 이유를 적어 주세요"
+        static let motivationPrompt: LocalizedStringKey = "예) 우리 반 교실과 복도를 깨끗하게 지키고 싶어요"
         static func motivationTooLong(maxLength: Int) -> LocalizedStringResource { "\(maxLength)자까지 쓸 수 있어요" }
         static let motivationRequired: LocalizedStringKey = "신청 동기를 입력하면 신청할 수 있어요"
         static let failed: LocalizedStringResource = "신청하지 못했어요. 다시 시도해 주세요"

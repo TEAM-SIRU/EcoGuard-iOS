@@ -24,6 +24,8 @@ struct AppealResultView: View {
             AppealSubmittedView(appeal: appeal, back: back, goHome: goHome)
         case .approved:
             VerificationMessageView(
+                icon: .iconCheckHero,
+                iconTint: .ecoPrimaryIcon,
                 title: "이의신청이 승인됐어요",
                 highlight: AppealFormatter.earned(appeal),
                 message: LocalizedStringKey(AppealFormatter.approvedMessage(appeal)),

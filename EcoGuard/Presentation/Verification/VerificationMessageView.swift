@@ -1,8 +1,10 @@
 import SwiftUI
 
-/// Figma `06-5 업로드 실패` (514:20) · `06-6 시간 초과` (514:49). 제목·설명과 하단 버튼 두 개.
-/// 이의신청 제출 실패 (514:165) · 결과 승인 (514:194)도 같은 구성이다. 승인은 제목 아래 `highlight`(+10분)를 둔다.
+/// Figma `06-5 업로드 실패` (823:4190) · `06-6 시간 초과` (823:4223). 가운데 아이콘·제목·설명과 하단 버튼 두 개.
+/// 이의신청 제출 실패 (823:4383) · 결과 승인 (823:4416)도 같은 구성이다. 승인은 제목 아래 `highlight`(+10분)를 둔다.
 struct VerificationMessageView: View {
+    var icon: ImageResource = .iconAlertHero
+    var iconTint: Color = .ecoRejected
     let title: LocalizedStringKey
     var highlight: String?
     let message: LocalizedStringKey
@@ -19,23 +21,8 @@ struct VerificationMessageView: View {
             VerificationNavBar(back: back)
                 .disabled(isBusy)
             ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.xl) {
-                    Text(title)
-                        .ecoFont(.title1)
-                        .foregroundStyle(Color.ecoTextPrimary)
-                        .accessibilityAddTraits(.isHeader)
-                    if let highlight {
-                        Text(verbatim: highlight)
-                            .ecoFont(.display)
-                            .foregroundStyle(Color.ecoPrimaryText)
-                    }
-                    Text(message)
-                        .ecoFont(.body2)
-                        .foregroundStyle(Color.ecoTextSub)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.screenHorizontal)
-                .containerRelativeFrame(.vertical, alignment: .center)
+                EcoMessageContent(icon: icon, iconTint: iconTint, title: title, highlight: highlight, message: message)
+                    .containerRelativeFrame(.vertical, alignment: .center)
             }
             .scrollBounceBehavior(.basedOnSize)
         }

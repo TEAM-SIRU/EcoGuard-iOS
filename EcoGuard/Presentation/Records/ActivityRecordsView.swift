@@ -163,10 +163,17 @@ struct ActivityRecordsView: View {
             subtitle: ActivityRecordsFormatter.detail(record)
         ) {
             HStack(spacing: Spacing.sm) {
-                StatusChip(status: record.result.chipStatus)
+                VStack(alignment: .trailing, spacing: Metrics.statusSpacing) {
+                    StatusChip(status: record.result.chipStatus)
+                    if let earned = ActivityRecordsFormatter.earned(record) {
+                        Text(earned)
+                            .ecoFont(.captionMedium)
+                            .foregroundStyle(record.result == .approved ? Color.ecoTextSub : Color.ecoDisabled)
+                    }
+                }
                 if record.result != .notSubmitted {
                     Image(.iconChevronRightLarge)
-                        .foregroundStyle(Color.ecoDisabled)
+                        .foregroundStyle(Color.ecoChevron)
                         .accessibilityHidden(true)
                 }
             }
@@ -231,6 +238,11 @@ private extension ActivityRecord.Result {
         case .notSubmitted: .notSubmitted
         }
     }
+}
+
+private enum Metrics {
+    /// 상태 칩과 적립 분 사이.
+    static let statusSpacing: CGFloat = 2
 }
 
 private func recordsPreview(_ scenario: MockActivityRepository.Scenario, delay: Duration = .zero) -> some View {

@@ -1,4 +1,4 @@
-/// 회원 탈퇴. 화면은 디자인 대기라 아직 연결하지 않았다.
+/// 회원 탈퇴. 마이페이지 `회원탈퇴`에서 부른다.
 struct WithdrawUseCase {
     private let currentUserRepository: CurrentUserRepository
 

@@ -18,6 +18,11 @@ struct MyPageView: View {
 
     @Environment(\.openURL) private var openURL
 
+    /// 회원탈퇴 실패 토스트. Figma 정의가 없어 다른 토스트와 같은 모양으로 위쪽에 띄운다.
+    @State private var isWithdrawFailedToastPresented = false
+
+    private static let withdrawFailedMessage: LocalizedStringResource = "탈퇴하지 못했어요. 잠시 후 다시 시도해 주세요"
+
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
@@ -70,7 +75,7 @@ struct MyPageView: View {
                     .menuButton(action: actions.openHelp)
                 }
                 sectionDivider
-                logoutButton
+                accountActions
                 #if DEBUG
                 ScreenGalleryMenuRow()
                 #endif
@@ -95,6 +100,26 @@ struct MyPageView: View {
                     await viewModel.confirmLogout()
                 }
             }
+        }
+        .overlay(alignment: .top) {
+            if isWithdrawFailedToastPresented {
+                EcoToast(message: Self.withdrawFailedMessage)
+                    .padding(.top, Spacing.sm)
+                    .padding(.horizontal, Spacing.screenHorizontal)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.default, value: isWithdrawFailedToastPresented)
+        .onChange(of: viewModel.withdrawFailureCount) { old, new in
+            guard new > old else { return }
+            AccessibilityNotification.Announcement(String(localized: Self.withdrawFailedMessage)).post()
+            isWithdrawFailedToastPresented = true
+        }
+        .task(id: viewModel.withdrawFailureCount) {
+            guard isWithdrawFailedToastPresented else { return }
+            // 다시 실패하면 이 작업은 취소되고 새 작업이 시간을 처음부터 센다.
+            guard (try? await Task.sleep(for: EcoToast.displayDuration)) != nil else { return }
+            isWithdrawFailedToastPresented = false
         }
     }
 
@@ -174,13 +199,35 @@ struct MyPageView: View {
             .frame(height: Spacing.md)
     }
 
-    private var logoutButton: some View {
-        Button(action: viewModel.requestLogout) {
-            Text("로그아웃")
+    /// Figma 아래 줄: `로그아웃` · `회원탈퇴`(빨강), 사이 20, 위아래 16.
+    private var accountActions: some View {
+        HStack(spacing: Spacing.xl) {
+            accountButton("로그아웃", color: .ecoTextCaption, action: viewModel.requestLogout)
+            accountButton("회원탈퇴", color: .ecoDestructive, action: viewModel.requestWithdraw)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, Spacing.screenHorizontal)
+        // 로그아웃 확인 팝업과 같은 뷰에 두 개를 겹쳐 걸지 않도록 이 줄에 건다.
+        .ecoDialog(
+            isPresented: withdrawConfirmBinding,
+            onCancel: viewModel.cancelWithdraw,
+            onDismiss: viewModel.logoutConfirmDidDismiss
+        ) {
+            EcoDialog("회원탈퇴", message: "정말 탈퇴하시겠어요?") {
+                EcoButton("취소", style: .secondary, action: viewModel.cancelWithdraw)
+                    .disabled(viewModel.isWithdrawing)
+                EcoButton("회원탈퇴", style: .destructive, isLoading: viewModel.isWithdrawing) {
+                    await viewModel.confirmWithdraw()
+                }
+            }
+        }
+    }
+
+    private func accountButton(_ title: LocalizedStringKey, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
                 .ecoFont(.body2Medium)
-                .foregroundStyle(Color.ecoTextCaption)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.screenHorizontal)
+                .foregroundStyle(color)
                 .padding(.vertical, Spacing.lg)
                 .contentShape(Rectangle())
         }
@@ -193,6 +240,16 @@ struct MyPageView: View {
             get: { viewModel.isLogoutConfirmPresented },
             set: { isPresented in
                 if !isPresented { viewModel.cancelLogout() }
+            }
+        )
+    }
+
+    /// 팝업 바깥에서 닫히는 경우도 취소로 본다. 탈퇴 중에는 `cancelWithdraw`가 무시한다.
+    private var withdrawConfirmBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.isWithdrawConfirmPresented },
+            set: { isPresented in
+                if !isPresented { viewModel.cancelWithdraw() }
             }
         )
     }

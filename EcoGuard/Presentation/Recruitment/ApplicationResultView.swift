@@ -35,6 +35,8 @@ struct ApplicationResultView: View {
             resultView(ApplicationResultContent(outcome: outcome))
         case .notApplied:
             RecruitmentMessageView(
+                icon: .iconListHero,
+                iconTint: .ecoTextMuted,
                 title: RecruitmentCopy.Result.notAppliedTitle,
                 message: RecruitmentCopy.Result.notAppliedMessage,
                 onBack: onBack,

@@ -46,6 +46,8 @@ struct RecruitmentNoticeView: View {
             loadedView(detail: detail, applicant: applicant)
         case .empty:
             RecruitmentMessageView(
+                icon: .iconListHero,
+                iconTint: .ecoTextMuted,
                 title: RecruitmentCopy.Notice.emptyTitle,
                 message: RecruitmentCopy.Notice.emptyMessage,
                 onBack: onExit,

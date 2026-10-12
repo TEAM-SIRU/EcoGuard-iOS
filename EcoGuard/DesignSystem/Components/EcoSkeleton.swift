@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 불러오는 중 자리 표시 블록. Figma `02 홈 · 로딩` (514:270) Skeleton, radius 12.
+/// 불러오는 중 자리 표시 블록. Figma `02 홈 · 로딩` (823:4482) Skeleton. 줄은 grey/150 radius 12, 카드·행은 흰색 radius 20.
 struct EcoSkeleton: View {
     enum Kind {
         /// 160 × 24
@@ -16,8 +16,8 @@ struct EcoSkeleton: View {
     let kind: Kind
 
     var body: some View {
-        RoundedRectangle(cornerRadius: Radius.tile)
-            .fill(Color.ecoButtonFill)
+        RoundedRectangle(cornerRadius: kind.cornerRadius)
+            .fill(kind.fill)
             .frame(width: kind.width, height: kind.height)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityHidden(true)
@@ -30,6 +30,20 @@ private extension EcoSkeleton.Kind {
         case .shortLine: Metrics.shortLineWidth
         case .longLine: Metrics.longLineWidth
         case .card, .row: nil
+        }
+    }
+
+    var fill: Color {
+        switch self {
+        case .shortLine, .longLine: .ecoButtonFill
+        case .card, .row: .ecoCard
+        }
+    }
+
+    var cornerRadius: CGFloat {
+        switch self {
+        case .shortLine, .longLine: Radius.tile
+        case .card, .row: Radius.card
         }
     }
 
