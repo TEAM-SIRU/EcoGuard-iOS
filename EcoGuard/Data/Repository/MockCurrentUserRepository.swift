@@ -8,11 +8,14 @@ final class MockCurrentUserRepository: CurrentUserRepository {
     private var user: CurrentUser?
     private(set) var withdrawCallCount = 0
     private let withdrawFails: Bool
+    private let withdrawDelay: Duration
 
     /// `user`가 nil이면 내 정보를 받아 오지 못한 것처럼 에러를 던진다. `withdrawFails`면 탈퇴 요청이 실패한다.
-    init(user: CurrentUser? = MockCurrentUserRepository.user, withdrawFails: Bool = false) {
+    /// `withdrawDelay`만큼 기다린 뒤 탈퇴한다(화면 모음의 `탈퇴 중`).
+    init(user: CurrentUser? = MockCurrentUserRepository.user, withdrawFails: Bool = false, withdrawDelay: Duration = .zero) {
         self.user = user
         self.withdrawFails = withdrawFails
+        self.withdrawDelay = withdrawDelay
     }
 
     func fetchCurrentUser() async throws -> CurrentUser {
@@ -22,6 +25,9 @@ final class MockCurrentUserRepository: CurrentUserRepository {
 
     func withdraw() async throws {
         withdrawCallCount += 1
+        if withdrawDelay > .zero {
+            try await Task.sleep(for: withdrawDelay)
+        }
         if withdrawFails { throw WithdrawFailedError() }
         user = nil
     }

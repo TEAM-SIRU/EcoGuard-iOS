@@ -10,19 +10,35 @@ struct ScreenGalleryView: View {
 
     @State private var selectedItem: ScreenGalleryItem?
     @State private var hasOpenedInitialItem = false
+    /// 항목 이름·ID·섹션 제목 검색어.
+    @State private var query = ""
     private let sections = ScreenGalleryCatalog.sections
 
     var body: some View {
+        let visibleSections = ScreenGalleryCatalog.filter(sections, query: query)
         NavigationStack {
             List {
-                ForEach(sections) { section in
+                ForEach(visibleSections) { section in
                     Section(section.title) {
                         ForEach(section.items) { item in
-                            Button(item.title) { open(item) }
+                            Button { open(item) } label: {
+                                VStack(alignment: .leading, spacing: Spacing.xs) {
+                                    Text(item.title)
+                                    Text(verbatim: item.id)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
                         }
                     }
                 }
             }
+            .overlay {
+                if visibleSections.isEmpty {
+                    ContentUnavailableView.search(text: query)
+                }
+            }
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "이름 또는 ID 검색")
             .navigationTitle("화면 둘러보기")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
