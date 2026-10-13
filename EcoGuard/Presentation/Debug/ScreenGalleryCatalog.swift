@@ -23,6 +23,20 @@ enum ScreenGalleryCatalog {
         [shell, login, recruitment, verification, verificationResult, appeal, notice, myPage, areaAndRecords, components]
     }
 
+    /// 검색어가 항목 이름·ID나 섹션 제목에 들어 있는 항목만 남긴다(대소문자 무시). 섹션 제목이 맞으면 섹션 전체를 남긴다.
+    /// 빈 섹션은 뺀다. 검색어가 비어 있으면 그대로 돌려준다.
+    static func filter(_ sections: [ScreenGallerySection], query: String) -> [ScreenGallerySection] {
+        let query = query.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return sections }
+        return sections.compactMap { section in
+            if section.title.localizedCaseInsensitiveContains(query) { return section }
+            let items = section.items.filter {
+                $0.title.localizedCaseInsensitiveContains(query) || $0.id.localizedCaseInsensitiveContains(query)
+            }
+            return items.isEmpty ? nil : ScreenGallerySection(title: section.title, items: items)
+        }
+    }
+
     /// Mock 저장소 기본 지연(`DIContainer.live()`의 Mock 구성과 같다).
     private static let mockDelay: Duration = .seconds(1)
     /// 로딩 화면을 계속 보여 줄 때.
@@ -31,7 +45,7 @@ enum ScreenGalleryCatalog {
     // MARK: - ① 탭 셸
 
     private static var shell: ScreenGallerySection {
-        ScreenGallerySection(title: "홈 · 상태별 (탭 셸 홈 탭으로 열기)", items: [
+        ScreenGallerySection(title: "홈 · 상태별 (탭 셸로 열기)", items: [
             shellItem("shell.notSubmitted", "활동 중 · 인증 가능", home: .notSubmitted),
             shellItem("shell.notOpenYet", "활동 중 · 인증 시간 아님(마감 후·시작 전)", home: .notOpenYet),
             shellItem("shell.aiReviewing", "활동 중 · 제출함(AI 검수 중)", home: .aiReviewing),
@@ -45,19 +59,70 @@ enum ScreenGalleryCatalog {
             shellItem("shell.notSelected", "미선발", home: .notSelected),
             shellItem("shell.notRecruiting", "모집 없음", home: .notRecruiting),
             shellItem("shell.failure", "홈 조회 실패", home: .failure),
-            shellItem("shell.loading", "홈 로딩", home: .notSubmitted, homeDelay: loadingDelay)
+            shellItem("shell.loading", "홈 로딩", home: .notSubmitted, homeDelay: loadingDelay),
+            shellItem("shell.longArea", "활동 중 · 긴 구역명", homeState: .loaded(longAreaHomeSummary)),
+            shellItem("shell.excludedStill", "활동 제외 · 다시 확인 → 그대로 토스트", home: .excluded) { _, home in
+                await home.recheckExclusion()
+            },
+            shellItem(
+                "shell.excludedCheckFailed",
+                "활동 제외 · 다시 확인 실패 토스트",
+                homeRepository: MockHomeRepository(scenario: .failure),
+                homeState: .loaded(MockHomeRepository.Fixture.summary(for: .excluded, now: .now) ?? excludedSummary)
+            ) { _, home in
+                await home.recheckExclusion()
+            },
+            shellItem("shell.helpUnavailable", "전체 탭 · 도움말 준비 중 토스트", selectedTab: .myPage) { shell, _ in
+                shell.openHelp()
+            },
+            shellItem("shell.submissionUnavailable", "제출한 인증을 못 찾음 토스트") { shell, _ in
+                shell.openTodaySubmission(nil)
+            }
         ])
     }
 
+    /// `HomeSummary` 기본값(Fixture가 nil을 돌려줄 때만 쓴다).
+    private static let excludedSummary = HomeSummary(status: .excluded(reason: ""), notice: nil)
+
+    /// 활동 중(인증 가능) 홈에서 구역 이름만 길게 바꾼 것. 오늘 카드·최근 기록의 줄바꿈을 본다.
+    private static var longAreaHomeSummary: HomeSummary {
+        let store = MockStore(homeScenario: .notSubmitted)
+        guard
+            let summary = MockHomeRepository.Fixture.summary(store: store),
+            case .active(let cleaning) = summary.status
+        else { return excludedSummary }
+        let today = TodayCleaning(
+            area: longAreaName,
+            window: cleaning.today.window,
+            verification: cleaning.today.verification,
+            submission: cleaning.today.submission
+        )
+        let records = cleaning.recentRecords.map {
+            CleaningRecord(id: $0.id, date: $0.date, cleanedAt: $0.cleanedAt, area: longAreaName, result: $0.result)
+        }
+        return HomeSummary(
+            status: .active(ActiveCleaning(today: today, week: cleaning.week, recentRecords: records)),
+            notice: summary.notice
+        )
+    }
+
+    /// `homeState`를 넣으면 홈을 불러오지 않고 그 상태로 시작한다. `start`는 셸이 나타난 뒤 한 번 부른다(토스트를 띄울 때).
     private static func shellItem(
         _ id: String,
         _ title: String,
-        home: MockHomeRepository.Scenario,
-        homeDelay: Duration = mockDelay
+        home: MockHomeRepository.Scenario = .notSubmitted,
+        homeDelay: Duration = mockDelay,
+        homeRepository: HomeRepository? = nil,
+        homeState: HomeViewModel.State = .loading,
+        selectedTab: MainTab = .home,
+        start: ((MainTabViewModel, HomeViewModel) async -> Void)? = nil
     ) -> ScreenGalleryItem {
         item(id, title) { close in
-            let container = container(home: home, homeDelay: homeDelay)
-            MainTabView(container: container, homeViewModel: container.makeHomeViewModel(), onLoggedOut: close)
+            let container = container(home: home, homeDelay: homeDelay, homeRepository: homeRepository)
+            let shell = MainTabViewModel(selectedTab: selectedTab)
+            let homeViewModel = container.makeHomeViewModel(state: homeState)
+            MainTabView(container: container, homeViewModel: homeViewModel, viewModel: shell, onLoggedOut: close)
+                .task { await start?(shell, homeViewModel) }
         }
     }
 
@@ -101,6 +166,15 @@ enum ScreenGalleryCatalog {
             recruitmentApply("recruitment.applyRetry", "신청서 · 실패 후 재시도", applyOutcomes: [.failure, .approved]),
             recruitmentApply("recruitment.applyFull", "신청서 · 신청 중 정원 초과", applyOutcomes: [.full]),
             recruitmentApply("recruitment.applyNotInPeriod", "신청서 · 신청 중 기간 종료", applyOutcomes: [.notInPeriod]),
+            recruitmentApply("recruitment.applyNameOnly", "신청서 · 학번 모름(이름만)", applicant: Applicant(studentNumber: nil, name: "최민준")),
+            recruitmentApply("recruitment.applyUnknownApplicant", "신청서 · 학번·이름 모름", applicant: Applicant(studentNumber: nil, name: nil)),
+            recruitmentApply(
+                "recruitment.applyOverLimit",
+                "신청서 · 글자 수 초과",
+                motivation: String(repeating: "가", count: ApplicationMotivation.maxLength + 1)
+            ),
+            recruitmentApply("recruitment.applySubmitting", "신청서 · 신청 중", motivation: motivation, applyDelay: loadingDelay, submitsOnAppear: true),
+            recruitmentApply("recruitment.applyFailed", "신청서 · 신청 실패", motivation: motivation, applyOutcomes: [.failure], submitsOnAppear: true),
             applicationResult("recruitment.result.applied", "신청 결과 · 승인(배정 대기)", outcome: .applied(seededApplication(isAreaAssigned: false))),
             applicationResult("recruitment.result.assigned", "신청 결과 · 승인(배정 완료)", outcome: .applied(seededApplication(isAreaAssigned: true))),
             applicationResult("recruitment.result.full", "신청 결과 · 신청 중 마감", outcome: .closedWhileApplying(reason: .full)),
@@ -127,20 +201,26 @@ enum ScreenGalleryCatalog {
         }
     }
 
+    /// 신청 동기 예시.
+    private static let motivation = "깨끗한 학교를 만드는 데 힘을 보태고 싶어요"
+
     /// 신청서부터 시작해 `RecruitmentFlowView`처럼 신청서 → 결과를 이어 붙인다(공고부터는 `recruitment.open`).
+    /// `submitsOnAppear`면 화면이 나타나자마자 `motivation`으로 신청한다(신청 중·실패 상태).
     private static func recruitmentApply(
         _ id: String,
         _ title: String,
-        applyOutcomes: [MockRecruitmentRepository.ApplyOutcome] = [.approved]
+        applicant: Applicant = MockRecruitmentRepository.Fixture.applicant,
+        motivation: String = "",
+        applyOutcomes: [MockRecruitmentRepository.ApplyOutcome] = [.approved],
+        applyDelay: Duration = mockDelay,
+        submitsOnAppear: Bool = false
     ) -> ScreenGalleryItem {
         item(id, title) { close in
-            let container = container(home: .recruiting, applyOutcomes: applyOutcomes)
+            let container = container(home: .recruiting, applyOutcomes: applyOutcomes, recruitmentDelay: applyDelay)
+            let viewModel = recruitmentApplyViewModel(container: container, applicant: applicant, motivation: motivation)
             ScreenGalleryStack { navigator in
                 RecruitmentApplyView(
-                    viewModel: container.makeRecruitmentApplyViewModel(
-                        applicant: MockRecruitmentRepository.Fixture.applicant,
-                        capacityPerClass: 6
-                    ),
+                    viewModel: viewModel,
                     onFinish: { outcome in
                         navigator.push(ApplicationResultView(
                             viewModel: container.makeApplicationResultViewModel(outcome: outcome),
@@ -150,7 +230,18 @@ enum ScreenGalleryCatalog {
                     }
                 )
             }
+            .task {
+                // 신청 중·실패 상태만 쓴다. 결과로 넘어가지 않는다.
+                guard submitsOnAppear else { return }
+                _ = await viewModel.submit()
+            }
         }
+    }
+
+    private static func recruitmentApplyViewModel(container: DIContainer, applicant: Applicant, motivation: String) -> RecruitmentApplyViewModel {
+        let viewModel = container.makeRecruitmentApplyViewModel(applicant: applicant, capacityPerClass: 6)
+        viewModel.motivation = motivation
+        return viewModel
     }
 
     /// 이미 신청한 학생의 신청(오늘 기준 공고 기간). `MockStore`가 만든 값과 같다.
@@ -211,14 +302,14 @@ enum ScreenGalleryCatalog {
             camera("verification.sheet.permission", "인증 불가 시트 · 카메라 권한 필요", state: .guide, sheet: .permissionRequired),
             camera(
                 "verification.sheet.weekend",
-                "인증 불가 · 주말",
+                "인증 불가 화면 · 주말",
                 state: .guide,
                 sheet: .outsideWindow(.weekend),
                 availability: .outsideWindow(.weekend)
             ),
             camera(
                 "verification.sheet.vacation",
-                "인증 불가 · 방학",
+                "인증 불가 화면 · 방학",
                 state: .guide,
                 sheet: .outsideWindow(.vacation),
                 availability: .outsideWindow(.vacation)
@@ -359,6 +450,7 @@ enum ScreenGalleryCatalog {
             appealFormItem("appeal.form", "작성 전"),
             appealFormItem("appeal.formPhotos", "작성 중 · 사진 2장 첨부", message: message, photoCount: 2),
             appealFormItem("appeal.formOverLimit", "글자 수 초과", message: String(repeating: "가", count: AppealMessage.maxLength + 1)),
+            appealFormItem("appeal.formSubmitting", "보내는 중", message: message, phase: .submitting),
             appealFormItem("appeal.formFailed", "제출 실패", message: message, phase: .failed),
             appealFormItem("appeal.formRetry", "보내기 실패 후 다시 보내기", message: message, submitOutcomes: [.failure, .success]),
             appealFormItem(
@@ -534,6 +626,12 @@ enum ScreenGalleryCatalog {
         ScreenGallerySection(title: "공지", items: [
             noticeItem("notice.list", "목록", scenario: .loaded),
             noticeItem("notice.focused", "목록 · 홈 공지 카드에서 열기", scenario: .loaded, focusedNoticeID: MockHomeRepository.Fixture.notice.id),
+            item("notice.empty", "목록 · 공지 없음") { close in
+                NoticeView(
+                    viewModel: NoticeViewModel(fetchNoticesUseCase: FetchNoticesUseCase(noticeRepository: MockNoticeRepository()), state: .loaded([])),
+                    onBack: close
+                )
+            },
             noticeItem("notice.failure", "조회 실패", scenario: .failure),
             noticeItem("notice.loading", "불러오는 중", scenario: .loaded, delay: loadingDelay)
         ])
@@ -581,6 +679,46 @@ enum ScreenGalleryCatalog {
                 let viewModel = myPageViewModel(onLoggedOut: close)
                 MyPageView(viewModel: viewModel)
                     .onAppear { viewModel.requestWithdraw() }
+            },
+            item("myPage.withdrawing", "회원탈퇴 중") { close in
+                let viewModel = myPageViewModel(currentUserRepository: MockCurrentUserRepository(withdrawDelay: loadingDelay), onLoggedOut: close)
+                MyPageView(viewModel: viewModel)
+                    .task {
+                        viewModel.requestWithdraw()
+                        await viewModel.confirmWithdraw()
+                    }
+            },
+            item("myPage.withdrawFailed", "회원탈퇴 실패 토스트") { close in
+                let viewModel = myPageViewModel(
+                    currentUserRepository: MockCurrentUserRepository(withdrawFails: true, withdrawDelay: mockDelay),
+                    onLoggedOut: close
+                )
+                MyPageView(viewModel: viewModel)
+                    .task {
+                        viewModel.requestWithdraw()
+                        await viewModel.confirmWithdraw()
+                    }
+            },
+            item("myPage.notificationDenied", "청소 알림 · 권한 거부 안내") { close in
+                let viewModel = myPageViewModel(
+                    isCleaningReminderOn: false,
+                    cleaningReminderScheduler: MockCleaningReminderScheduler(isAuthorized: false),
+                    onLoggedOut: close
+                )
+                MyPageView(viewModel: viewModel)
+                    .task { await viewModel.setCleaningReminder(true) }
+            },
+            item("myPage.longText", "긴 이름·구역명 · 학년 반 모름") { close in
+                MyPageView(viewModel: myPageViewModel(
+                    state: .loaded(MyPageSummary(
+                        profile: UserProfile(name: longPersonName, grade: nil, classNumber: nil, isGuardian: true),
+                        monthlyApprovedCount: 23,
+                        monthlyActivityMinutes: 230,
+                        cleaningAreaName: longAreaName,
+                        hasApplied: true
+                    )),
+                    onLoggedOut: close
+                ))
             }
         ])
     }
@@ -602,21 +740,45 @@ enum ScreenGalleryCatalog {
         }
     }
 
+    /// `state`를 넣으면 불러오지 않고 그 화면으로 시작한다(Mock 저장소에 없는 긴 이름 등).
     private static func myPageViewModel(
         scenario: MockMyPageRepository.Scenario = .guardian,
         delay: Duration = mockDelay,
         isCleaningReminderOn: Bool = true,
         logoutDelay: Duration = mockDelay,
+        currentUserRepository: CurrentUserRepository? = nil,
+        cleaningReminderScheduler: CleaningReminderScheduler = MockCleaningReminderScheduler(),
+        state: MyPageViewModel.State? = nil,
         onLoggedOut: @escaping () -> Void
     ) -> MyPageViewModel {
         // 앱의 청소 알림 설정을 바꾸지 않게 따로 둔 저장소를 쓴다.
         let defaults = UserDefaults(suiteName: "screenGallery.myPage") ?? .standard
         let settings = NotificationSettingRepositoryImpl(defaults: defaults)
         settings.setCleaningReminderOn(isCleaningReminderOn)
-        let container = container(authDelay: logoutDelay)
-        return container.makeMyPageViewModel(
-            repository: MockMyPageRepository(store: container.mockStore, scenario: scenario, delay: delay),
-            notificationSettingRepository: settings,
+        let container = container(authDelay: logoutDelay, cleaningReminderScheduler: cleaningReminderScheduler)
+        let repository = MockMyPageRepository(store: container.mockStore, scenario: scenario, delay: delay)
+        guard let state else {
+            return container.makeMyPageViewModel(
+                repository: repository,
+                notificationSettingRepository: settings,
+                currentUserRepository: currentUserRepository,
+                onLoggedOut: onLoggedOut
+            )
+        }
+        // `makeMyPageViewModel`은 처음 상태를 받지 않아 같은 구성으로 직접 만든다.
+        return MyPageViewModel(
+            fetchMyPageUseCase: FetchMyPageUseCase(myPageRepository: repository),
+            logoutUseCase: LogoutUseCase(authRepository: container.authRepository),
+            withdrawUseCase: WithdrawUseCase(currentUserRepository: currentUserRepository ?? container.currentUserRepository),
+            fetchCleaningReminderUseCase: FetchCleaningReminderUseCase(
+                notificationSettingRepository: settings,
+                cleaningReminderScheduler: container.cleaningReminderScheduler
+            ),
+            updateCleaningReminderUseCase: UpdateCleaningReminderUseCase(
+                notificationSettingRepository: settings,
+                cleaningReminderScheduler: container.cleaningReminderScheduler
+            ),
+            state: state,
             onLoggedOut: onLoggedOut
         )
     }
@@ -629,12 +791,98 @@ enum ScreenGalleryCatalog {
             areaItem("area.unassigned", "구역 · 미배정", scenario: .unassigned),
             areaItem("area.failure", "구역 · 조회 실패", scenario: .failure),
             areaItem("area.loading", "구역 · 불러오는 중", scenario: .assigned, delay: loadingDelay),
+            areaStateItem("area.longText", "구역 · 긴 구역명·구성원 많음", area: longTextArea),
+            areaStateItem("area.unknownZone", "구역 · 도면에 없는 구역", area: unknownZoneArea),
             recordsItem("records.current", "기록 · 이번 달", scenario: .records),
             recordsItem("records.pastMonth", "기록 · 지난 달", scenario: .records, month: previousMonth),
             recordsItem("records.empty", "기록 · 빈 상태", scenario: .empty),
             recordsItem("records.failure", "기록 · 조회 실패", scenario: .failure),
-            recordsItem("records.loading", "기록 · 불러오는 중", scenario: .records, delay: loadingDelay)
+            recordsItem("records.loading", "기록 · 불러오는 중", scenario: .records, delay: loadingDelay),
+            item("records.holiday", "기록 · 휴일 있는 달(2026년 9월)") { close in
+                // Figma `07 활동 기록` 값 그대로(오늘 9월 29일, 24–25일 휴일). `MockStore` 기록에는 휴일이 없다.
+                let today = MockActivityRepository.Fixture.today
+                ActivityRecordsView(
+                    viewModel: container().makeActivityRecordsViewModel(
+                        repository: MockActivityRepository(scenario: .records, delay: mockDelay, now: { today }),
+                        now: { today }
+                    ),
+                    actions: ActivityRecordsView.Actions(verify: close)
+                )
+            },
+            item("records.longArea", "기록 · 긴 구역명·구역 모름") { close in
+                ActivityRecordsView(viewModel: longAreaRecordsViewModel, actions: ActivityRecordsView.Actions(verify: close))
+            }
         ])
+    }
+
+    /// 넘침 확인용 긴 구역 이름.
+    private static let longAreaName = "본관-금봉관 연결통로 2층 계단 옆 화장실 앞부터 중앙 현관 신발장까지"
+    /// 넘침 확인용 긴 이름.
+    private static let longPersonName = "남궁가나다라마바사아자차카타"
+
+    /// 배정 구역(기본 Mock)의 도면에 `area`를 얹은 화면으로 시작한다.
+    private static func areaStateItem(_ id: String, _ title: String, area: MyCleaningArea) -> ScreenGalleryItem {
+        item(id, title) { _ in
+            CleaningAreaView(viewModel: CleaningAreaViewModel(
+                fetchCleaningAreaUseCase: FetchCleaningAreaUseCase(cleaningAreaRepository: MockCleaningAreaRepository(delay: mockDelay)),
+                state: .loaded(assignedArea(area))
+            ))
+        }
+    }
+
+    private static func assignedArea(_ area: MyCleaningArea) -> CleaningAreaSummary {
+        guard case .assigned(let floors, let myFloorID, _) = MockCleaningAreaRepository.Fixture.assigned else { return .unassigned }
+        return .assigned(floors: floors, myFloorID: myFloorID, area: area)
+    }
+
+    private static var longTextArea: MyCleaningArea {
+        let area = MockCleaningAreaRepository.Fixture.area
+        return MyCleaningArea(
+            zoneCode: area.zoneCode,
+            range: longAreaName,
+            description: "바닥을 쓸고 물걸레질한 뒤 창틀 먼지를 닦고, 신발장 위와 소화기 주변까지 정리해요",
+            startMinute: area.startMinute,
+            endMinute: area.endMinute,
+            memberNames: ["김서연", "이도윤", longPersonName, "박지호", "정하은", "최민준", "윤서준", "한지민"],
+            myName: "최민준"
+        )
+    }
+
+    /// 서버가 구역 코드·내 이름을 주지 않아 도면에서 내 구역을 찾지 못한다.
+    private static var unknownZoneArea: MyCleaningArea {
+        let area = MockCleaningAreaRepository.Fixture.area
+        return MyCleaningArea(
+            zoneCode: nil,
+            range: area.range,
+            description: area.description,
+            startMinute: area.startMinute,
+            endMinute: area.endMinute,
+            memberNames: area.memberNames,
+            myName: nil
+        )
+    }
+
+    /// 이번 달 기록의 구역 이름을 길게 바꾸고, 앞의 두 건은 구역을 모르는(nil) 기록으로 둔다.
+    private static var longAreaRecordsViewModel: ActivityRecordsViewModel {
+        let now = Date.now
+        let current = MockStore().currentMonth
+        let records = MockActivityRepository.Fixture.generatedRecords(in: current, now: now).enumerated().map { index, record in
+            ActivityRecord(
+                id: record.id,
+                date: record.date,
+                area: index < 2 ? nil : longAreaName,
+                result: record.result,
+                submittedAt: record.submittedAt,
+                verificationID: record.verificationID,
+                earnedMinutes: record.earnedMinutes,
+                isAppealApproved: record.isAppealApproved
+            )
+        }
+        return ActivityRecordsViewModel(
+            fetchActivityMonthUseCase: FetchActivityMonthUseCase(activityRepository: MockActivityRepository(scenario: .records, delay: mockDelay)),
+            earliestMonth: DIContainer.activityRecordsEarliestMonth,
+            state: .loaded(ActivityMonth(month: current, records: records, holidays: []))
+        )
     }
 
     private static func areaItem(
@@ -746,15 +994,18 @@ enum ScreenGalleryCatalog {
         homeDelay: Duration = mockDelay,
         recruitment: MockRecruitmentRepository.Scenario = .open,
         applyOutcomes: [MockRecruitmentRepository.ApplyOutcome] = [.approved],
-        recruitmentDelay: Duration = mockDelay
+        recruitmentDelay: Duration = mockDelay,
+        homeRepository: HomeRepository? = nil,
+        cleaningReminderScheduler: CleaningReminderScheduler = MockCleaningReminderScheduler()
     ) -> DIContainer {
         let store = MockStore(homeScenario: home, recruitmentScenario: recruitment)
         return DIContainer(
             authRepository: MockAuthRepository(outcome: authOutcome, delay: authDelay),
-            homeRepository: MockHomeRepository(store: store, delay: homeDelay),
+            homeRepository: homeRepository ?? MockHomeRepository(store: store, delay: homeDelay),
             recruitmentRepository: MockRecruitmentRepository(scenario: recruitment, applyOutcomes: applyOutcomes, delay: recruitmentDelay, store: store),
             webAdminURL: nil,
-            mockStore: store
+            mockStore: store,
+            cleaningReminderScheduler: cleaningReminderScheduler
         )
     }
 }

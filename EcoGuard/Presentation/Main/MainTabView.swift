@@ -408,6 +408,18 @@ struct MainTabView: View {
     }
 }
 
+#if DEBUG
+extension MainTabView {
+    /// 화면 모음(#78) 전용. 셸 이동 상태(고른 탭, 토스트)를 넣은 `MainTabViewModel`로 시작한다.
+    init(container: DIContainer, homeViewModel: HomeViewModel, viewModel: MainTabViewModel, onLoggedOut: @escaping () -> Void) {
+        self.container = container
+        self.homeViewModel = homeViewModel
+        self.onLoggedOut = onLoggedOut
+        _viewModel = State(initialValue: viewModel)
+    }
+}
+#endif
+
 /// 셸 위쪽 토스트. Figma 정의가 없어 다른 실패 토스트와 같은 모양으로 띄운다.
 private enum ShellToast {
     /// 오늘 제출한 인증을 찾지 못했다.
