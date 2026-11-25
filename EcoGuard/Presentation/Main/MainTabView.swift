@@ -18,6 +18,7 @@ struct MainTabView: View {
     @State private var openedTabs: Set<MainTab> = [.home]
     /// 홈 탭에서 push한 공지 화면의 ViewModel. 경로에서 빠지면 놓는다.
     @State private var homeNoticeViewModel: NoticeViewModel?
+    @State private var showsNotificationInbox = false
     /// 전체 탭에서 push한 화면의 ViewModel. 경로에서 빠지면 놓는다.
     @State private var noticeViewModel: NoticeViewModel?
     @State private var appealHistoryViewModel: AppealHistoryViewModel?
@@ -161,6 +162,7 @@ struct MainTabView: View {
                 actions: HomeView.Actions(
                     verify: openCamera,
                     openNotices: { openHomeNotices(focusing: nil) },
+                    openNotifications: { showsNotificationInbox = true },
                     openNotice: { notice in openHomeNotices(focusing: notice) },
                     openRecords: { viewModel.select(.records) },
                     openSubmittedPhoto: {
@@ -175,6 +177,9 @@ struct MainTabView: View {
                     openApplicationResult: openApplicationResult
                 )
             )
+            .sheet(isPresented: $showsNotificationInbox) {
+                NotificationInboxView(repository: container.makeNotificationInboxRepository())
+            }
         } destination: { route in
             switch route {
             case .notices(let focusedNoticeID):
