@@ -36,4 +36,4 @@ jobs:
           ')"
           xcodebuild test -project EcoGuard.xcodeproj -scheme EcoGuard \
             -destination "platform=iOS Simulator,id=$simulator_id" \
-            -only-testing:EcoGuardTests -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO
+            -only-testing:EcoGuardTests -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-
