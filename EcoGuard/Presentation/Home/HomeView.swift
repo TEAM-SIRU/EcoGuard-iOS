@@ -7,6 +7,7 @@ struct HomeView: View {
     struct Actions {
         var verify: () -> Void = {}
         var openNotices: () -> Void = {}
+        var openNotifications: () -> Void = {}
         var openNotice: (Notice) -> Void = { _ in }
         var openRecords: () -> Void = {}
         var openSubmittedPhoto: () -> Void = {}
@@ -139,7 +140,14 @@ struct HomeView: View {
                 .foregroundStyle(Color.ecoTextPrimary)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
-            EcoIconButton(icon: .iconBell, color: .ecoTextPrimary, accessibilityLabel: "공지", action: actions.openNotices)
+            Button(action: actions.openNotices) {
+                Image(systemName: "megaphone")
+                    .foregroundStyle(Color.ecoTextPrimary)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("공지")
+            EcoIconButton(icon: .iconBell, color: .ecoTextPrimary, accessibilityLabel: "알림함", action: actions.openNotifications)
         }
         .padding(.horizontal, Spacing.screenHorizontal)
         .padding(.vertical, Spacing.sm)
